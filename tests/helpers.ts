@@ -5,3 +5,13 @@ const dir = join(import.meta.dirname, "..", "fixtures");
 
 export const fx = (name: string): Uint8Array => new Uint8Array(readFileSync(join(dir, name)));
 export const readFixtureText = (name: string): string => readFileSync(join(dir, name), "utf8");
+
+import type { KV } from "../src/files/recent";
+
+export function memKV(): KV {
+  const m = new Map<string, unknown>();
+  return {
+    get: async <T>(k: string) => m.get(k) as T | undefined,
+    set: async (k: string, v: unknown) => void m.set(k, structuredClone(v)),
+  };
+}

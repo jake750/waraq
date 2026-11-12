@@ -28,7 +28,7 @@ export async function readDocument(ref: DocRef): Promise<Uint8Array> {
     // Browser preview only (npm run dev): "dev:/fixtures/x.pdf" is fetched from the Vite server.
     if (import.meta.env.DEV && ref.kind === "path" && ref.path.startsWith("dev:")) {
       const res = await fetch(ref.path.slice(4));
-      if (!res.ok) throw new Error("file-missing");
+      if (!res.ok || res.headers.get("content-type")?.includes("text/html")) throw new Error("file-missing");
       return new Uint8Array(await res.arrayBuffer());
     }
     if (ref.kind === "path") {

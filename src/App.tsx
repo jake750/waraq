@@ -7,6 +7,9 @@ import Home from "./shell/Home";
 import ReaderScreen from "./reader/ReaderScreen";
 import { docKey, docName, pickPdf, readDocument, type DocRef } from "./files/docRef";
 import { openPdf, PdfError, type PdfErrorCode } from "./pdf/openPdf";
+import { RecentStore, type RecentItem } from "./files/recent";
+import { appKV } from "./files/kv";
+import RecentList from "./shell/RecentList";
 
 type OpenDoc = { ref: DocRef; key: string; name: string; doc: PDFDocumentProxy; initialPage: number };
 
@@ -28,6 +31,12 @@ export default function App() {
   const [open, setOpen] = useState<OpenDoc | null>(null);
   const openRef = useRef<OpenDoc | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const recentStore = useMemo(() => new RecentStore(appKV()), []);
+  const [recent, setRecent] = useState<RecentItem[]>([]);
+  const refreshRecent = useCallback(() => recentStore.list().then(setRecent).catch(() => {}), [recentStore]);
+  useEffect(() => {
+    refreshRecent();
+  }, [refreshRecent]);
   const t = dict[lang];
 
   useEffect(() => {
@@ -56,16 +65,21 @@ export default function App() {
       try {
         const bytes = await readDocument(ref);
         const doc = await openPdf(bytes, password);
+        const item = await recentStore.touch(ref, docName(ref)).catch(() => null);
+        refreshRecent();
         const prev = openRef.current;
-        openRef.current = { ref, key: docKey(ref), name: docName(ref), doc, initialPage: 1 };
+        const initialPage = Math.min(item?.lastPage ?? 1, doc.numPages);
+        openRef.current = { ref, key: docKey(ref), name: docName(ref), doc, initialPage };
         setOpen(openRef.current);
         setRoute("reader");
         prev?.doc.loadingTask.destroy().catch(() => {});
       } catch (e) {
-        setToast(errorText(t, e instanceof PdfError ? e.code : "read-failed"));
+        const code = e instanceof PdfError ? e.code : "read-failed";
+        if (code === "file-missing") await recentStore.remove(docKey(ref)).then(refreshRecent);
+        setToast(errorText(t, code));
       }
     },
-    [t],
+    [t, recentStore, refreshRecent],
   );
 
   // Browser preview: ?open=/fixtures/arabic-book.pdf
@@ -94,14 +108,21 @@ export default function App() {
     if (ref) openDocument(ref);
   };
 
-  const onPageChange = useCallback(() => {}, []);
+  const onPageChange = useCallback(
+    (page: number) => {
+      const key = openRef.current?.key;
+      if (key) recentStore.setLastPage(key, page).catch(() => {});
+    },
+    [recentStore],
+  );
   const onClose = useCallback(() => {
     const prev = openRef.current;
     openRef.current = null;
     setOpen(null);
     setRoute("home");
     prev?.doc.loadingTask.destroy().catch(() => {});
-  }, []);
+    refreshRecent();
+  }, [refreshRecent]);
 
   return (
     <LangContext.Provider value={langCtx}>
@@ -130,9 +151,11 @@ export default function App() {
             onOpen={onPick}
             dragOver={false}
             recent={
-              <ul className="recent-list">
-                <li className="recent-empty">{t.recentEmpty}</li>
-              </ul>
+              <RecentList
+                items={recent}
+                onOpen={(item) => openDocument(item.ref)}
+                onRemove={(item) => recentStore.remove(item.key).then(refreshRecent)}
+              />
             }
           />
         )}
