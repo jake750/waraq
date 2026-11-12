@@ -5,7 +5,7 @@ import { loadLang, loadTheme, resolveTheme, saveLang, saveTheme, type ThemePref 
 import Layout, { type Route } from "./shell/Layout";
 import Home from "./shell/Home";
 import ReaderScreen from "./reader/ReaderScreen";
-import { docKey, docName, pickPdf, readDocument, type DocRef } from "./files/docRef";
+import { displayName, docKey, pickPdf, readDocument, type DocRef } from "./files/docRef";
 import { openPdf, PdfError, type PdfErrorCode } from "./pdf/openPdf";
 import { RecentStore, type RecentItem } from "./files/recent";
 import { appKV } from "./files/kv";
@@ -73,11 +73,16 @@ export default function App() {
       try {
         const bytes = await readDocument(ref);
         const doc = await openPdf(bytes, password);
-        const item = await recentStore.touch(ref, docName(ref)).catch(() => null);
+        const title =
+          ref.kind === "uri"
+            ? await doc.getMetadata().then((m) => (m.info as { Title?: string } | undefined)?.Title).catch(() => undefined)
+            : undefined;
+        const name = displayName(ref, title);
+        const item = await recentStore.touch(ref, name).catch(() => null);
         refreshRecent();
         const prev = openRef.current;
         const initialPage = Math.min(item?.lastPage ?? 1, doc.numPages);
-        openRef.current = { ref, key: docKey(ref), name: docName(ref), doc, initialPage };
+        openRef.current = { ref, key: docKey(ref), name, doc, initialPage };
         setOpen(openRef.current);
         setLocked(null);
         setRoute("reader");
@@ -212,7 +217,7 @@ export default function App() {
       </Layout>
       {locked && (
         <PasswordPrompt
-          name={docName(locked.ref)}
+          name={displayName(locked.ref)}
           wrong={locked.wrong}
           onSubmit={(pw) => openDocument(locked.ref, pw)}
           onCancel={() => setLocked(null)}

@@ -24,7 +24,7 @@ export const saveLang = (l: Lang) => write("waraq.lang", l);
 
 export function loadTheme(): ThemePref {
   const v = read("waraq.theme");
-  return v === "light" || v === "dark" ? v : "system";
+  return v === "light" || v === "system" ? v : "dark";
 }
 export const saveTheme = (t: ThemePref) => write("waraq.theme", t);
 

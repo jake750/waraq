@@ -23,6 +23,16 @@ export function docName(ref: DocRef): string {
   }
 }
 
+/**
+ * The name shown to the user. Some Android providers hand out opaque URIs
+ * ("document:1000000070"); then the PDF's own title is the best name we have.
+ */
+export function displayName(ref: DocRef, title?: string): string {
+  const name = docName(ref);
+  if (ref.kind === "path" || /\.pdf$/i.test(name)) return name;
+  return title?.trim() || "Document.pdf";
+}
+
 export async function readDocument(ref: DocRef): Promise<Uint8Array> {
   try {
     // Browser preview only (npm run dev): "dev:/fixtures/x.pdf" is fetched from the Vite server.

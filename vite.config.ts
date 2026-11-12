@@ -6,6 +6,8 @@ const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig(() => ({
   plugins: [react()],
+  // Legacy build carries polyfills (e.g. Promise.try) that older Android WebViews lack.
+  resolve: { alias: [{ find: /^pdfjs-dist$/, replacement: "pdfjs-dist/legacy/build/pdf.mjs" }] },
   clearScreen: false,
   server: {
     port: 1420,
