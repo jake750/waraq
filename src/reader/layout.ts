@@ -48,3 +48,28 @@ export function fitScale(mode: "width" | "page", page: { w: number; h: number },
   const sw = box.w / page.w;
   return mode === "width" ? sw : Math.min(sw, box.h / page.h);
 }
+
+/**
+ * Canvas bitmap size for a page shown at `cssW`×`cssH`: the device ratio, lowered when the
+ * bitmap would exceed `maxPixels` (big zoom on a phone otherwise blanks the page or crashes).
+ */
+export function canvasPixels(cssW: number, cssH: number, ratio: number, maxPixels: number) {
+  const fit = Math.sqrt(maxPixels / (cssW * cssH));
+  const r = Math.min(ratio, fit);
+  return { w: Math.floor(cssW * r), h: Math.floor(cssH * r), ratio: r };
+}
+
+/** Sizes with page `index` corrected; the same array when nothing changed. */
+export function withPageSize<S extends { w: number; h: number }>(sizes: S[], index: number, size: S): S[] {
+  const old = sizes[index];
+  if (!old || (Math.abs(old.w - size.w) < 0.5 && Math.abs(old.h - size.h) < 0.5)) return sizes;
+  const next = sizes.slice();
+  next[index] = size;
+  return next;
+}
+
+/** A typed page number; accepts Arabic-Indic (٠-٩) and Persian (۰-۹) digits. NaN when empty. */
+export function parsePageNumber(s: string): number {
+  const ascii = s.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0));
+  return parseInt(ascii, 10);
+}

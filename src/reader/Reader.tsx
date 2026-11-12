@@ -16,7 +16,7 @@ import {
 import { useT } from "../i18n";
 import { detectRtl } from "../text/arabic";
 import { pageText, type Match } from "../text/search";
-import { fitScale, pageOffsets, spreadGroups, visiblePages } from "./layout";
+import { fitScale, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber } from "./layout";
 import PageView, { readingOrderSelection, type HighlightRect } from "./PageView";
 import "./reader.css";
 
@@ -74,7 +74,7 @@ export default function Reader(p: Props) {
       if (!alive) return;
       const v = pg.getViewport({ scale: 1 });
       setSizes(Array.from({ length: n }, () => ({ w: v.width, h: v.height })));
-    });
+    }).catch(() => {});
     // Reading direction from the first pages' text.
     (async () => {
       let sample = "";
@@ -92,6 +92,11 @@ export default function Reader(p: Props) {
     ro.observe(el);
     setBox({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
+  }, []);
+
+  // Pages report their real size once loaded (a landscape table inside a portrait book).
+  const onPageSize = useCallback((pg: number, w: number, h: number) => {
+    setSizes((s) => (s ? withPageSize(s, pg - 1, { w, h }) : s));
   }, []);
 
   const rows = useMemo(() => {
@@ -169,6 +174,10 @@ export default function Reader(p: Props) {
     const id = setTimeout(() => onPageChange(current), 500);
     return () => clearTimeout(id);
   }, [current, onPageChange]);
+  // Leaving the reader inside the debounce window still saves the page.
+  const latest = useRef({ current, onPageChange });
+  latest.current = { current, onPageChange };
+  useEffect(() => () => latest.current.onPageChange(latest.current.current), []);
 
   const zoomBy = useCallback(
     (f: number) => {
@@ -275,7 +284,7 @@ export default function Reader(p: Props) {
         : [];
 
   const submitPage = () => {
-    const v = parseInt(pageInput, 10);
+    const v = parsePageNumber(pageInput);
     if (Number.isFinite(v)) goTo(v);
     else setPageInput(String(current));
   };
@@ -313,7 +322,7 @@ export default function Reader(p: Props) {
             value={pageInput}
             inputMode="numeric"
             aria-label={t.goToPage}
-            onChange={(e) => setPageInput(e.target.value.replace(/[^\d٠-٩]/g, ""))}
+            onChange={(e) => setPageInput(e.target.value.replace(/[^\d٠-٩۰-۹]/g, ""))}
             onFocus={(e) => e.target.select()}
             onKeyDown={(e) => e.key === "Enter" && submitPage()}
             onBlur={submitPage}
@@ -428,6 +437,7 @@ export default function Reader(p: Props) {
                         width={sizes[pg - 1].w * scale}
                         height={sizes[pg - 1].h * scale}
                         highlights={p.highlights?.get(pg) ?? NO_HIGHLIGHTS}
+                        onSize={onPageSize}
                       />
                     ))}
                   </div>

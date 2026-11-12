@@ -17,10 +17,27 @@ function toPdfError(e: unknown): PdfError {
   return new PdfError("not-a-pdf");
 }
 
+// Where pdf.js finds its decoders (JPEG 2000 / JBIG2 / CCITT wasm), CMaps and standard fonts.
+// Without these, most scanned books render as blank pages. Must end with "/".
+let assetBase: string | undefined;
+export function setPdfAssetBase(base: string): void {
+  assetBase = base;
+}
+
 /** Opens a PDF. Page 1 is loaded eagerly so a broken file fails here, not later in the viewer. */
 export async function openPdf(bytes: Uint8Array, password?: string): Promise<PDFDocumentProxy> {
   // pdf.js takes ownership of the buffer; copy so the caller can retry (e.g. with a password).
-  const task = getDocument({ data: bytes.slice(), password, verbosity: 0 });
+  const task = getDocument({
+    data: bytes.slice(),
+    password,
+    verbosity: 0,
+    ...(assetBase && {
+      wasmUrl: `${assetBase}wasm/`,
+      cMapUrl: `${assetBase}cmaps/`,
+      cMapPacked: true,
+      standardFontDataUrl: `${assetBase}standard_fonts/`,
+    }),
+  });
   let doc: PDFDocumentProxy;
   try {
     doc = await task.promise;

@@ -1,3 +1,4 @@
+import { leasePage, type PageLease } from "./pageLease";
 import { memo, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 
@@ -50,11 +51,13 @@ const Thumb = memo(function Thumb({
     if (!near) return;
     let cancelled = false;
     let task: RenderTask | undefined;
+    let lease: PageLease | undefined;
     const canvas = document.createElement("canvas");
     host.current!.replaceChildren(canvas);
     (async () => {
-      const pg = await doc.getPage(page);
-      if (cancelled) return;
+      lease = await leasePage(doc, page);
+      if (cancelled) return lease.release();
+      const pg = lease.page;
       const base = pg.getViewport({ scale: 1 });
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       const viewport = pg.getViewport({ scale: (THUMB_W / base.width) * ratio });
@@ -66,6 +69,7 @@ const Thumb = memo(function Thumb({
     return () => {
       cancelled = true;
       task?.cancel();
+      lease?.release();
       canvas.width = canvas.height = 0;
       canvas.remove();
     };

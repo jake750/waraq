@@ -226,7 +226,9 @@ export function buildPageText(items: GlyphItem[]): string {
 }
 
 export async function pageLayout(doc: PDFDocumentProxy, pageIndex: number): Promise<PageLayout> {
-  const tc = await (await doc.getPage(pageIndex + 1)).getTextContent();
+  const page = await doc.getPage(pageIndex + 1);
+  const tc = await page.getTextContent();
+  page.cleanup(); // the search scan visits every page; don't keep them all alive
   return buildPageLayout(tc.items.filter((it) => "str" in it) as unknown as GlyphItem[]);
 }
 

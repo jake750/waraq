@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useT } from "../i18n";
-import { hasText } from "../pdf/openPdf";
 import { findMatches, pageLayout, type PageLayout } from "../text/search";
 import { matchRects } from "./highlight";
 import OutlinePanel from "./OutlinePanel";
@@ -43,10 +42,13 @@ export default function ReaderScreen(p: Props) {
   });
 
   useEffect(() => {
-    doc.getPage(1).then((pg) => {
-      const v = pg.getViewport({ scale: 1 });
-      setRatio(v.height / v.width);
-    });
+    doc
+      .getPage(1)
+      .then((pg) => {
+        const v = pg.getViewport({ scale: 1 });
+        setRatio(v.height / v.width);
+      })
+      .catch(() => {});
   }, [doc]);
 
   // Run the search over every page, reusing extracted text; newer queries cancel older ones.
@@ -59,10 +61,8 @@ export default function ReaderScreen(p: Props) {
       return;
     }
     const timer = setTimeout(async () => {
-      if (!(await hasText(doc).catch(() => false))) {
-        if (!cancelled) setSearch((s) => ({ ...s, results: [], scanning: null, noText: true }));
-        return;
-      }
+      // "No searchable text" only when every page is empty (a cover/title page may be an image).
+      let anyText = false;
       const opts = { loose: !exact, caseSensitive: matchCase };
       const found: typeof search.results = [];
       for (let i = 0; i < doc.numPages; i++) {
@@ -72,6 +72,7 @@ export default function ReaderScreen(p: Props) {
           layout = await pageLayout(doc, i).catch(() => ({ text: "", boxes: [] }));
           layouts.current.set(i, layout);
         }
+        if (layout.text.trim()) anyText = true;
         for (const m of findMatches([layout.text], q, opts)) found.push({ ...m, page: i });
         if (i % 10 === 9 || i === doc.numPages - 1) {
           const done = i + 1;
@@ -80,7 +81,7 @@ export default function ReaderScreen(p: Props) {
             setSearch((s) => ({
               ...s,
               results: snapshot,
-              noText: false,
+              noText: done === doc.numPages && !anyText,
               scanning: done < doc.numPages ? { done, total: doc.numPages } : null,
               current: Math.min(s.current, Math.max(0, snapshot.length - 1)),
             }));

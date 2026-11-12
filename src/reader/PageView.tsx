@@ -1,7 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TextLayer, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import { buildPageText, type GlyphItem } from "../text/search";
 import { detectRtl } from "../text/arabic";
+import { leasePage, type PageLease } from "./pageLease";
+import { canvasPixels } from "./layout";
 
 export type HighlightRect = { x: number; y: number; w: number; h: number; current: boolean };
 
@@ -14,37 +16,50 @@ type Props = {
   highlights: HighlightRect[];
   width: number;
   height: number;
+  /** Reports the page's real size at scale 1 (pages can differ from page 1). */
+  onSize?(pageNumber: number, w: number, h: number): void;
 };
+
+type Viewport = { width: number; height: number; convertToViewportPoint(x: number, y: number): number[] };
 
 // Canvas pixels per CSS pixel. Capped so a weak laptop/phone isn't asked to paint 3× bitmaps.
 const pixelRatio = () => Math.min(window.devicePixelRatio || 1, 2);
+// Largest canvas bitmap per page: phones get less (WebView canvas limits, memory).
+const MAX_PIXELS = window.matchMedia?.("(pointer: coarse)").matches ? 6e6 : 16e6;
 
 /**
  * One page: canvas + selectable text layer + search highlights.
  * Cancels its render and frees the bitmap on unmount, so only mounted pages cost memory.
  */
-export default function PageView({ doc, pageNumber, scale, night, highlights, width, height }: Props) {
+export default function PageView({ doc, pageNumber, scale, night, highlights, width, height, onSize }: Props) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const hlRef = useRef<HTMLDivElement>(null);
-  const viewportRef = useRef<{ convertToViewportPoint(x: number, y: number): number[] } | null>(null);
+  const [vp, setVp] = useState<Viewport | null>(null);
+  const sizeCb = useRef(onSize);
+  sizeCb.current = onSize;
 
   useEffect(() => {
     let cancelled = false;
     let task: RenderTask | undefined;
     let layer: TextLayer | undefined;
+    let lease: PageLease | undefined;
     // A fresh canvas per render: pdf.js refuses a canvas whose previous render is still cancelling.
     const canvas = document.createElement("canvas");
     canvasHost.current!.replaceChildren(canvas);
     const textDiv = textRef.current!;
     (async () => {
-      const page = await doc.getPage(pageNumber);
-      if (cancelled) return;
+      lease = await leasePage(doc, pageNumber);
+      if (cancelled) return lease.release();
+      const page = lease.page;
+      const unit = page.getViewport({ scale: 1 });
+      sizeCb.current?.(pageNumber, unit.width, unit.height);
       const viewport = page.getViewport({ scale });
-      viewportRef.current = viewport;
-      const ratio = pixelRatio();
-      canvas.width = Math.floor(viewport.width * ratio);
-      canvas.height = Math.floor(viewport.height * ratio);
+      setVp(viewport);
+      const px = canvasPixels(viewport.width, viewport.height, pixelRatio(), MAX_PIXELS);
+      const ratio = px.ratio;
+      canvas.width = px.w;
+      canvas.height = px.h;
       task = page.render({
         canvas,
         viewport,
@@ -78,6 +93,7 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
       cancelled = true;
       task?.cancel();
       layer?.cancel();
+      lease?.release();
       canvas.width = canvas.height = 0;
       canvas.remove();
       textDiv.replaceChildren();
@@ -87,7 +103,6 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
   // Search highlights as positioned boxes over the page.
   useEffect(() => {
     const host = hlRef.current;
-    const vp = viewportRef.current;
     if (!host) return;
     host.replaceChildren();
     if (!vp) return;
@@ -103,7 +118,7 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
       host.appendChild(el);
     }
     host.querySelector(".hl.current")?.scrollIntoView({ block: "center", inline: "nearest" });
-  }, [highlights, scale, width]);
+  }, [highlights, vp]);
 
   return (
     <div className="page" style={{ width, height }} data-page={pageNumber}>

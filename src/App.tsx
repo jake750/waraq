@@ -17,7 +17,8 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 const inTauri = () => "__TAURI_INTERNALS__" in window;
 
-type OpenDoc = { ref: DocRef; key: string; name: string; doc: PDFDocumentProxy; initialPage: number };
+// id: one per open, so reopening the same file gets a fresh reader (no stale search text).
+type OpenDoc = { id: number; ref: DocRef; key: string; name: string; doc: PDFDocumentProxy; initialPage: number };
 
 export function errorText(t: Strings, code: PdfErrorCode): string {
   const map: Record<PdfErrorCode, keyof Strings["errors"]> = {
@@ -36,6 +37,7 @@ export default function App() {
   const [route, setRoute] = useState<Route>("home");
   const [open, setOpen] = useState<OpenDoc | null>(null);
   const openRef = useRef<OpenDoc | null>(null);
+  const openSeq = useRef(0);
   const [toast, setToast] = useState<string | null>(null);
   const [locked, setLocked] = useState<{ ref: DocRef; wrong: boolean } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -70,9 +72,16 @@ export default function App() {
 
   const openDocument = useCallback(
     async (ref: DocRef, password?: string) => {
+      // Only the latest open wins: a slow file opened earlier must not replace a newer one.
+      const seq = ++openSeq.current;
+      const stale = () => seq !== openSeq.current;
       try {
         const bytes = await readDocument(ref);
         const doc = await openPdf(bytes, password);
+        if (stale()) {
+          doc.loadingTask.destroy().catch(() => {});
+          return;
+        }
         const title =
           ref.kind === "uri"
             ? await doc.getMetadata().then((m) => (m.info as { Title?: string } | undefined)?.Title).catch(() => undefined)
@@ -82,18 +91,23 @@ export default function App() {
         refreshRecent();
         const prev = openRef.current;
         const initialPage = Math.min(item?.lastPage ?? 1, doc.numPages);
-        openRef.current = { ref, key: docKey(ref), name, doc, initialPage };
+        if (stale()) {
+          doc.loadingTask.destroy().catch(() => {});
+          return;
+        }
+        openRef.current = { id: seq, ref, key: docKey(ref), name, doc, initialPage };
         setOpen(openRef.current);
         setLocked(null);
         setRoute("reader");
         prev?.doc.loadingTask.destroy().catch(() => {});
       } catch (e) {
+        if (stale()) return;
         const code = e instanceof PdfError ? e.code : "read-failed";
         if (code === "password-required" || code === "wrong-password") {
           setLocked({ ref, wrong: code === "wrong-password" });
           return;
         }
-        if (code === "file-missing") await recentStore.remove(docKey(ref)).then(refreshRecent);
+        if (code === "file-missing") await recentStore.remove(docKey(ref)).then(refreshRecent, () => {});
         setToast(errorText(t, code));
       }
     },
@@ -165,7 +179,9 @@ export default function App() {
 
   const onPageChange = useCallback(
     (page: number) => {
-      const key = openRef.current?.key;
+      const cur = openRef.current;
+      if (cur) cur.initialPage = page; // coming back to the reader resumes here
+      const key = cur?.key;
       if (key) recentStore.setLastPage(key, page).catch(() => {});
     },
     [recentStore],
@@ -193,7 +209,7 @@ export default function App() {
       >
         {route === "reader" && open ? (
           <ReaderScreen
-            key={open.key}
+            key={open.id}
             doc={open.doc}
             docKey={open.key}
             name={open.name}

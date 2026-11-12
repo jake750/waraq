@@ -23,8 +23,11 @@ class MainActivity : TauriActivity() {
     content.setBackgroundColor(Color.parseColor("#0f1320"))
     ViewCompat.setOnApplyWindowInsetsListener(content) { v, insets ->
       val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-      v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-      insets
+      // The keyboard too: edge-to-edge windows no longer resize for it, so the search box would hide behind it.
+      val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+      v.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime.bottom))
+      // Consumed: a newer WebView must not add env(safe-area-inset-*) padding on top of this.
+      WindowInsetsCompat.CONSUMED
     }
   }
 }
