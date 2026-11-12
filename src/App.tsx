@@ -10,6 +10,12 @@ import { openPdf, PdfError, type PdfErrorCode } from "./pdf/openPdf";
 import { RecentStore, type RecentItem } from "./files/recent";
 import { appKV } from "./files/kv";
 import RecentList from "./shell/RecentList";
+import PasswordPrompt from "./reader/PasswordPrompt";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+
+const inTauri = () => "__TAURI_INTERNALS__" in window;
 
 type OpenDoc = { ref: DocRef; key: string; name: string; doc: PDFDocumentProxy; initialPage: number };
 
@@ -31,6 +37,8 @@ export default function App() {
   const [open, setOpen] = useState<OpenDoc | null>(null);
   const openRef = useRef<OpenDoc | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [locked, setLocked] = useState<{ ref: DocRef; wrong: boolean } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const recentStore = useMemo(() => new RecentStore(appKV()), []);
   const [recent, setRecent] = useState<RecentItem[]>([]);
   const refreshRecent = useCallback(() => recentStore.list().then(setRecent).catch(() => {}), [recentStore]);
@@ -71,10 +79,15 @@ export default function App() {
         const initialPage = Math.min(item?.lastPage ?? 1, doc.numPages);
         openRef.current = { ref, key: docKey(ref), name: docName(ref), doc, initialPage };
         setOpen(openRef.current);
+        setLocked(null);
         setRoute("reader");
         prev?.doc.loadingTask.destroy().catch(() => {});
       } catch (e) {
         const code = e instanceof PdfError ? e.code : "read-failed";
+        if (code === "password-required" || code === "wrong-password") {
+          setLocked({ ref, wrong: code === "wrong-password" });
+          return;
+        }
         if (code === "file-missing") await recentStore.remove(docKey(ref)).then(refreshRecent);
         setToast(errorText(t, code));
       }
@@ -90,6 +103,43 @@ export default function App() {
     const q = new URLSearchParams(location.search).get("open");
     if (q) openDocument({ kind: "path", path: `dev:${q}` });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Desktop: the PDF Windows launched us with, files from a second launch, and drag-and-drop.
+  // Registered once; the latest openDocument/strings are read through a ref.
+  const latest = useRef({ openDocument, t });
+  latest.current = { openDocument, t };
+  useEffect(() => {
+    if (!inTauri()) return;
+    const openDocument = (ref: DocRef) => latest.current.openDocument(ref);
+    let alive = true;
+    const offs: (() => void)[] = [];
+    invoke<string | null>("startup_file")
+      .then((path) => {
+        if (alive && path) openDocument({ kind: "path", path });
+      })
+      .catch(() => {});
+    listen<string>("open-file", (e) => openDocument({ kind: "path", path: e.payload })).then((off) =>
+      alive ? offs.push(off) : off(),
+    );
+    getCurrentWebview()
+      .onDragDropEvent((e) => {
+        const p = e.payload;
+        if (p.type === "enter" || p.type === "over") setDragOver(true);
+        else if (p.type === "leave") setDragOver(false);
+        else if (p.type === "drop") {
+          setDragOver(false);
+          const pdf = p.paths.find((x) => x.toLowerCase().endsWith(".pdf"));
+          if (pdf) openDocument({ kind: "path", path: pdf });
+          else if (p.paths.length) setToast(latest.current.t.onlyPdf);
+        }
+      })
+      .then((off) => (alive ? offs.push(off) : off()))
+      .catch(() => {});
+    return () => {
+      alive = false;
+      offs.forEach((off) => off());
+    };
   }, []);
 
   const langCtx = useMemo(
@@ -149,7 +199,7 @@ export default function App() {
         ) : (
           <Home
             onOpen={onPick}
-            dragOver={false}
+            dragOver={dragOver}
             recent={
               <RecentList
                 items={recent}
@@ -160,6 +210,14 @@ export default function App() {
           />
         )}
       </Layout>
+      {locked && (
+        <PasswordPrompt
+          name={docName(locked.ref)}
+          wrong={locked.wrong}
+          onSubmit={(pw) => openDocument(locked.ref, pw)}
+          onCancel={() => setLocked(null)}
+        />
+      )}
       {toast && (
         <div className="toast" role="status">
           {toast}
