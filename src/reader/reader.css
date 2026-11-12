@@ -253,3 +253,248 @@
     gap: 8px;
   }
 }
+
+/* ---------- Side panel ---------- */
+
+.phone-only {
+  display: none;
+}
+
+.panel-tabs {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  padding: 8px;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.panel-tabs button {
+  flex: 1;
+  min-height: 34px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.panel-tabs button[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.panel-note {
+  margin: 0;
+  padding: 24px 16px;
+  color: var(--text-3);
+  text-align: center;
+  font-size: 14px;
+}
+
+.thumbs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0 24px;
+}
+
+.thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.thumb-canvas {
+  background: #fff;
+  box-shadow: var(--page-shadow);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  border-radius: 2px;
+  transition: outline-color var(--t-fast) var(--ease-out);
+}
+
+.thumb-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.thumb:hover .thumb-canvas {
+  outline-color: var(--stroke-strong);
+}
+
+.thumb[aria-current="page"] .thumb-canvas {
+  outline-color: var(--accent);
+}
+
+.thumb[aria-current="page"] {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.outline {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+}
+
+.outline button {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 40px;
+  padding-block: 8px;
+  padding-inline-end: 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  text-align: start;
+  color: var(--text);
+}
+
+.outline button:hover {
+  background: var(--surface-2);
+}
+
+.outline button[aria-current="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.outline-title {
+  flex: 1;
+}
+
+.outline-page {
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.search-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  min-height: 40px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+
+.search-box:focus-within {
+  border-color: var(--accent);
+}
+
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  height: 38px;
+  color: var(--text);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.search-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.search-nav {
+  display: flex;
+}
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.result-page {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  padding: 10px 8px 4px;
+}
+
+.search-results button {
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  text-align: start;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.search-results button:hover {
+  background: var(--surface-2);
+}
+
+.search-results button[aria-current="true"] {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.search-results mark {
+  background: var(--highlight);
+  color: inherit;
+  border-radius: 2px;
+}
+
+@media (max-width: 719px) {
+  .phone-only {
+    display: block;
+  }
+  .reader-panel .sheet-handle {
+    margin: 10px auto 0;
+  }
+}

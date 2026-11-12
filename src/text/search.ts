@@ -21,7 +21,7 @@ export type GlyphItem = {
 };
 
 type Kind = "L" | "R" | "N";
-type Cluster = { text: string; x: number; w: number; kind: Kind; space: boolean };
+type Cluster = { text: string; x: number; w: number; y: number; size: number; kind: Kind; space: boolean };
 /** `ch` is a letter with any marks that arrived in the same item, or a lone mark run. */
 type Glyph = { ch: string; x: number; w: number; y: number; size: number };
 
@@ -103,7 +103,7 @@ function clustersOf(line: Glyph[]): Cluster[] {
   const clusters: Cluster[] = bases.map((g) => {
     // A glyph with no Unicode value (\u0000) still occupies its place, so it must not open a gap.
     const text = g.ch.replace(/\u0000/g, "");
-    return { text, x: g.x, w: g.w, kind: kindOf(text), space: text.trim() === "" };
+    return { text, x: g.x, w: g.w, y: g.y, size: g.size, kind: kindOf(text), space: text !== "" && text.trim() === "" };
   });
   // Writers place a mark at (or a hair before) the leading edge of its letter's box, so the
   // owner is the letter whose half-open box [x - 0.5, x + w) holds the mark; when two do, the
@@ -138,14 +138,22 @@ function clustersOf(line: Glyph[]): Cluster[] {
   clusters.forEach((cl, i) => {
     const prev = clusters[i - 1];
     if (prev && !prev.space && !cl.space && cl.x - (prev.x + prev.w) > size * 0.3)
-      withGaps.push({ text: " ", x: prev.x + prev.w, w: 0, kind: "N", space: true });
+      withGaps.push({
+        text: " ",
+        x: prev.x + prev.w,
+        w: cl.x - (prev.x + prev.w),
+        y: cl.y,
+        size: cl.size,
+        kind: "N",
+        space: true,
+      });
     withGaps.push(cl);
   });
   return withGaps;
 }
 
-/** Visual (left→right) clusters of one line → logical string. */
-function logical(clusters: Cluster[]): string {
+/** Visual (left→right) clusters of one line → clusters in reading order. */
+function logical(clusters: Cluster[]): Cluster[] {
   const rtl = detectRtl(clusters.map((c) => c.text).join(""));
   let seq = clusters;
   if (rtl) {
@@ -169,24 +177,61 @@ function logical(clusters: Cluster[]): string {
     }
     seq = out;
   }
-  return seq
-    .map((c) => c.text)
-    .join("")
-    .replace(/\s+/g, " ")
-    .trim()
-    .normalize("NFC"); // canonical order of stacked harakat (e.g. damma before shadda)
+  return seq;
+}
+
+/** Where a character sits on the page, in PDF user space (y up). */
+export type Box = { x: number; y: number; w: number; h: number };
+export type PageLayout = { text: string; boxes: Box[] };
+
+/** Page text in reading order plus one box per UTF-16 unit of that text. */
+export function buildPageLayout(items: GlyphItem[]): PageLayout {
+  let text = "";
+  const boxes: Box[] = [];
+  for (const line of groupLines(explode(items))) {
+    let lineText = "";
+    const lineBoxes: Box[] = [];
+    for (const cl of logical(clustersOf(line))) {
+      const box = { x: cl.x, y: cl.y - cl.size * 0.22, w: cl.w, h: cl.size * 1.1 };
+      if (cl.text === "") continue; // glyph without a Unicode value
+      if (cl.space) {
+        if (lineText !== "" && !lineText.endsWith(" ")) {
+          lineText += " ";
+          lineBoxes.push(box);
+        }
+        continue;
+      }
+      // NFC per letter: canonical order of stacked harakat (e.g. damma before shadda).
+      const t = cl.text.normalize("NFC");
+      lineText += t;
+      for (let i = 0; i < t.length; i++) lineBoxes.push(box);
+    }
+    if (lineText.endsWith(" ")) {
+      lineText = lineText.slice(0, -1);
+      lineBoxes.pop();
+    }
+    if (lineText === "") continue;
+    if (text !== "") {
+      text += "\n";
+      boxes.push({ ...lineBoxes[0], w: 0 });
+    }
+    text += lineText;
+    boxes.push(...lineBoxes);
+  }
+  return { text, boxes };
 }
 
 export function buildPageText(items: GlyphItem[]): string {
-  return groupLines(explode(items))
-    .map((line) => logical(clustersOf(line)))
-    .filter((l) => l !== "")
-    .join("\n");
+  return buildPageLayout(items).text;
+}
+
+export async function pageLayout(doc: PDFDocumentProxy, pageIndex: number): Promise<PageLayout> {
+  const tc = await (await doc.getPage(pageIndex + 1)).getTextContent();
+  return buildPageLayout(tc.items.filter((it) => "str" in it) as unknown as GlyphItem[]);
 }
 
 export async function pageText(doc: PDFDocumentProxy, pageIndex: number): Promise<string> {
-  const tc = await (await doc.getPage(pageIndex + 1)).getTextContent();
-  return buildPageText(tc.items.filter((it) => "str" in it) as unknown as GlyphItem[]);
+  return (await pageLayout(doc, pageIndex)).text;
 }
 
 // ---------------------------------------------------------------------------

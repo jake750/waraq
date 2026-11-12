@@ -4,7 +4,7 @@ import { dict, dirFor, LangContext, type Lang, type Strings } from "./i18n";
 import { loadLang, loadTheme, resolveTheme, saveLang, saveTheme, type ThemePref } from "./prefs";
 import Layout, { type Route } from "./shell/Layout";
 import Home from "./shell/Home";
-import Reader from "./reader/Reader";
+import ReaderScreen from "./reader/ReaderScreen";
 import { docKey, docName, pickPdf, readDocument, type DocRef } from "./files/docRef";
 import { openPdf, PdfError, type PdfErrorCode } from "./pdf/openPdf";
 
@@ -116,7 +116,7 @@ export default function App() {
         }}
       >
         {route === "reader" && open ? (
-          <Reader
+          <ReaderScreen
             key={open.key}
             doc={open.doc}
             docKey={open.key}

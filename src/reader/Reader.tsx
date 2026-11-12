@@ -190,8 +190,8 @@ export default function Reader(p: Props) {
   const { onFind, onClose } = p;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest("input, textarea, select, [contenteditable]")) return;
+      const target = e.target as Element | null;
+      if (target instanceof Element && target.closest("input, textarea, select, [contenteditable]")) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && (e.key === "+" || e.key === "=")) zoomBy(ZOOM_STEP);
       else if (mod && e.key === "-") zoomBy(1 / ZOOM_STEP);

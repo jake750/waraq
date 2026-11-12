@@ -1,5 +1,5 @@
 import { openPdf } from "../src/pdf/openPdf";
-import { buildPageText, findMatches, pageText, type GlyphItem } from "../src/text/search";
+import { buildPageLayout, buildPageText, findMatches, pageText, type GlyphItem } from "../src/text/search";
 import { fx, readFixtureText } from "./helpers";
 
 const L = { loose: true, caseSensitive: false };
@@ -74,4 +74,20 @@ test("english fixture: 3 hits on 3 pages", async () => {
   const doc = await openPdf(fx("english-two-column.pdf"));
   const pages = await Promise.all([0, 1, 2].map((i) => pageText(doc, i)));
   expect(findMatches(pages, "lighthouse", S).map((m) => m.page)).toEqual([0, 1, 2]);
+});
+
+// ---- character boxes (for search highlights) ----
+
+test("boxes follow the reading order", () => {
+  const l = buildPageLayout([item("باتك", 0, 40)]);
+  expect(l.text).toBe("كتاب");
+  expect(l.boxes.map((b) => b.x)).toEqual([30, 20, 10, 0]);
+});
+
+test("one box per character, spaces and line breaks included", () => {
+  const l = buildPageLayout([item("The", 0, 30), item(" ", 30, 5), item("sea", 35, 30), item("Up", 0, 20, 680)]);
+  expect(l.text).toBe("The sea\nUp");
+  expect(l.boxes).toHaveLength(l.text.length);
+  expect(l.boxes[4].x).toBe(35);
+  expect(l.boxes[8].y).toBeLessThan(l.boxes[0].y);
 });
