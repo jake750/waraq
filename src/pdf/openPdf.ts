@@ -20,14 +20,14 @@ function toPdfError(e: unknown): PdfError {
 /** Opens a PDF. Page 1 is loaded eagerly so a broken file fails here, not later in the viewer. */
 export async function openPdf(bytes: Uint8Array, password?: string): Promise<PDFDocumentProxy> {
   // pdf.js takes ownership of the buffer; copy so the caller can retry (e.g. with a password).
-  const task = getDocument({ data: bytes.slice(), password, isEvalSupported: false, verbosity: 0 });
-  let doc: PDFDocumentProxy | undefined;
+  const task = getDocument({ data: bytes.slice(), password, verbosity: 0 });
+  let doc: PDFDocumentProxy;
   try {
     doc = await task.promise;
     await doc.getPage(1);
     return doc;
   } catch (e) {
-    await (doc ?? task).destroy().catch(() => {});
+    await task.destroy().catch(() => {});
     throw toPdfError(e);
   }
 }
