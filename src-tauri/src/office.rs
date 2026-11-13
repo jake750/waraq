@@ -174,6 +174,9 @@ pub fn work_name(input: &Path) -> String {
 #[tauri::command]
 pub async fn office_convert(app: tauri::AppHandle, input: String, target: String, out_dir: String, out_name: String) -> Result<String, String> {
     use tauri::Manager;
+    if out_dir.trim().is_empty() {
+        return Err("write-failed".into()); // never a relative (working-directory) folder
+    }
     let soffice = locate(&app).ok_or("office-missing")?;
     let filter = filter_for(&target).ok_or("unsupported")?;
     let cache = app.path().app_cache_dir().map_err(|e| e.to_string())?;
@@ -224,22 +227,20 @@ fn run_soffice(soffice: &Path, profile: &Path, filter: &str, src: &Path, out: &P
             return if status.success() { Ok(()) } else { Err("engine-failed".into()) };
         }
         if CANCEL.load(Ordering::SeqCst) || start.elapsed() > TIMEOUT {
+            // Kill our launcher's whole process tree (it starts soffice.bin), never other LibreOffice windows.
+            kill_tree(child.id());
             let _ = child.kill();
             let _ = child.wait();
-            kill_stray_soffice(profile);
             return Err(if CANCEL.load(Ordering::SeqCst) { "cancelled".into() } else { "timeout".into() });
         }
         std::thread::sleep(Duration::from_millis(150));
     }
 }
 
-/// soffice.com starts soffice.bin; killing the launcher can leave it running. Our private profile tells them apart.
-fn kill_stray_soffice(_profile: &Path) {
+/// soffice.com starts soffice.bin; killing only the launcher would leave it running.
+fn kill_tree(pid: u32) {
     use std::os::windows::process::CommandExt;
-    let _ = Command::new("taskkill")
-        .args(["/F", "/T", "/IM", "soffice.bin", "/FI", &format!("USERNAME eq {}", std::env::var("USERNAME").unwrap_or_default())])
-        .creation_flags(NO_WINDOW)
-        .status();
+    let _ = Command::new("taskkill").args(["/F", "/T", "/PID", &pid.to_string()]).creation_flags(NO_WINDOW).status();
 }
 
 /// Cancels the running download or conversion.

@@ -42,7 +42,7 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
                 <FileText size={18} />
               </span>
               <span className="recent-text">
-                <span className="recent-name" dir="auto">
+                <span className="recent-name">
                   {item.name}
                 </span>
                 <span className="recent-meta">

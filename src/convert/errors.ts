@@ -5,7 +5,8 @@ export type ConvertErrorCode =
   | "timeout"
   | "cancelled"
   | "office-missing" // LibreOffice needed but not installed
-  | "write-failed";
+  | "write-failed"
+  | "protected"; // a password-protected PDF
 
 export class ConvertError extends Error {
   constructor(

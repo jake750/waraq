@@ -55,3 +55,22 @@ export async function pickPdf(): Promise<DocRef | null> {
   const picked = await open({ multiple: false, directory: false, filters: [{ name: "PDF", extensions: ["pdf"] }] });
   return typeof picked === "string" ? toDocRef(picked) : null;
 }
+
+/** Every extension the app can open or convert (see convert/formats.ts). */
+export const OPENABLE_EXTS = ["pdf", "docx", "doc", "odt", "rtf", "txt", "md", "markdown", "html", "htm", "epub", "png", "jpg", "jpeg", "webp"];
+
+/** Picks one or more files the app can open or convert. */
+export async function pickFiles(multiple = true): Promise<DocRef[]> {
+  const picked = await open({ multiple, directory: false, filters: [{ name: "Documents", extensions: OPENABLE_EXTS }] });
+  const list = Array.isArray(picked) ? picked : typeof picked === "string" ? [picked] : [];
+  return list.map(toDocRef);
+}
+
+/** The file's real name. Android content URIs are often opaque ("document:1000"), so ask the system. */
+export async function resolveName(ref: DocRef): Promise<string> {
+  if (ref.kind === "uri") {
+    const name = await invoke<string | null>("android_display_name", { uri: ref.uri }).catch(() => null);
+    if (name) return name;
+  }
+  return docName(ref);
+}

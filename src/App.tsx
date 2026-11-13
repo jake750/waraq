@@ -5,7 +5,12 @@ import { loadLang, loadTheme, resolveTheme, saveLang, saveTheme, type ThemePref 
 import Layout, { type Route } from "./shell/Layout";
 import Home from "./shell/Home";
 import ReaderScreen from "./reader/ReaderScreen";
-import { displayName, docKey, pickPdf, readDocument, type DocRef } from "./files/docRef";
+import { displayName, docKey, pickFiles, readDocument, resolveName, type DocRef } from "./files/docRef";
+import ConvertScreen from "./convert/ConvertScreen";
+import NotPdfPrompt from "./convert/NotPdfPrompt";
+import { useConvert } from "./convert/useConvert";
+import { openAsPdf } from "./convert/openAsPdf";
+import { asConvertError } from "./convert/errors";
 import { openPdf, PdfError, type PdfErrorCode } from "./pdf/openPdf";
 import { RecentStore, type RecentItem } from "./files/recent";
 import { appKV } from "./files/kv";
@@ -41,6 +46,8 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [locked, setLocked] = useState<{ ref: DocRef; wrong: boolean } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const conv = useConvert();
+  const [notPdf, setNotPdf] = useState<{ ref: DocRef; name: string; busy: boolean } | null>(null);
   const recentStore = useMemo(() => new RecentStore(appKV()), []);
   const [recent, setRecent] = useState<RecentItem[]>([]);
   const refreshRecent = useCallback(() => recentStore.list().then(setRecent).catch(() => {}), [recentStore]);
@@ -71,7 +78,7 @@ export default function App() {
   }, [toast]);
 
   const openDocument = useCallback(
-    async (ref: DocRef, password?: string) => {
+    async (ref: DocRef, password?: string, temp?: { name: string }) => {
       // Only the latest open wins: a slow file opened earlier must not replace a newer one.
       const seq = ++openSeq.current;
       const stale = () => seq !== openSeq.current;
@@ -86,9 +93,10 @@ export default function App() {
           ref.kind === "uri"
             ? await doc.getMetadata().then((m) => (m.info as { Title?: string } | undefined)?.Title).catch(() => undefined)
             : undefined;
-        const name = displayName(ref, title);
-        const item = await recentStore.touch(ref, name).catch(() => null);
-        refreshRecent();
+        const name = temp?.name ?? displayName(ref, title);
+        // A converted temporary PDF (opened from a non-PDF) doesn't go into Recent.
+        const item = temp ? null : await recentStore.touch(ref, name).catch(() => null);
+        if (!temp) refreshRecent();
         const prev = openRef.current;
         const initialPage = Math.min(item?.lastPage ?? 1, doc.numPages);
         if (stale()) {
@@ -126,8 +134,30 @@ export default function App() {
 
   // Desktop: the PDF Windows launched us with, files from a second launch, and drag-and-drop.
   // Registered once; the latest openDocument/strings are read through a ref.
-  const latest = useRef({ openDocument, t });
-  latest.current = { openDocument, t };
+  // Files from the picker, a drop or a launch: PDFs open; other files go to the converter.
+  const handleFiles = useCallback(
+    async (refs: DocRef[], toQueue: boolean) => {
+      if (!refs.length) return;
+      const named = await Promise.all(refs.map(async (ref) => ({ ref, name: await resolveName(ref) })));
+      if (!toQueue && named.length === 1 && /\.pdf$/i.test(named[0].name)) return openDocument(named[0].ref);
+      if (!toQueue && named.length === 1) return setNotPdf({ ...named[0], busy: false });
+      const skipped = await conv.add(refs);
+      if (skipped) setToast(t.skippedFiles(skipped));
+      setRoute("convert");
+    },
+    [openDocument, conv, t],
+  );
+
+  // Browser preview only: window.__waraqQueue(["/fixtures/office/sample.docx"]) queues dev files.
+  if (import.meta.env.DEV)
+    (window as unknown as { __waraqQueue: unknown }).__waraqQueue = (paths: string[]) =>
+      handleFiles(
+        paths.map((p) => ({ kind: "path", path: `dev:${p}` })),
+        true,
+      );
+
+  const latest = useRef({ openDocument, t, handleFiles, route });
+  latest.current = { openDocument, t, handleFiles, route };
   useEffect(() => {
     if (!inTauri()) return;
     const openDocument = (ref: DocRef) => latest.current.openDocument(ref);
@@ -148,9 +178,11 @@ export default function App() {
         else if (p.type === "leave") setDragOver(false);
         else if (p.type === "drop") {
           setDragOver(false);
-          const pdf = p.paths.find((x) => x.toLowerCase().endsWith(".pdf"));
-          if (pdf) openDocument({ kind: "path", path: pdf });
-          else if (p.paths.length) setToast(latest.current.t.onlyPdf);
+          const { handleFiles, route } = latest.current;
+          handleFiles(
+            p.paths.map((path) => ({ kind: "path", path })),
+            route === "convert",
+          );
         }
       })
       .then((off) => (alive ? offs.push(off) : off()))
@@ -172,9 +204,19 @@ export default function App() {
     [lang],
   );
 
-  const onPick = async () => {
-    const ref = await pickPdf().catch(() => null);
-    if (ref) openDocument(ref);
+  const onPick = async () => handleFiles(await pickFiles(false).catch(() => []), false);
+
+  const onOpenAsPdf = async () => {
+    if (!notPdf) return;
+    setNotPdf({ ...notPdf, busy: true });
+    try {
+      const out = await openAsPdf(notPdf.ref, notPdf.name, !!conv.office?.installed);
+      setNotPdf(null);
+      await openDocument({ kind: "path", path: out.path }, undefined, { name: out.name });
+    } catch (e) {
+      setNotPdf(null);
+      setToast(t.convertErrors[asConvertError(e).code]);
+    }
   };
 
   const onPageChange = useCallback(
@@ -207,7 +249,9 @@ export default function App() {
           setThemeState(v);
         }}
       >
-        {route === "reader" && open ? (
+        {route === "convert" ? (
+          <ConvertScreen api={conv} dragOver={dragOver} onToast={setToast} />
+        ) : route === "reader" && open ? (
           <ReaderScreen
             key={open.id}
             doc={open.doc}
@@ -237,6 +281,19 @@ export default function App() {
           wrong={locked.wrong}
           onSubmit={(pw) => openDocument(locked.ref, pw)}
           onCancel={() => setLocked(null)}
+        />
+      )}
+      {notPdf && (
+        <NotPdfPrompt
+          name={notPdf.name}
+          busy={notPdf.busy}
+          onConvert={() => {
+            const ref = notPdf.ref;
+            setNotPdf(null);
+            handleFiles([ref], true);
+          }}
+          onOpen={onOpenAsPdf}
+          onCancel={() => setNotPdf(null)}
         />
       )}
       {toast && (

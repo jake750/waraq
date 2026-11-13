@@ -23,6 +23,7 @@
   --highlight-current: rgba(255, 120, 0, 0.55);
   --shadow: 0 1px 2px rgba(18, 23, 38, 0.06), 0 8px 24px rgba(18, 23, 38, 0.06);
   --page-shadow: 0 1px 3px rgba(18, 23, 38, 0.18);
+  --scrim: rgba(8, 10, 18, 0.4);
 
   --r-sm: 8px;
   --r-md: 12px;
@@ -54,6 +55,7 @@
   --viewer-bg: #0b0e17;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   --page-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  --scrim: rgba(0, 0, 0, 0.62);
   color-scheme: dark;
 }
 
@@ -260,7 +262,7 @@ button {
 .scrim {
   position: fixed;
   inset: 0;
-  background: rgba(8, 10, 18, 0.4);
+  background: var(--scrim);
   z-index: 40;
   animation: fade var(--t-med) var(--ease-out);
 }
@@ -462,6 +464,7 @@ button {
 }
 
 .recent-name {
+  unicode-bidi: plaintext; /* mixed-script names read right, aligned with the row */
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -634,4 +637,14 @@ button {
 .btn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Names use unicode-bidi: plaintext (their own script order); align them with the UI, not the name. */
+.recent-name,
+.job-name {
+  text-align: left;
+}
+:root[dir="rtl"] .recent-name,
+:root[dir="rtl"] .job-name {
+  text-align: right;
 }
