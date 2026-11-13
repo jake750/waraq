@@ -94,11 +94,13 @@ export default function App() {
           doc.loadingTask.destroy().catch(() => {});
           return;
         }
+        // Android URIs are often opaque: ask the system for the file's real name, then the PDF's title.
+        const real = ref.kind === "uri" ? await resolveName(ref) : undefined;
         const title =
-          ref.kind === "uri"
+          ref.kind === "uri" && !/\.pdf$/i.test(real ?? "")
             ? await doc.getMetadata().then((m) => (m.info as { Title?: string } | undefined)?.Title).catch(() => undefined)
             : undefined;
-        const name = temp?.name ?? displayName(ref, title);
+        const name = temp?.name ?? (real && /\.pdf$/i.test(real) ? real : displayName(ref, title));
         // A converted temporary PDF (opened from a non-PDF) doesn't go into Recent.
         const item = temp ? null : await recentStore.touch(ref, name).catch(() => null);
         if (!temp) refreshRecent();

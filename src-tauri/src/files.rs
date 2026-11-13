@@ -103,24 +103,41 @@ fn header(req: &tauri::ipc::Request<'_>, name: &str) -> Option<String> {
 #[tauri::command]
 pub async fn save_output(app: tauri::AppHandle, request: tauri::ipc::Request<'_>) -> Result<String, String> {
     use tauri::Manager;
-    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
-        return Err("write-failed".into());
+    // Raw bytes normally; Android's message-based IPC fallback delivers them as a JSON array.
+    let bytes: Vec<u8> = match request.body() {
+        tauri::ipc::InvokeBody::Raw(b) => b.clone(),
+        tauri::ipc::InvokeBody::Json(v) => body_bytes(v).ok_or("write-failed: body")?,
     };
-    let name = header(&request, "x-name").ok_or("write-failed")?;
+    let name = header(&request, "x-name").ok_or("write-failed: name")?;
     let dir = match header(&request, "x-dir").filter(|d| !d.is_empty()) {
         Some(d) => PathBuf::from(d),
         None => {
-            let d = app.path().app_cache_dir().map_err(|_| "write-failed")?.join("outputs");
-            std::fs::create_dir_all(&d).map_err(|_| "write-failed")?;
+            let d = app.path().app_cache_dir().map_err(|_| "write-failed: cache")?.join("outputs");
+            std::fs::create_dir_all(&d).map_err(|e| format!("write-failed: {e}"))?;
             d
         }
     };
-    let bytes = bytes.clone();
     tauri::async_runtime::spawn_blocking(move || write_new(&dir, &name, &bytes))
         .await
         .map_err(|_| "write-failed".to_string())?
         .map(|p| p.to_string_lossy().into_owned())
-        .map_err(|_| "write-failed".to_string())
+        .map_err(|e| format!("write-failed: {e}"))
+}
+
+/// Bytes sent as JSON: an array of numbers, or an object with numeric keys (a serialized Uint8Array).
+fn body_bytes(v: &serde_json::Value) -> Option<Vec<u8>> {
+    match v {
+        serde_json::Value::Array(a) => a.iter().map(|x| x.as_u64().and_then(|n| u8::try_from(n).ok())).collect(),
+        serde_json::Value::Object(o) => {
+            let mut out = vec![0u8; o.len()];
+            for (k, x) in o {
+                let i: usize = k.parse().ok()?;
+                *out.get_mut(i)? = u8::try_from(x.as_u64()?).ok()?;
+            }
+            Some(out)
+        }
+        _ => None,
+    }
 }
 
 /// A fresh, empty scratch folder in the app cache (for print input/output and LibreOffice work).

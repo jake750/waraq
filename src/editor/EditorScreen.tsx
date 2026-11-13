@@ -273,9 +273,11 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     }
     return m;
   }, [fields, values]);
+  // The panel focuses this field once it has rendered (on a phone it mounts only now).
+  const [focusField, setFocusField] = useState<{ name: string } | null>(null);
   const openField = (name: string) => {
     setFormsOpen(true);
-    requestAnimationFrame(() => (document.getElementById(`fld-${name}`) as HTMLElement | null)?.focus());
+    setFocusField({ name });
   };
 
   return (
@@ -414,6 +416,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
           <FormsPanel
             fields={fields}
             values={values}
+            focus={focusField}
             onChange={(name, v) => setValues((old) => ({ ...old, [name]: v }))}
             onPage={(page) => {
               const el = scroller.current;

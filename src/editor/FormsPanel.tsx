@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useT } from "../i18n";
 import type { Field, FieldValue } from "./forms";
 
@@ -7,11 +8,20 @@ type Props = {
   onChange(name: string, v: FieldValue): void;
   onPage(page: number): void;
   onClose(): void;
+  /** A field tapped on the page; a new object each tap, so tapping the same field again refocuses it. */
+  focus?: { name: string } | null;
 };
 
 /** Every fillable field of the PDF, in a side panel (a bottom sheet on phones). */
-export default function FormsPanel({ fields, values, onChange, onPage, onClose }: Props) {
+export default function FormsPanel({ fields, values, onChange, onPage, onClose, focus }: Props) {
   const t = useT();
+  useEffect(() => {
+    if (!focus) return;
+    const el = document.getElementById(`fld-${focus.name}`) as HTMLInputElement | null;
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest" });
+    el.focus({ preventScroll: true });
+  }, [focus]);
   const val = (f: Field) => (f.name in values ? values[f.name] : f.value);
   return (
     <aside className="ed-forms" aria-label={t.edForms}>
@@ -37,7 +47,7 @@ export default function FormsPanel({ fields, values, onChange, onPage, onClose }
           if (f.kind === "check")
             return (
               <label key={f.name} className="check ed-field">
-                <input type="checkbox" checked={!!v} disabled={f.readOnly} onChange={(e) => onChange(f.name, e.target.checked)} />
+                <input id={`fld-${f.name}`} type="checkbox" checked={!!v} disabled={f.readOnly} onChange={(e) => onChange(f.name, e.target.checked)} />
                 {label}
               </label>
             );
