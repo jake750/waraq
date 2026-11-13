@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 import { readFileSync } from "node:fs";
-import { PDFDocument, PDFName, PDFArray, degrees } from "pdf-lib";
+import { PDFDocument, PDFName, PDFArray, PDFDict, PDFRawStream, degrees } from "pdf-lib";
 import { writeMarks, type EditorFonts } from "../../src/editor/write";
 import type { Mark } from "../../src/editor/marks";
 import { openPdf } from "../../src/pdf/openPdf";
 import { pageText } from "../../src/text/search";
-import { fx } from "../helpers";
+import { fx, withOrientation } from "../helpers";
 
 const woff = (s: string) => new Uint8Array(readFileSync(`node_modules/@fontsource/ibm-plex-sans-arabic/files/ibm-plex-sans-arabic-${s}-400-normal.woff`));
 const fonts: EditorFonts = { arabic: woff("arabic"), latin: woff("latin") };
@@ -83,4 +83,13 @@ test("text on a rotated page runs along the displayed page, upright", async () =
 
 test("protected PDFs are refused", async () => {
   await expect(writeMarks(fx("password.pdf"), all, fonts, { flatten: false })).rejects.toMatchObject({ code: "protected" });
+});
+
+test("a sideways-stored phone photo is drawn turned upright into its box", async () => {
+  const photo: Mark = { id: "p", page: 0, kind: "image", box: { x: 300, y: 300, w: 60, h: 40 }, bytes: withOrientation(6), fmt: "jpg" };
+  const out = await writeMarks(await blank(), [photo], fonts, { flatten: false });
+  const page = (await PDFDocument.load(out)).getPage(0);
+  const annot = page.node.lookupMaybe(PDFName.of("Annots"), PDFArray)!.lookup(0, PDFDict);
+  const ap = annot.lookup(PDFName.of("AP"), PDFDict).lookup(PDFName.of("N")) as PDFRawStream;
+  expect(new TextDecoder().decode(ap.getContents())).toContain("0 -40 60 0 300 340 cm");
 });

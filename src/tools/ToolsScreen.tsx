@@ -470,7 +470,8 @@ function Split({ fail, onToast }: { onToast(m: string): void; fail(e: unknown): 
 const PRESETS = { strong: { maxDim: 1200, quality: 0.55 }, balanced: { maxDim: 1800, quality: 0.7 }, light: { maxDim: 2600, quality: 0.82 } };
 
 const reencodeJpeg: Reencode = async (jpeg, maxDim, quality) => {
-  const bmp = await createImageBitmap(new Blob([jpeg as BlobPart], { type: "image/jpeg" }));
+  // PDF ignores EXIF: keep the pixels as stored, or a tagged photo comes out turned and squashed.
+  const bmp = await createImageBitmap(new Blob([jpeg as BlobPart], { type: "image/jpeg" }), { imageOrientation: "none" });
   const k = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(bmp.width * k));

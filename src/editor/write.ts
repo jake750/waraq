@@ -4,6 +4,7 @@
 // `flatten` draws the annotation appearances into the page instead (notes stay notes).
 
 import fontkit from "@pdf-lib/fontkit";
+import { jpegOrientation, orientMatrix } from "../convert/exif";
 import {
   PDFArray,
   PDFDocument,
@@ -129,7 +130,9 @@ function describe(m: Exclude<Mark, { kind: "text" }>): { subtype: string; ap: Ap
     }
     case "image": {
       const { x, y, w, h } = m.box;
-      return { subtype: "Stamp", ap: { bbox: [x, y, x + w, y + h], content: `q ${f(w)} 0 0 ${f(h)} ${f(x)} ${f(y)} cm /Im0 Do Q` }, entries: {} };
+      // The box is the photo as seen on screen; a JPEG stored sideways is turned by its EXIF tag.
+      const cm = orientMatrix(m.fmt === "jpg" ? jpegOrientation(m.bytes) : 1, x, y, w, h).map(f).join(" ");
+      return { subtype: "Stamp", ap: { bbox: [x, y, x + w, y + h], content: `q ${cm} cm /Im0 Do Q` }, entries: {} };
     }
   }
 }
