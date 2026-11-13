@@ -36,6 +36,11 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'macos-15' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
+      # Reuses compiled Rust dependencies between builds (the bulk of the build time).
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
       - name: Install frontend deps
         run: npm ci
 
