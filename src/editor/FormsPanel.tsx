@@ -56,9 +56,9 @@ export default function FormsPanel({ fields, values, onChange, onPage, onClose, 
               <label htmlFor={id}>{label}</label>
               {f.kind === "text" &&
                 (f.multiline ? (
-                  <textarea id={id} dir="auto" rows={3} value={String(v)} readOnly={f.readOnly} onChange={(e) => onChange(f.name, e.target.value)} />
+                  <textarea id={id} dir="auto" rows={3} maxLength={f.maxLength} value={String(v)} readOnly={f.readOnly} onChange={(e) => onChange(f.name, e.target.value)} />
                 ) : (
-                  <input id={id} dir="auto" value={String(v)} readOnly={f.readOnly} onChange={(e) => onChange(f.name, e.target.value)} />
+                  <input id={id} dir="auto" maxLength={f.maxLength} value={String(v)} readOnly={f.readOnly} onChange={(e) => onChange(f.name, e.target.value)} />
                 ))}
               {(f.kind === "dropdown" || f.kind === "radio") && (
                 <select id={id} dir="auto" value={String(v)} disabled={f.readOnly} onChange={(e) => onChange(f.name, e.target.value)}>

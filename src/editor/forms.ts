@@ -31,6 +31,8 @@ export type Field = {
   rect: { x: number; y: number; w: number; h: number };
   readOnly: boolean;
   multiline?: boolean;
+  /** Text fields: the most characters the field accepts (/MaxLen). */
+  maxLength?: number;
 };
 
 function kindOf(f: PDFField): FieldKind | null {
@@ -93,7 +95,11 @@ export async function listFields(bytes: Uint8Array): Promise<Field[]> {
       readOnly: f.isReadOnly(),
     };
     if (f instanceof PDFRadioGroup || f instanceof PDFDropdown || f instanceof PDFOptionList) field.options = f.getOptions();
-    if (f instanceof PDFTextField) field.multiline = f.isMultiline();
+    if (f instanceof PDFTextField) {
+      field.multiline = f.isMultiline();
+      const max = f.getMaxLength();
+      if (max !== undefined) field.maxLength = max;
+    }
     out.push(field);
   }
   return out;
@@ -157,6 +163,20 @@ function drawAppearance(pdf: PDFDocument, fonts: Fonts, f: PDFTextField | PDFDro
   }
 }
 
+/** True when pdf-lib's flatten can find a normal appearance stream for this widget. */
+function hasAppearance(f: PDFField, w: PDFWidgetAnnotation): boolean {
+  let ap;
+  try {
+    ap = w.getNormalAppearance();
+  } catch {
+    return false;
+  }
+  if (ap instanceof PDFRef) return true;
+  if (!(f instanceof PDFCheckBox || f instanceof PDFRadioGroup)) return false;
+  const value = f.acroField.getValue();
+  return ap.get(value) instanceof PDFRef || ap.get(PDFName.of("Off")) instanceof PDFRef;
+}
+
 /** Fills the named fields; read-only and unknown names are skipped. Returns a new PDF. */
 export async function fillFields(
   input: Uint8Array,
@@ -172,7 +192,8 @@ export async function fillFields(
     if (!(f.getName() in values) || f.isReadOnly()) continue;
     const v = values[f.getName()];
     if (f instanceof PDFTextField) {
-      const s = String(v ?? "");
+      const max = f.getMaxLength();
+      const s = [...String(v ?? "")].slice(0, max ?? Infinity).join("");
       f.setText(s);
       drawAppearance(pdf, await textFonts(), f, s);
     } else if (f instanceof PDFCheckBox) {
@@ -193,6 +214,19 @@ export async function fillFields(
       else f.clear();
     }
   }
-  if (opts.flatten) form.flatten({ updateFieldAppearances: false });
+  if (opts.flatten) {
+    // pdf-lib's flatten throws on a widget with no usable normal appearance, which real-world forms have.
+    for (const f of form.getFields())
+      for (const w of f.acroField.getWidgets()) {
+        if (hasAppearance(f, w)) continue;
+        if (f instanceof PDFTextField) drawAppearance(pdf, await textFonts(), f, f.getText() ?? "");
+        else if (f instanceof PDFDropdown) drawAppearance(pdf, await textFonts(), f, f.getSelected()[0] ?? "");
+        if (!hasAppearance(f, w)) {
+          const r = w.getRectangle();
+          w.setNormalAppearance(pdf.context.register(pdf.context.formXObject([], { BBox: [0, 0, r.width, r.height] })));
+        }
+      }
+    form.flatten({ updateFieldAppearances: false });
+  }
   return pdf.save({ updateFieldAppearances: false });
 }

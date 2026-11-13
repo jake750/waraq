@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { readFileSync } from "node:fs";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFName } from "pdf-lib";
 import { listFields, fillFields } from "../../src/editor/forms";
 import type { EditorFonts } from "../../src/editor/write";
 import { openPdf } from "../../src/pdf/openPdf";
@@ -62,4 +62,21 @@ test("the input is not changed", async () => {
   const copy = input.slice();
   await fillFields(input, { name: "x" }, fonts, { flatten: true });
   expect(input).toEqual(copy);
+});
+
+test("flatten keeps going when a field has no appearance of its own", async () => {
+  const pdf = await PDFDocument.load(await form());
+  // An untouched field whose widget lost its /AP, as some generators write them.
+  pdf.getForm().getField("city").acroField.getWidgets()[0].dict.delete(PDFName.of("AP"));
+  const out = await fillFields(await pdf.save({ updateFieldAppearances: false }), { name: "x" }, fonts, { flatten: true });
+  expect(await listFields(out)).toEqual([]);
+});
+
+test("a text field's MaxLen is listed and longer answers are cut to it", async () => {
+  const pdf = await PDFDocument.load(await form());
+  pdf.getForm().getTextField("name").setMaxLength(5);
+  const bytes = await pdf.save();
+  expect((await listFields(bytes)).find((f) => f.name === "name")?.maxLength).toBe(5);
+  const out = await fillFields(bytes, { name: "abcdefgh" }, fonts, { flatten: false });
+  expect((await listFields(out)).find((f) => f.name === "name")?.value).toBe("abcde");
 });
