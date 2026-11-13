@@ -13,9 +13,9 @@ test("lines carry size and baseline; page numbers are dropped", () => {
     boxes: [
       ...Array(5).fill({ x: 0, y: 700 - 0.22 * 20, w: 10, h: 22 }),
       { x: 0, y: 0, w: 0, h: 0 },
-      ...Array(7).fill({ x: 0, y: 650 - 0.22 * 12, w: 6, h: 13.2 }),
+      ...Array.from({ length: 7 }, (_, i) => ({ x: i * 6, y: 650 - 0.22 * 12, w: 6, h: 13.2 })),
       { x: 0, y: 0, w: 0, h: 0 },
-      ...Array(7).fill({ x: 0, y: 634 - 0.22 * 12, w: 6, h: 13.2 }),
+      ...Array.from({ length: 7 }, (_, i) => ({ x: i * 6, y: 634 - 0.22 * 12, w: 6, h: 13.2 })),
       { x: 0, y: 0, w: 0, h: 0 },
       { x: 0, y: 40 - 0.22 * 12, w: 6, h: 13.2 },
     ],
@@ -51,4 +51,13 @@ test("PDF → DOCX reopens with Arabic text", async () => {
 
 test("English two-column text is extracted", async () => {
   expect(await pdfToText(await openPdf(fx("english-two-column.pdf")))).toMatch(/lighthouse/);
+});
+
+test("separate lines of a LibreOffice PDF stay separate paragraphs", async () => {
+  const doc = await openPdf(fx("office/sample-lo.pdf"));
+  const paras = (await pdfToText(doc)).split("\n\n").map((p) => p.trim());
+  expect(paras).toContain("هذا تقرير تجريبي مكتوب لاختبار تحويل المستندات العربية.");
+  expect(paras).toContain("This paragraph mixes English with العربية in one line.");
+  expect(paras).toContain("● First point");
+  expect(paras).toContain("ورق 10 50");
 });

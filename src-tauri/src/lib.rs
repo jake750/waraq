@@ -36,6 +36,7 @@ pub fn run() {
             files::reveal_output,
             files::temp_dir,
             launch::startup_file,
+            launch::selftest_dir,
             #[cfg(any(windows, target_os = "android"))]
             print::html_to_pdf,
             #[cfg(windows)]

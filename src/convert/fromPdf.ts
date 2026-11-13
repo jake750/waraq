@@ -5,7 +5,8 @@ import { detectRtl } from "../text/arabic";
 import { escapeHtml } from "./sanitize";
 import { htmlToDocx } from "./fromHtml";
 
-export type Line = { text: string; size: number; baseline: number };
+/** `cells`: the line has wide gaps inside (a table row or tab-separated columns). */
+export type Line = { text: string; size: number; baseline: number; width?: number; cells?: boolean };
 export type Para = { text: string; heading: boolean; rtl: boolean };
 
 /** Lines of a page layout with their font size and baseline (from the per-character boxes). Lone page numbers are dropped. */
@@ -14,13 +15,17 @@ export function linesOf(layout: PageLayout): Line[] {
   let start = 0;
   const parts = layout.text.split("\n");
   for (const text of parts) {
-    const boxes = layout.boxes.slice(start, start + text.length).filter((b) => b.h > 0);
+    const all = layout.boxes.slice(start, start + text.length);
+    const boxes = all.filter((b) => b.h > 0);
     start += text.length + 1; // + the "\n" box
     if (!text.trim() || /^[\d٠-٩\s\-–—|]+$/.test(text)) continue;
     const sizes = boxes.map((b) => b.h / 1.1).sort((a, b) => a - b);
     const size = sizes[Math.floor(sizes.length / 2)] ?? 12;
     const baseline = boxes.length ? boxes[0].y + 0.22 * size : 0;
-    out.push({ text, size, baseline });
+    const width = boxes.length ? Math.max(...boxes.map((b) => b.x + b.w)) - Math.min(...boxes.map((b) => b.x)) : 0;
+    // A space that spans a wide gap separates table cells or tab columns.
+    const cells = text.split("").some((c, i) => c === " " && (all[i]?.w ?? 0) > size * 1.5);
+    out.push({ text, size, baseline, width, cells });
   }
   return out;
 }
@@ -30,7 +35,10 @@ const median = (xs: number[]) => {
   return s.length ? s[Math.floor(s.length / 2)] : 12;
 };
 
-/** Joins lines into paragraphs: a new paragraph on a size change or a gap wider than 1.5× the line height. */
+const LIST_MARK = /^\s*([●•▪◦·○■\-–—*]|[\d٠-٩]+[.)]|[a-zA-Zأ-ي][.)])\s/;
+
+/** Joins lines into paragraphs. A new one starts on a size change, a gap wider than 1.5× the line height,
+ *  a change of direction, a list marker, or after a short line (a paragraph's last line). */
 export function paragraphsOf(lines: Line[], bodySize: number): Para[] {
   const paras: Para[] = [];
   let cur: Line[] = [];
@@ -40,12 +48,17 @@ export function paragraphsOf(lines: Line[], bodySize: number): Para[] {
     paras.push({ text, heading: cur[0].size >= bodySize * 1.25, rtl: detectRtl(text) });
     cur = [];
   };
+  const full = Math.max(0, ...lines.map((l) => l.width ?? 0));
   for (const l of lines) {
     const prev = cur[cur.length - 1];
     if (prev) {
       const gap = Math.abs(prev.baseline - l.baseline);
       const sizeChange = Math.abs(prev.size - l.size) > Math.max(1, prev.size * 0.15);
-      if (sizeChange || gap > Math.max(prev.size, l.size) * 1.5 || l.baseline > prev.baseline) flush();
+      const short = full > 0 && prev.width !== undefined && prev.width < full * 0.8;
+      const turn = detectRtl(prev.text) !== detectRtl(l.text);
+      const row = prev.cells || l.cells;
+      if (sizeChange || gap > Math.max(prev.size, l.size) * 1.5 || l.baseline > prev.baseline || short || turn || row || LIST_MARK.test(l.text))
+        flush();
     }
     cur.push(l);
   }

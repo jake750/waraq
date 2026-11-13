@@ -8,6 +8,9 @@ import "./theme.css";
 import "./pdf/pdfjs";
 import App from "./App";
 
+// Development only: WARAQ_SELFTEST=<folder> runs every conversion route on the real engines.
+if (import.meta.env.DEV) import("./devSelftest").then((m) => m.maybeRunSelftest());
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <App />

@@ -16,6 +16,12 @@ pub fn startup_file() -> Option<String> {
     pick_pdf_arg(&refs)
 }
 
+/// Debug builds only: the folder the converter self-test runs on (env WARAQ_SELFTEST, see src/devSelftest.ts).
+#[tauri::command]
+pub fn selftest_dir() -> Option<String> {
+    if cfg!(debug_assertions) { std::env::var("WARAQ_SELFTEST").ok() } else { None }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -13,9 +13,14 @@ export function pdfjsLigatureFix() {
     name: "waraq-pdfjs-ligature-fix",
     enforce: "pre",
     transform(code, id) {
-      // The file itself, not Vite's "?worker&url" stub that points at it.
-      if (id.includes("?") || !/pdfjs-dist[\\/]legacy[\\/]build[\\/]pdf\.worker\.mjs$/.test(id)) return null;
-      if (!code.includes(TARGET)) throw new Error(`pdfjs-ligature-fix: "${TARGET}" not found in ${id}`);
+      const [path, query = ""] = id.split("?");
+      if (!/pdfjs-dist[\\/]legacy[\\/]build[\\/]pdf\.worker\.mjs$/.test(path)) return null;
+      // The build's "?worker&url" stub only points at the file; the dev server serves the file
+      // itself as "?worker_file&type=module".
+      if (!code.includes(TARGET)) {
+        if (query) return null;
+        throw new Error(`pdfjs-ligature-fix: "${TARGET}" not found in ${id}`);
+      }
       return { code: code.replace(TARGET, REPLACEMENT), map: null };
     },
   };

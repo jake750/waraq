@@ -75,3 +75,11 @@ test("a corrupt docx is a bad-input error", async () => {
   await expect(toHtml(new Uint8Array([1, 2, 3]), "docx")).rejects.toBeInstanceOf(ConvertError);
   await expect(toHtml(new Uint8Array([1, 2, 3]), "epub")).rejects.toMatchObject({ code: "bad-input" });
 });
+
+test("tables and lists take the direction of their text", async () => {
+  const { sanitizeFragment } = await import("../../src/convert/sanitize");
+  const out = sanitizeFragment("<table><tr><td>البند</td><td>10</td></tr></table><ul><li>First</li></ul><ol><li>أول</li></ol>");
+  expect(out).toMatch(/<table dir="rtl"/);
+  expect(out).toMatch(/<ul dir="ltr"/);
+  expect(out).toMatch(/<ol dir="rtl"/);
+});

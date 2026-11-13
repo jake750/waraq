@@ -25,6 +25,13 @@ export function sanitizeElement(root: Element): string {
   root.querySelectorAll(BLOCKS).forEach((el) => {
     if (!el.hasAttribute("dir")) el.setAttribute("dir", "auto");
   });
+  // Column order and bullet side come from the container, and dir="auto" there would skip the
+  // cells/items (they carry their own dir), so decide from the first strong letter.
+  root.querySelectorAll("table,ul,ol").forEach((el) => {
+    if (el.hasAttribute("dir")) return;
+    const m = /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]|[֐-ࣿיִ-﷿ﹰ-﻿]/.exec(el.textContent ?? "");
+    el.setAttribute("dir", m && /[֐-ࣿיִ-﷿ﹰ-﻿]/.test(m[0]) ? "rtl" : "ltr");
+  });
   return root.innerHTML;
 }
 
