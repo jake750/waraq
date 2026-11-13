@@ -36,9 +36,18 @@ The GitHub Actions workflow `.github/workflows/build-macos.yml` (`workflow_dispa
 universal macOS `.dmg`/`.app` via `tauri build --target universal-apple-darwin`. It must run on
 `macos-15` — `macos-14` is rejected outright for this account and `macos-13`/`macos-13-large`
 queue forever without ever getting a runner. The macOS app is unsigned (no Apple Developer
-certificate), so it needs "right-click → Open" past Gatekeeper on first launch. The Android release
-APK is signed with the debug keystore (`~/.android/debug.keystore`), not a release key — fine for
-sideloading, not for the Play Store.
+certificate), so it needs "right-click → Open" past Gatekeeper on first launch.
+
+**Android signing.** A real release keystore exists at `~/.android/waraq-release.keystore`
+(alias `waraq`) — deliberately outside the repo, never committed. `src-tauri/gen/android/app/
+build.gradle.kts` reads `src-tauri/gen/android/app/keystore.properties` (gitignored by Tauri's own
+generated `.gitignore`; holds `storeFile`/`storePassword`/`keyAlias`/`keyPassword`) and wires a
+`release` `signingConfig` from it when that file exists, so `npx tauri android build --apk
+--target aarch64` produces an APK already signed with the release key — no manual zipalign/
+apksigner pass needed. Without that properties file (e.g. a fresh clone, or CI), release builds
+stay unsigned, same as before. **The repo is public** — the keystore and its password must never
+be added to git; ask the user before touching `.gitignore` entries that cover them. The user holds
+the actual password (asked for it once, keep it out of this file and out of anything committed).
 
 **Browser preview without Tauri** (`npm run dev` + the Browser pane, no `tauri dev`): there is no
 Tauri IPC bridge, so `readDocument` (`src/files/docRef.ts`) special-cases
