@@ -450,8 +450,9 @@ function Split({ fail, onToast }: { onToast(m: string): void; fail(e: unknown): 
           onClick={() =>
             run(async () => {
               const out: Saved[] = [];
+              const doc = await loadPdf(src.bytes); // parsed once for every part
               for (const [k, g] of groups!.entries())
-                out.push(await save(await assemble([src.bytes], g.map((index) => ({ src: 0, index, rotate: 0 }))), suffixName(src.name, `part ${k + 1}`), src));
+                out.push(await save(await assemble([doc], g.map((index) => ({ src: 0, index, rotate: 0 }))), suffixName(src.name, `part ${k + 1}`), src));
               setSaved(out);
               onToast(t.savedParts(out.length));
             }, fail)

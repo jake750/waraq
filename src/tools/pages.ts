@@ -56,8 +56,8 @@ export async function loadPdf(bytes: Uint8Array): Promise<PDFDocument> {
   }
 }
 
-/** Builds a new PDF from `pages`. Each source is parsed once; pages keep their own size. */
-export async function assemble(sources: Uint8Array[], pages: PageSpec[]): Promise<Uint8Array> {
+/** Builds a new PDF from `pages`. Each source is parsed once (or passed in parsed); pages keep their own size. */
+export async function assemble(sources: (Uint8Array | PDFDocument)[], pages: PageSpec[]): Promise<Uint8Array> {
   const docs = new Map<number, PDFDocument>();
   const out = await PDFDocument.create();
   for (const spec of pages) {
@@ -67,7 +67,8 @@ export async function assemble(sources: Uint8Array[], pages: PageSpec[]): Promis
     }
     let src = docs.get(spec.src);
     if (!src) {
-      src = await loadPdf(sources[spec.src]);
+      const s = sources[spec.src];
+      src = s instanceof PDFDocument ? s : await loadPdf(s);
       docs.set(spec.src, src);
     }
     const [page] = await out.copyPages(src, [spec.index]);

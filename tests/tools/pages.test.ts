@@ -68,3 +68,11 @@ test("encrypted and corrupt inputs are reported, not crashed", async () => {
   await expect(assemble([fx("password.pdf")], [{ src: 0, index: 0, rotate: 0 }])).rejects.toMatchObject({ code: "protected" });
   await expect(assemble([fx("not-a-pdf.pdf")], [{ src: 0, index: 0, rotate: 0 }])).rejects.toMatchObject({ code: "bad-input" });
 });
+
+test("a source that is already parsed is used as is (split parses the file once)", async () => {
+  const doc = await PDFDocument.load(await sized(3));
+  const a = await assemble([doc], [{ src: 0, index: 0, rotate: 0 }]);
+  const b = await assemble([doc], [{ src: 0, index: 1, rotate: 0 }, { src: 0, index: 2, rotate: 0 }]);
+  expect((await PDFDocument.load(a)).getPageCount()).toBe(1);
+  expect((await PDFDocument.load(b)).getPageCount()).toBe(2);
+});
