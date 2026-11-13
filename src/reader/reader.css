@@ -143,7 +143,9 @@
 }
 
 .canvas-host.night canvas {
-  filter: invert(0.92) hue-rotate(180deg);
+  /* grayscale first: inverting color text/headings directly (the old hue-rotate(180) trick) turns
+     any non-black ink into mismatched cyan/orange/pink noise instead of a clean light tone. */
+  filter: grayscale(1) invert(0.92);
 }
 
 /* pdf.js text layer (subset of pdf_viewer.css) */
