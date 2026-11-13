@@ -146,7 +146,20 @@ function isolate(pdf: PDFDocument, page: PDFPage) {
   page.node.set(PDFName.of("Contents"), arr);
 }
 
-type Fonts = { arabic: PDFFont; latin: PDFFont; hasAr(cp: number): boolean; hasLat(cp: number): boolean };
+export type Fonts = { arabic: PDFFont; latin: PDFFont; hasAr(cp: number): boolean; hasLat(cp: number): boolean };
+
+/** Embeds both editor fonts (subset) into `pdf`. */
+export async function embedFonts(pdf: PDFDocument, fonts: EditorFonts): Promise<Fonts> {
+  pdf.registerFontkit(fontkit);
+  const ar = fontkit.create(fonts.arabic as never);
+  const lat = fontkit.create(fonts.latin as never);
+  return {
+    arabic: await pdf.embedFont(fonts.arabic, { subset: true }),
+    latin: await pdf.embedFont(fonts.latin, { subset: true }),
+    hasAr: (cp) => ar.hasGlyphForCodePoint(cp),
+    hasLat: (cp) => lat.hasGlyphForCodePoint(cp),
+  };
+}
 
 /** One visual run split into pieces drawable with a single font, in visual order. */
 function pieces(run: { text: string; rtl: boolean }, fonts: Fonts): { text: string; font: PDFFont }[] {
@@ -162,13 +175,13 @@ function pieces(run: { text: string; rtl: boolean }, fonts: Fonts): { text: stri
   return run.rtl ? out.reverse() : out;
 }
 
-function lineLayout(line: string, rtlPara: boolean, size: number, fonts: Fonts) {
+export function lineLayout(line: string, rtlPara: boolean, size: number, fonts: Fonts) {
   const ps = visualRuns(line, rtlPara ? "rtl" : "ltr").flatMap((r) => pieces(r, fonts));
   const widths = ps.map((p) => p.font.widthOfTextAtSize(p.text, size));
   return { ps, widths, width: widths.reduce((a, b) => a + b, 0) };
 }
 
-function wrap(text: string, width: number, size: number, fonts: Fonts, rtl: boolean): string[] {
+export function wrap(text: string, width: number, size: number, fonts: Fonts, rtl: boolean): string[] {
   const lines: string[] = [];
   for (const para of text.split("\n")) {
     let cur = "";
@@ -213,19 +226,7 @@ export async function writeMarks(input: Uint8Array, marks: Mark[], fonts: Editor
   const ctx = pdf.context;
   const pages = pdf.getPages();
   let loaded: Fonts | undefined;
-  const textFonts = async (): Promise<Fonts> => {
-    if (loaded) return loaded;
-    pdf.registerFontkit(fontkit);
-    const ar = fontkit.create(fonts.arabic as never);
-    const lat = fontkit.create(fonts.latin as never);
-    loaded = {
-      arabic: await pdf.embedFont(fonts.arabic, { subset: true }),
-      latin: await pdf.embedFont(fonts.latin, { subset: true }),
-      hasAr: (cp) => ar.hasGlyphForCodePoint(cp),
-      hasLat: (cp) => lat.hasGlyphForCodePoint(cp),
-    };
-    return loaded;
-  };
+  const textFonts = async (): Promise<Fonts> => (loaded ??= await embedFonts(pdf, fonts));
   const isolated = new Set<number>();
   const prepare = (i: number) => {
     if (!isolated.has(i)) isolate(pdf, pages[i]);
