@@ -1,4 +1,5 @@
 // PDF → text, Markdown, DOCX (from the Plan 1 reading-order layout) and PDF → page images.
+import { pageCanvas } from "../pdf/pageCanvas";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { pageLayout, type PageLayout } from "../text/search";
 import { detectRtl } from "../text/arabic";
@@ -115,7 +116,7 @@ export async function renderPageImage(doc: PDFDocumentProxy, pageIndex: number, 
     const unit = page.getViewport({ scale: 1 });
     const scale = Math.min(dpi / 72, Math.sqrt(40e6 / (unit.width * unit.height)));
     const viewport = page.getViewport({ scale });
-    const canvas = document.createElement("canvas");
+    const canvas = pageCanvas();
     canvas.width = Math.floor(viewport.width);
     canvas.height = Math.floor(viewport.height);
     const ctx = canvas.getContext("2d")!;
