@@ -60,6 +60,7 @@ pub fn run() {
             mobile::android_display_name,
             mobile::android_incoming,
             mobile::android_persist,
+            mobile::android_immersive,
             #[cfg(target_os = "android")]
             update::latest_release,
         ])

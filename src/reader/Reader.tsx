@@ -6,9 +6,11 @@ import {
   ChevronsLeftRightEllipsis,
   File,
   Maximize,
+  Minimize,
   Moon,
   PenLine,
   PanelLeft,
+  Proportions,
   Rows3,
   X,
   ZoomIn,
@@ -19,6 +21,7 @@ import { detectRtl } from "../text/arabic";
 import { pageText, type Match } from "../text/search";
 import { fitScale, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber } from "./layout";
 import PageView, { readingOrderSelection, type HighlightRect } from "./PageView";
+import { setFullscreen } from "./fullscreen";
 import "./reader.css";
 
 export type ViewMode = "continuous" | "single" | "spread";
@@ -66,6 +69,7 @@ export default function Reader(p: Props) {
   const [view, setView] = useState<ViewMode>("continuous");
   const [rtl, setRtl] = useState(false);
   const [night, setNight] = useState(false);
+  const [full, setFull] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
   const [current, setCurrent] = useState(Math.min(Math.max(p.initialPage ?? 1, 1), n));
   const [pageInput, setPageInput] = useState(String(current));
@@ -198,6 +202,20 @@ export default function Reader(p: Props) {
     [rowOf, current, rows, goTo],
   );
 
+  // Full screen follows `full`; always leave it when the reader closes.
+  useEffect(() => {
+    void setFullscreen(full);
+  }, [full]);
+  useEffect(() => () => void setFullscreen(false), []);
+  // The browser's own exit (Esc in a browser, the Android back gesture) turns it off here too.
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement && !("__TAURI_INTERNALS__" in window)) setFull(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
   // Keyboard (desktop). Arrow keys follow the reading direction.
   const { onFind, onClose } = p;
   useEffect(() => {
@@ -215,13 +233,17 @@ export default function Reader(p: Props) {
       else if (e.key === "End") goTo(n);
       else if (view === "single" && e.key === "PageDown") step(1);
       else if (view === "single" && e.key === "PageUp") step(-1);
-      else if (e.key === "Escape") onClose();
+      else if (e.key === "F11") setFull((f) => !f);
+      else if (e.key === "Escape") {
+        if (full) setFull(false);
+        else onClose();
+      }
       else return;
       e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [zoomBy, step, rtl, goTo, n, view, onFind, onClose]);
+  }, [zoomBy, step, rtl, goTo, n, view, onFind, onClose, full]);
 
   // Copy Arabic selections in reading order.
   useEffect(() => {
@@ -301,7 +323,12 @@ export default function Reader(p: Props) {
   const api = { goTo, page: current, rtl };
 
   return (
-    <div className="reader">
+    <div className={full ? "reader full" : "reader"}>
+      {full && (
+        <button className="icon-btn reader-unfull" onClick={() => setFull(false)} title={`${t.exitFullscreen} (Esc)`} aria-label={t.exitFullscreen}>
+          <Minimize size={18} />
+        </button>
+      )}
       <header className="reader-bar">
         <button className="icon-btn" onClick={p.onClose} title={t.close} aria-label={t.close}>
           <X size={20} />
@@ -357,7 +384,7 @@ export default function Reader(p: Props) {
             title={t.fitPage}
             aria-label={t.fitPage}
           >
-            <Maximize size={18} />
+            <Proportions size={18} />
           </button>
           <span className="bar-sep" />
           <div className="view-switch" role="group" aria-label={t.viewMode}>
@@ -391,6 +418,14 @@ export default function Reader(p: Props) {
             aria-label={t.night}
           >
             <Moon size={18} />
+          </button>
+          <button
+            className="icon-btn"
+            onClick={() => setFull(true)}
+            title={`${t.fullscreen} (F11)`}
+            aria-label={t.fullscreen}
+          >
+            <Maximize size={18} />
           </button>
           {p.onEdit && (
             <button className="btn btn-ghost btn-sm reader-edit" onClick={p.onEdit} title={t.edit} aria-label={t.edit}>

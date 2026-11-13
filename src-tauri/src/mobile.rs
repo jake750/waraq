@@ -103,3 +103,10 @@ pub async fn android_display_name(app: tauri::AppHandle, uri: String) -> Result<
     let r: NameResp = call(&app, "displayName", serde_json::json!({ "uri": uri })).await?;
     Ok(r.name)
 }
+
+/// Full-screen reading: hides the system bars (on desktop the window itself goes full screen).
+#[tauri::command]
+pub async fn android_immersive(app: tauri::AppHandle, on: bool) -> Result<(), String> {
+    let _: Value = call(&app, "immersive", serde_json::json!({ "on": on })).await?;
+    Ok(())
+}
