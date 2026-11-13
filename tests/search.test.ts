@@ -91,3 +91,38 @@ test("one box per character, spaces and line breaks included", () => {
   expect(l.boxes[4].x).toBe(35);
   expect(l.boxes[8].y).toBeLessThan(l.boxes[0].y);
 });
+
+// ---- mixed directions (LibreOffice/Word output) ----
+
+test("arabic word inside an english line reads right to left", () =>
+  expect(
+    buildPageText([item("mixes English with", 0, 180), item(" ", 180, 5), item("ةيبرعلا", 185, 60), item(" ", 245, 5), item("in", 250, 20)]),
+  ).toBe("mixes English with العربية in"));
+
+test("two arabic words inside an english line keep their order", () =>
+  expect(
+    buildPageText([item("please see", 0, 100), item(" ", 100, 5), item("صنلا", 105, 30), item(" ", 135, 5), item("ةيبرعلا", 140, 60), item(" ", 200, 5), item("here", 205, 40)]),
+  ).toBe("please see العربية النص here"));
+
+test("separate numbers in an arabic line keep their order", () =>
+  expect(
+    buildPageText([item("50", 0, 20), item(" ", 20, 5), item("10", 25, 20), item(" ", 45, 5), item("قرو", 50, 30)]),
+  ).toBe("ورق 10 50"));
+
+test("a decimal number in an arabic line stays whole", () =>
+  expect(buildPageText([item("1.5", 0, 30), item(" ", 30, 5), item("ةخسن", 35, 40)])).toBe("نسخة 1.5"));
+
+test("latin word followed by a number in an arabic line", () =>
+  expect(
+    buildPageText([item("PDF", 0, 30), item(" ", 30, 5), item("2", 35, 10), item(" ", 45, 5), item("ديدجلا فلملا", 50, 100)]),
+  ).toBe("الملف الجديد PDF 2"));
+
+test("libreoffice pdf: ligatures, mixed lines and tables read correctly", async () => {
+  const doc = await openPdf(fx("office/sample-lo.pdf"));
+  const flat = (await pageText(doc, 0)).replace(/\s+/g, " ");
+  expect(flat).toContain("تقرير الربع الأول");
+  expect(flat).toContain("لاختبار تحويل المستندات العربية");
+  expect(flat).toContain("This paragraph mixes English with العربية in one line.");
+  expect(flat).toContain("ورق 10 50");
+  expect(flat).toContain("حبر 2 30");
+});

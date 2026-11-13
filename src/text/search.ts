@@ -152,32 +152,60 @@ function clustersOf(line: Glyph[]): Cluster[] {
   return withGaps;
 }
 
-/** Visual (left→right) clusters of one line → clusters in reading order. */
+/** Visual (left→right) clusters of one line → clusters in reading order.
+ *  A small inverse of the Unicode bidi algorithm: give each cluster an embedding level
+ *  (RTL line: Arabic 1, Latin/numbers 2; LTR line: Latin 0, Arabic 1, numbers inside Arabic 2),
+ *  then undo the visual reordering by reversing runs of level ≥ 1, then ≥ 2. */
 function logical(clusters: Cluster[]): Cluster[] {
   const rtl = detectRtl(clusters.map((c) => c.text).join(""));
-  let seq = clusters;
-  if (rtl) {
-    seq = [...clusters].reverse();
-    // Runs of Latin letters/digits (with neutrals between them) read left→right: flip them back.
-    const out: Cluster[] = [];
+  const n = clusters.length;
+  type T = "L" | "R" | "D" | "N";
+  const types: T[] = clusters.map((c) => (c.kind === "L" && /\p{Nd}/u.test(c.text[0] ?? "") ? "D" : c.kind));
+  // A lone separator between two digits belongs to the number (1.5, 1,234, 10:30).
+  for (let i = 1; i < n - 1; i++)
+    if (types[i] === "N" && !clusters[i].space && types[i - 1] === "D" && types[i + 1] === "D" && /^[.,:/،٫٬]$/.test(clusters[i].text))
+      types[i] = "D";
+  // Digits right after Latin text read as Latin: "PDF 2", "Windows 11". A Latin run reads left to
+  // right in either line direction, so "after" is the visual left side.
+  const strongBefore = (i: number): T | undefined => {
+    for (let j = i - 1; j >= 0; j--) if (types[j] === "L" || types[j] === "R") return types[j];
+    return undefined;
+  };
+  const resolved: ("L" | "R" | "D")[] = types.map((t, i) => (t === "D" ? (strongBefore(i) === "L" ? "L" : "D") : (t as "L" | "R" | "D")));
+  // Neutrals take their neighbours' direction when both agree (numbers count as Arabic here),
+  // otherwise the line's.
+  const side = (i: number, step: number): "L" | "R" | undefined => {
+    for (let j = i + step; j >= 0 && j < n; j += step) if (types[j] !== "N") return resolved[j] === "L" ? "L" : "R";
+    return undefined;
+  };
+  const base = rtl ? 1 : 0;
+  const levels = clusters.map((_, i) => {
+    const t = types[i] === "N" ? undefined : resolved[i];
+    if (t === "R") return 1;
+    if (t === "L") return rtl ? 2 : 0;
+    if (t === "D") return 2; // a number inside Arabic
+    const a = side(i, -1);
+    const b = side(i, 1);
+    if (a && a === b) return a === "R" ? 1 : rtl ? 2 : 0;
+    return base;
+  });
+  let seq = clusters.map((c, i) => ({ c, lv: levels[i] }));
+  for (const k of [1, 2]) {
+    const out: typeof seq = [];
     let i = 0;
     while (i < seq.length) {
-      if (seq[i].kind !== "L") {
+      if (seq[i].lv < k) {
         out.push(seq[i++]);
         continue;
       }
       let j = i;
-      let lastL = i;
-      while (j < seq.length && seq[j].kind !== "R") {
-        if (seq[j].kind === "L") lastL = j;
-        j++;
-      }
-      out.push(...seq.slice(i, lastL + 1).reverse());
-      i = lastL + 1;
+      while (j < seq.length && seq[j].lv >= k) j++;
+      out.push(...seq.slice(i, j).reverse());
+      i = j;
     }
     seq = out;
   }
-  return seq;
+  return seq.map((e) => e.c);
 }
 
 /** Where a character sits on the page, in PDF user space (y up). */
