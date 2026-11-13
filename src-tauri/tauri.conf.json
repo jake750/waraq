@@ -27,9 +27,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "nsis"
-    ],
+    "targets": "all",
     "license": "MIT",
     "shortDescription": "Document converter, PDF reader and editor",
     "icon": [
