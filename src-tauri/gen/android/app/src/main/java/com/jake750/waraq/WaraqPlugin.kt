@@ -13,6 +13,9 @@ import android.provider.OpenableColumns
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
@@ -157,6 +160,22 @@ class WaraqPlugin(private val activity: Activity) : Plugin(activity) {
       invoke.resolve()
     } catch (e: Exception) {
       invoke.reject("no-app", e)
+    }
+  }
+
+  /** Hides (or brings back) the status and navigation bars for full-screen reading. */
+  @Command
+  fun immersive(invoke: Invoke) {
+    val on = invoke.getArgs().getBoolean("on", false)
+    activity.runOnUiThread {
+      val c = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+      if (on) {
+        c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        c.hide(WindowInsetsCompat.Type.systemBars())
+      } else {
+        c.show(WindowInsetsCompat.Type.systemBars())
+      }
+      invoke.resolve()
     }
   }
 

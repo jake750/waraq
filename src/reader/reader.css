@@ -518,3 +518,35 @@
     margin: 10px auto 0;
   }
 }
+
+/* Full screen: only the pages; a small exit button floats in the corner. */
+:root[data-fullscreen] .sidebar,
+:root[data-fullscreen] .tabbar,
+:root[data-fullscreen] .scrim,
+.reader.full .reader-bar,
+.reader.full .reader-panel {
+  display: none;
+}
+.reader.full {
+  position: relative;
+}
+.reader-unfull {
+  position: absolute;
+  z-index: 5;
+  inset-block-start: 12px;
+  inset-inline-end: 12px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  opacity: 0.55;
+  transition: opacity var(--t-fast) ease;
+}
+.reader-unfull:hover,
+.reader-unfull:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .reader-unfull {
+    opacity: 0.85;
+  }
+}
