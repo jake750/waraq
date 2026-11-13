@@ -1,0 +1,267 @@
+/* Tools screen: reuses the Convert screen's head/list/actions; adds cards and the page grid. */
+
+.tools {
+  flex: 1;
+  overflow: auto;
+  padding: 48px 40px;
+}
+
+.tools-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tools-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tools-head h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.flip-rtl:dir(rtl) {
+  transform: scaleX(-1);
+}
+
+.tool-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 20px;
+  text-align: start;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  color: var(--text);
+  transition: border-color var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
+  animation: rise var(--t-med) var(--ease-out) both;
+}
+
+.tool-card:hover {
+  border-color: var(--accent);
+}
+
+.tool-card:active {
+  transform: scale(0.98);
+}
+
+.tool-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  margin-bottom: 6px;
+}
+
+.tool-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.tool-sub {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.tool-file {
+  margin: 0;
+  color: var(--text-3);
+}
+
+.organize-bar {
+  position: sticky;
+  top: -48px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 6px 14px;
+  padding-inline: 14px 8px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+}
+
+.organize-count {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.organize-tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.icon-btn.danger:not(:disabled) {
+  color: var(--danger);
+}
+
+.page-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+}
+
+.page-tile {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface);
+  border: 2px solid transparent;
+  border-radius: var(--r-md);
+  color: var(--text-2);
+}
+
+.page-tile[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.pthumb {
+  display: grid;
+  place-items: center;
+}
+
+.pthumb canvas {
+  max-width: 100%;
+  max-height: 100%;
+  background: #fff;
+  box-shadow: var(--page-shadow);
+}
+
+.pthumb.blank span {
+  display: grid;
+  place-items: center;
+  width: 85px;
+  height: 120px;
+  background: #fff;
+  color: #6b7489;
+  font-size: 12px;
+  box-shadow: var(--page-shadow);
+}
+
+.page-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tool-results {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-end: auto;
+  min-width: 0;
+}
+
+.tool-results-text {
+  font-size: 14px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
+
+.merge-row .job-icon {
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.split-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+}
+
+.radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+
+.radio-row input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.num-input,
+.text-input {
+  min-height: 38px;
+  padding-inline: 10px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.num-input {
+  width: 80px;
+}
+
+.text-input {
+  flex: 1;
+  min-width: 180px;
+}
+
+.text-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.compress-presets {
+  max-width: 480px;
+}
+
+.compress-result {
+  margin: 0;
+  font-size: 18px;
+}
+
+@media (max-width: 719px) {
+  .tools {
+    padding: 24px 16px;
+  }
+  .page-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+  }
+  .organize-bar {
+    top: -24px;
+  }
+  .tool-results {
+    flex-basis: 100%;
+  }
+}

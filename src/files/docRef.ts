@@ -74,3 +74,13 @@ export async function resolveName(ref: DocRef): Promise<string> {
   }
   return docName(ref);
 }
+
+/** The folder holding a desktop file ("" for Android content URIs: outputs go to Downloads). */
+export function folderOf(ref: DocRef): string {
+  if (ref.kind !== "path" || ref.path.startsWith("dev:")) return "";
+  const i = Math.max(ref.path.lastIndexOf("/"), ref.path.lastIndexOf("\\"));
+  return i > 0 ? ref.path.slice(0, i) : "";
+}
+
+/** "report.pdf" + "edited" → "report (edited).pdf". */
+export const suffixName = (name: string, suffix: string, ext = "pdf") => `${name.replace(/\.[^./\\]+$/, "")} (${suffix}).${ext}`;

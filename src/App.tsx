@@ -7,6 +7,7 @@ import Home from "./shell/Home";
 import ReaderScreen from "./reader/ReaderScreen";
 import { displayName, docKey, pickFiles, readDocument, resolveName, type DocRef } from "./files/docRef";
 import ConvertScreen from "./convert/ConvertScreen";
+import ToolsScreen from "./tools/ToolsScreen";
 import NotPdfPrompt from "./convert/NotPdfPrompt";
 import { useConvert } from "./convert/useConvert";
 import { openAsPdf } from "./convert/openAsPdf";
@@ -249,7 +250,9 @@ export default function App() {
           setThemeState(v);
         }}
       >
-        {route === "convert" ? (
+        {route === "tools" ? (
+          <ToolsScreen onToast={setToast} />
+        ) : route === "convert" ? (
           <ConvertScreen api={conv} dragOver={dragOver} onToast={setToast} />
         ) : route === "reader" && open ? (
           <ReaderScreen

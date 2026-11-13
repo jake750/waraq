@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { BookOpen, Home as HomeIcon, Repeat2, Settings } from "lucide-react";
+import { BookOpen, Home as HomeIcon, Repeat2, Settings, Wrench } from "lucide-react";
 import { useLang, useT, type Lang } from "../i18n";
 import type { ThemePref } from "../prefs";
 
-export type Route = "home" | "convert" | "reader";
+export type Route = "home" | "convert" | "tools" | "reader";
 
 type Props = {
   route: Route;
@@ -54,6 +54,7 @@ export default function Layout(p: Props) {
   const items: { r: Route; label: string; icon: ReactNode; disabled?: boolean }[] = [
     { r: "home", label: t.navHome, icon: <HomeIcon size={20} /> },
     { r: "convert", label: t.navConvert, icon: <Repeat2 size={20} /> },
+    { r: "tools", label: t.navTools, icon: <Wrench size={20} /> },
     { r: "reader", label: t.navReader, icon: <BookOpen size={20} />, disabled: !p.readerAvailable },
   ];
   return (

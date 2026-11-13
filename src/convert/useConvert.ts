@@ -2,7 +2,7 @@
 // time, and asks about LibreOffice once per session before the first job that would use it.
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { resolveName, type DocRef } from "../files/docRef";
+import { folderOf, resolveName, type DocRef } from "../files/docRef";
 import { isAndroid } from "../platform";
 import { asConvertError } from "./errors";
 import { engineFor, fmtOf, targetsFor, type Target } from "./formats";
@@ -19,11 +19,6 @@ export type OfficePrompt =
 
 const platform = () => (isAndroid() ? "android" : "desktop");
 
-function folderOf(ref: DocRef): string {
-  if (ref.kind !== "path") return "";
-  const i = Math.max(ref.path.lastIndexOf("/"), ref.path.lastIndexOf("\\"));
-  return i > 0 ? ref.path.slice(0, i) : "";
-}
 
 export function useConvert() {
   const [queue, dispatch] = useReducer(reduce, emptyQueue);
