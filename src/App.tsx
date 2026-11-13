@@ -3,11 +3,11 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { dict, dirFor, LangContext, type Lang, type Strings } from "./i18n";
 import { loadLang, loadTheme, resolveTheme, saveLang, saveTheme, type ThemePref } from "./prefs";
 import Layout, { type Route } from "./shell/Layout";
-import Home from "./shell/Home";
+import Home, { type QuickAction } from "./shell/Home";
 import ReaderScreen from "./reader/ReaderScreen";
 import { displayName, docKey, pickFiles, readDocument, resolveName, type DocRef } from "./files/docRef";
 import ConvertScreen from "./convert/ConvertScreen";
-import ToolsScreen from "./tools/ToolsScreen";
+import ToolsScreen, { pickPdfs, type Tool } from "./tools/ToolsScreen";
 import EditorScreen, { type EditSource } from "./editor/EditorScreen";
 import { loadPdf } from "./tools/pages";
 import NotPdfPrompt from "./convert/NotPdfPrompt";
@@ -23,6 +23,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { isAndroid } from "./platform";
+import { useUpdates } from "./update/useUpdates";
 
 const inTauri = () => "__TAURI_INTERNALS__" in window;
 
@@ -44,6 +45,8 @@ export default function App() {
   const [lang, setLangState] = useState<Lang>(loadLang);
   const [theme, setThemeState] = useState<ThemePref>(loadTheme);
   const [route, setRoute] = useState<Route>("home");
+  // A tool picked from Home's quick actions; the Tools screen opens straight into it.
+  const [toolStart, setToolStart] = useState<{ tool: Tool; n: number } | null>(null);
   const [open, setOpen] = useState<OpenDoc | null>(null);
   const openRef = useRef<OpenDoc | null>(null);
   const openSeq = useRef(0);
@@ -51,6 +54,7 @@ export default function App() {
   const [locked, setLocked] = useState<{ ref: DocRef; wrong: boolean } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const conv = useConvert();
+  const updates = useUpdates();
   const [notPdf, setNotPdf] = useState<{ ref: DocRef; name: string; busy: boolean } | null>(null);
   const [edit, setEdit] = useState<{ src: EditSource; from: Route } | null>(null);
   const recentStore = useMemo(() => new RecentStore(appKV()), []);
@@ -241,6 +245,17 @@ export default function App() {
   };
 
   // The editor works on its own copy of the bytes; protected files are refused before it opens.
+  const onQuick = async (a: QuickAction) => {
+    if (a === "convert") return setRoute("convert");
+    if (a === "edit") {
+      const [ref] = await pickPdfs(false);
+      if (ref) editDocument(ref);
+      return;
+    }
+    setToolStart((s) => ({ tool: a, n: (s?.n ?? 0) + 1 }));
+    setRoute("tools");
+  };
+
   const editDocument = async (ref: DocRef, name?: string) => {
     try {
       const bytes = await readDocument(ref);
@@ -276,6 +291,7 @@ export default function App() {
         route={route}
         onRoute={setRoute}
         readerAvailable={!!open}
+        updates={updates}
         theme={theme}
         onTheme={(v) => {
           saveTheme(v);
@@ -293,7 +309,12 @@ export default function App() {
             }}
           />
         ) : route === "tools" ? (
-          <ToolsScreen onToast={setToast} onEdit={(ref) => editDocument(ref)} />
+          <ToolsScreen
+            key={toolStart?.n ?? 0}
+            initialTool={toolStart?.tool}
+            onToast={setToast}
+            onEdit={(ref) => editDocument(ref)}
+          />
         ) : route === "convert" ? (
           <ConvertScreen api={conv} dragOver={dragOver} onToast={setToast} />
         ) : route === "reader" && open ? (
@@ -310,6 +331,7 @@ export default function App() {
         ) : (
           <Home
             onOpen={onPick}
+            onQuick={onQuick}
             dragOver={dragOver}
             recent={
               <RecentList

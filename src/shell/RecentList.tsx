@@ -1,4 +1,4 @@
-import { FileText, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useT } from "../i18n";
 import type { RecentItem } from "../files/recent";
 import { ago } from "./time";
@@ -33,13 +33,15 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
   };
   return (
     <ul className="recent-list">
-      {items.map((item, i) => {
+      {items.map((item) => {
         const folder = folderOf(item);
         return (
-          <li key={item.key} className="recent-item" style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}>
+          <li key={item.key} className="recent-item">
             <button className="recent-open" onClick={() => onOpen(item)} title={item.key}>
-              <span className="recent-icon">
-                <FileText size={18} />
+              <span className="recent-icon fold" aria-hidden="true">
+                <i />
+                <i />
+                <i />
               </span>
               <span className="recent-text">
                 <span className="recent-name">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
   Circle,
@@ -314,19 +314,29 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
       </header>
 
       <div className="ed-strip" role="toolbar" aria-label={t.edTools}>
-        <div className="ed-group">
-          {tools.map(([k, icon, label]) => (
-            <button key={k} className="icon-btn" aria-pressed={tool === k} onClick={() => pickTool(k)} title={label} aria-label={label}>
-              {icon}
-            </button>
-          ))}
-          <button className="icon-btn" onClick={() => fileInput.current?.click()} title={t.edImage} aria-label={t.edImage}>
-            <ImagePlus size={18} />
-          </button>
-          <button className="icon-btn" onClick={() => setSigning(true)} title={t.edSign} aria-label={t.edSign}>
-            <Signature size={18} />
-          </button>
-        </div>
+        {/* Grouped by job: select · mark up text · draw · insert. */}
+        {[tools.slice(0, 1), tools.slice(1, 4), tools.slice(4, 9), tools.slice(9)].map((group, gi) => (
+          <Fragment key={gi}>
+            {gi > 0 && <span className="ed-sep" />}
+            <div className="ed-group">
+              {group.map(([k, icon, label]) => (
+                <button key={k} className="icon-btn" aria-pressed={tool === k} onClick={() => pickTool(k)} title={label} aria-label={label}>
+                  {icon}
+                </button>
+              ))}
+              {gi === 3 && (
+                <>
+                  <button className="icon-btn" onClick={() => fileInput.current?.click()} title={t.edImage} aria-label={t.edImage}>
+                    <ImagePlus size={18} />
+                  </button>
+                  <button className="icon-btn" onClick={() => setSigning(true)} title={t.edSign} aria-label={t.edSign}>
+                    <Signature size={18} />
+                  </button>
+                </>
+              )}
+            </div>
+          </Fragment>
+        ))}
         <span className="ed-sep" />
         <div className="ed-group" role="radiogroup" aria-label={t.edColor}>
           {Object.entries(COLORS).map(([name, c]) => (

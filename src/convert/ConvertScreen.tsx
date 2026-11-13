@@ -56,13 +56,27 @@ export default function ConvertScreen({ api, dragOver, onToast }: Props) {
         </header>
 
         {queue.jobs.length === 0 ? (
-          <section className={`dropzone${dragOver ? " over" : ""}`}>
+          <section className={`dropzone fold${dragOver ? " over" : ""}`}>
             <div className="dropzone-icon">
               <Layers size={26} />
             </div>
-            <h1>{dragOver ? t.dropHere : t.convertEmpty}</h1>
-            <p>DOCX · DOC · ODT · RTF · TXT · MD · HTML · EPUB · PDF · PNG · JPG · WEBP</p>
-            <button className="btn btn-primary" onClick={addFiles}>
+            <h2 className="dropzone-title">{dragOver ? t.dropHere : t.convertEmpty}</h2>
+            <ul className="format-groups">
+              {(
+                [
+                  [t.fmtDocs, "DOCX · DOC · ODT · RTF · TXT · MD"],
+                  [t.fmtWeb, "HTML · EPUB"],
+                  [t.fmtPdf, "PDF"],
+                  [t.fmtImages, "PNG · JPG · WEBP"],
+                ] as const
+              ).map(([name, exts]) => (
+                <li key={name}>
+                  <strong>{name}</strong>
+                  <span dir="ltr">{exts}</span>
+                </li>
+              ))}
+            </ul>
+            <button className="btn btn-primary btn-lg" onClick={addFiles}>
               {t.addFiles}
             </button>
           </section>

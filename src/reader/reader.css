@@ -231,9 +231,14 @@
   .zoom-value {
     display: none;
   }
+  /* Phones: the bar sits at the bottom, in reach of the thumb. */
   .reader-bar {
+    order: 2;
     gap: 2px;
     padding-inline: 6px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    border-bottom: 0;
+    border-top: 1px solid var(--stroke);
   }
   /* Phones read in continuous mode at full width: "whole page" and spread direction aren't needed,
      and the bar must fit a 360px screen. */
