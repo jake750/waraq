@@ -3,7 +3,7 @@ import { BookOpen, Home as HomeIcon, Repeat2, Settings, Wrench } from "lucide-re
 import { useLang, useT, type Lang } from "../i18n";
 import type { ThemePref } from "../prefs";
 
-export type Route = "home" | "convert" | "tools" | "reader";
+export type Route = "home" | "convert" | "tools" | "reader" | "editor";
 
 type Props = {
   route: Route;
@@ -50,6 +50,8 @@ function Prefs({ theme, onTheme }: Pick<Props, "theme" | "onTheme">) {
 
 export default function Layout(p: Props) {
   const t = useT();
+  // The editor is reached from Tools (or the reader); Tools stays marked as where you are.
+  const current: Route = p.route === "editor" ? "tools" : p.route;
   const [sheet, setSheet] = useState(false);
   const items: { r: Route; label: string; icon: ReactNode; disabled?: boolean }[] = [
     { r: "home", label: t.navHome, icon: <HomeIcon size={20} /> },
@@ -69,7 +71,7 @@ export default function Layout(p: Props) {
             <button
               key={i.r}
               className="nav-item"
-              aria-current={p.route === i.r ? "page" : undefined}
+              aria-current={current === i.r ? "page" : undefined}
               disabled={i.disabled}
               onClick={() => p.onRoute(i.r)}
               style={{ width: "100%" }}
@@ -88,7 +90,7 @@ export default function Layout(p: Props) {
         {items.map((i) => (
           <button
             key={i.r}
-            aria-current={p.route === i.r ? "page" : undefined}
+            aria-current={current === i.r ? "page" : undefined}
             disabled={i.disabled}
             onClick={() => p.onRoute(i.r)}
           >

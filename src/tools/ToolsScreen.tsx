@@ -7,6 +7,7 @@ import {
   ArrowUp,
   CheckSquare,
   ExternalLink,
+  FilePen,
   FilePlus2,
   FileStack,
   FolderOpen,
@@ -36,9 +37,9 @@ import "./tools.css";
 
 type Tool = "organize" | "merge" | "split" | "compress";
 type Source = { ref: DocRef; name: string; bytes: Uint8Array; doc: PDFDocumentProxy };
-type Props = { onToast(msg: string): void };
+type Props = { onToast(msg: string): void; onEdit(ref: DocRef): void };
 
-async function pickPdfs(multiple: boolean): Promise<DocRef[]> {
+export async function pickPdfs(multiple: boolean): Promise<DocRef[]> {
   // Browser preview only: ?pick=/fixtures/a.pdf,/fixtures/b.pdf stands in for the file dialog.
   const dev = import.meta.env.DEV ? new URLSearchParams(location.search).get("pick") : null;
   if (dev) return dev.split(",").map((p) => ({ kind: "path", path: `dev:${p}` }));
@@ -56,7 +57,7 @@ async function loadSource(ref: DocRef): Promise<Source> {
 
 const save = (bytes: Uint8Array, name: string, src: Source) => saveOutput(bytes, name, folderOf(src.ref), "application/pdf");
 
-export default function ToolsScreen({ onToast }: Props) {
+export default function ToolsScreen({ onToast, onEdit }: Props) {
   const t = useT();
   const [tool, setTool] = useState<Tool | null>(null);
   const fail = (e: unknown) => onToast(t.convertErrors[asConvertError(e, "bad-input").code]);
@@ -87,7 +88,8 @@ export default function ToolsScreen({ onToast }: Props) {
       </div>
     );
   }
-  const cards: [Tool, string, string, ReactNode][] = [
+  const cards: [Tool | "edit", string, string, ReactNode][] = [
+    ["edit", t.toolEdit, t.toolEditSub, <FilePen size={22} />],
     ["organize", t.toolOrganize, t.toolOrganizeSub, <LayoutGrid size={22} />],
     ["merge", t.toolMerge, t.toolMergeSub, <FileStack size={22} />],
     ["split", t.toolSplit, t.toolSplitSub, <Scissors size={22} />],
@@ -104,7 +106,16 @@ export default function ToolsScreen({ onToast }: Props) {
         </header>
         <div className="tool-cards">
           {cards.map(([id, title, sub, icon], i) => (
-            <button key={id} className="tool-card" onClick={() => setTool(id)} style={{ animationDelay: `${i * 40}ms` }}>
+            <button
+              key={id}
+              className="tool-card"
+              onClick={async () => {
+                if (id !== "edit") return setTool(id);
+                const [ref] = await pickPdfs(false);
+                if (ref) onEdit(ref);
+              }}
+              style={{ animationDelay: `${i * 40}ms` }}
+            >
               <span className="tool-icon">{icon}</span>
               <span className="tool-title">{title}</span>
               <span className="tool-sub">{sub}</span>
@@ -117,7 +128,7 @@ export default function ToolsScreen({ onToast }: Props) {
 }
 
 /** Saved results with open / show in folder (PC) / share (phone). */
-function Results({ saved }: { saved: Saved[] }) {
+export function Results({ saved }: { saved: Saved[] }) {
   const t = useT();
   if (!saved.length) return null;
   const mime = "application/pdf";

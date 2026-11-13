@@ -233,6 +233,19 @@
     gap: 2px;
     padding-inline: 6px;
   }
+  /* Phones read in continuous mode at full width: "whole page" and spread direction aren't needed,
+     and the bar must fit a 360px screen. */
+  .reader-bar .desk-only {
+    display: none;
+  }
+  .reader-edit {
+    min-width: 36px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+  .reader-edit span {
+    display: none;
+  }
   .reader-page {
     margin-inline-end: auto;
   }

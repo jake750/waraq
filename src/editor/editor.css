@@ -1,0 +1,512 @@
+.editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  animation: fade var(--t-med) var(--ease-out);
+}
+
+.ed-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-inline: 4px;
+  unicode-bidi: plaintext;
+}
+
+.ed-bar-end {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ed-bar-end .btn {
+  margin-inline-start: 6px;
+}
+
+/* ---------- Tool strip ---------- */
+
+.ed-strip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--stroke);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ed-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.ed-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.ed-sep {
+  flex: none;
+  width: 1px;
+  height: 24px;
+  margin-inline: 4px;
+  background: var(--stroke);
+}
+
+.ed-swatch {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: 5px 3px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--stroke-strong);
+  cursor: pointer;
+  transition: box-shadow var(--t-fast) var(--ease-out);
+}
+.ed-swatch[aria-checked="true"] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.ed-stroke span {
+  display: block;
+  width: 18px;
+  border-radius: 4px;
+}
+.ed-stroke[aria-checked="true"],
+.ed-size[aria-checked="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.ed-size span {
+  font-weight: 600;
+  line-height: 1;
+}
+
+.icon-btn.danger {
+  color: var(--danger);
+}
+
+.ed-hint {
+  flex: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--stroke);
+}
+
+.ed-saved {
+  flex: none;
+  padding: 8px 12px 0;
+  background: var(--viewer-bg);
+}
+.ed-saved .tool-results {
+  margin: 0 auto;
+  max-width: 720px;
+}
+
+/* ---------- Pages ---------- */
+
+.ed-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.ed-pages {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--viewer-bg);
+  display: flex;
+  flex-direction: column;
+  /* "safe": a zoomed page wider than the view starts at the edge instead of being cut off. */
+  align-items: safe center;
+  gap: 16px;
+  padding: 16px 0 48px;
+}
+
+.ed-loading {
+  margin: auto;
+  color: var(--text-2);
+}
+
+.ed-page {
+  position: relative;
+  flex: none;
+  background: #fff;
+  box-shadow: var(--page-shadow);
+}
+.ed-page .page {
+  position: absolute;
+  inset: 0;
+  box-shadow: none;
+}
+/* The overlay owns the pointer; the text layer below isn't selectable while editing. */
+.ed-page .textLayer {
+  pointer-events: none;
+}
+
+.ed-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-x pan-y;
+}
+.ed-overlay svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+/* Drawing tools take the finger; select keeps scrolling on empty paper. */
+.ed-pages.drawing .ed-overlay {
+  touch-action: none;
+  cursor: crosshair;
+}
+.ed-overlay.tool-highlight,
+.ed-overlay.tool-underline,
+.ed-overlay.tool-strike {
+  cursor: text;
+}
+.ed-overlay.tool-text {
+  cursor: text;
+}
+.ed-overlay.tool-note {
+  cursor: copy;
+}
+
+.mark {
+  pointer-events: none;
+}
+.mark.grab {
+  pointer-events: auto;
+  cursor: move;
+  touch-action: none;
+}
+.mark .hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14px;
+}
+.mark .hit rect,
+.mark .hit ellipse {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14px;
+}
+.hl-fill {
+  mix-blend-mode: multiply;
+}
+.sel-box {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+.handle {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2px;
+  cursor: nwse-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Text boxes match the PDF output: same font, 1.45 line height, each paragraph its own direction. */
+.ed-text {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-family: var(--font);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  unicode-bidi: plaintext;
+  text-align: start;
+  pointer-events: none;
+  background: transparent;
+}
+.ed-text.grab {
+  pointer-events: auto;
+  cursor: move;
+  touch-action: none;
+}
+.ed-text.selected {
+  outline: 1.5px dashed var(--accent);
+  outline-offset: 4px;
+}
+.ed-text.editing {
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  resize: none;
+  overflow: hidden;
+  outline: 1.5px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+.ed-text .handle.side {
+  position: absolute;
+  /* Boxes grow to the right from their left edge, in either language. */
+  right: -12px;
+  top: 50%;
+  width: 10px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  cursor: ew-resize;
+}
+
+.ed-note {
+  position: absolute;
+  z-index: 6;
+  width: 240px;
+  padding: 10px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+}
+.ed-note textarea {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  unicode-bidi: plaintext;
+}
+.ed-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* A form field: its typed answer over the page, and a tap target that opens it in the panel. */
+.ed-answer {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  padding-inline: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  color: #10172a;
+  font-family: var(--font);
+  unicode-bidi: plaintext;
+  pointer-events: none;
+}
+.ed-answer bdi {
+  width: 100%;
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+.ed-answer.grab {
+  pointer-events: auto;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.ed-answer.grab:hover {
+  background: rgba(47, 95, 224, 0.1);
+  outline: 1px solid rgba(47, 95, 224, 0.5);
+}
+
+/* ---------- Forms panel ---------- */
+
+.ed-forms {
+  flex: none;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-inline-start: 1px solid var(--stroke);
+  min-height: 0;
+}
+.ed-forms-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+}
+.ed-forms-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.ed-forms-body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 14px 20px;
+}
+.ed-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.ed-field.check {
+  flex-direction: row;
+}
+.ed-field-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.ed-field-page {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent-text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ed-field input:not([type="checkbox"]),
+.ed-field textarea,
+.ed-field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--stroke-strong);
+  border-radius: var(--r-sm);
+  unicode-bidi: plaintext;
+}
+.ed-field textarea {
+  resize: vertical;
+}
+.ed-field :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+  border-color: var(--accent);
+}
+
+/* ---------- Dialogs ---------- */
+
+.ed-muted {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-top: -4px;
+}
+.spacer {
+  flex: 1;
+}
+
+.sig-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.sig-hint {
+  font-size: 13px;
+}
+.sig-canvas {
+  display: block;
+  width: 100%;
+  height: 180px;
+  margin: 4px 0 12px;
+  background: #fff;
+  border: 1px dashed var(--stroke-strong);
+  border-radius: var(--r-md);
+  touch-action: none;
+  cursor: crosshair;
+}
+.sig-saved {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.sig-chip {
+  position: relative;
+}
+.sig-pick {
+  display: grid;
+  place-items: center;
+  width: 128px;
+  height: 56px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.sig-pick:hover {
+  border-color: var(--accent);
+}
+.sig-pick img {
+  max-width: 100%;
+  max-height: 100%;
+}
+.sig-forget {
+  position: absolute;
+  top: -8px;
+  inset-inline-end: -8px;
+  width: 22px;
+  height: 22px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+}
+
+@media (max-width: 719px) {
+  .ed-title {
+    display: none;
+  }
+  .ed-bar-end {
+    margin-inline-start: auto;
+  }
+  /* Tools sit at the bottom on a phone, where the thumb is. */
+  .ed-strip {
+    order: 10;
+    border-bottom: 0;
+    border-top: 1px solid var(--stroke);
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+  .ed-pages {
+    padding: 8px 0 24px;
+    gap: 8px;
+  }
+  .ed-forms {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    width: auto;
+    height: 60%;
+    z-index: 41;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border: 0;
+    box-shadow: var(--shadow);
+    animation: rise var(--t-med) var(--ease-out);
+  }
+  .ed-forms .sheet-handle {
+    margin: 10px auto 0;
+  }
+}

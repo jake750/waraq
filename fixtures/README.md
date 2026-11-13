@@ -16,3 +16,4 @@ this project; no books or personal documents are included, so the repo can be pu
 `src/fonts/` holds Amiri (SIL Open Font License 1.1, from `@fontsource/amiri`) for future fixtures.
 
 - `office/sample-lo.pdf`: `office/sample.docx` converted by LibreOffice 26.2.7 (`soffice --convert-to pdf`). Real-world Arabic PDF: lam-alef ligatures, Arabic inside an English line, a number table.
+- `form.pdf`: a fillable form made with pdf-lib (text, multiline text, dropdown, radio group, checkbox) for the editor's forms panel.

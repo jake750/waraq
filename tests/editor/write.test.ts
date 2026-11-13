@@ -55,7 +55,7 @@ test("the input bytes are not changed", async () => {
   expect(input).toEqual(copy);
 });
 
-const text = (t: string, width = 400): Mark => ({ id: "t", page: 0, kind: "text", at: [50, 750], width, text: t, size: 16, color: [0, 0, 0], align: "start" });
+const text = (t: string, width = 400): Extract<Mark, { kind: "text" }> => ({ id: "t", page: 0, kind: "text", at: [50, 750], width, text: t, size: 16, color: [0, 0, 0], align: "start" });
 
 test("an arabic/english text box reads back in logical order", async () => {
   const out = await writeMarks(await blank(), [text("ملف PDF جديد رقم 10")], fonts, { flatten: false });

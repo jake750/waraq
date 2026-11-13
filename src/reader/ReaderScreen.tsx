@@ -18,6 +18,7 @@ type Props = {
   initialPage?: number;
   onPageChange(page: number): void;
   onClose(): void;
+  onEdit?(): void;
 };
 
 const isPhone = () => window.matchMedia?.("(max-width: 719px)").matches ?? false;
@@ -132,6 +133,7 @@ export default function ReaderScreen(p: Props) {
         panelOpen={panelOpen}
         onPanelToggle={() => setPanelOpen((o) => !o)}
         onFind={openSearch}
+        onEdit={p.onEdit}
         highlights={highlights}
         focus={focus}
         panel={(api) => {

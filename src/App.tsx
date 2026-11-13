@@ -8,6 +8,8 @@ import ReaderScreen from "./reader/ReaderScreen";
 import { displayName, docKey, pickFiles, readDocument, resolveName, type DocRef } from "./files/docRef";
 import ConvertScreen from "./convert/ConvertScreen";
 import ToolsScreen from "./tools/ToolsScreen";
+import EditorScreen, { type EditSource } from "./editor/EditorScreen";
+import { loadPdf } from "./tools/pages";
 import NotPdfPrompt from "./convert/NotPdfPrompt";
 import { useConvert } from "./convert/useConvert";
 import { openAsPdf } from "./convert/openAsPdf";
@@ -49,6 +51,7 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false);
   const conv = useConvert();
   const [notPdf, setNotPdf] = useState<{ ref: DocRef; name: string; busy: boolean } | null>(null);
+  const [edit, setEdit] = useState<{ src: EditSource; from: Route } | null>(null);
   const recentStore = useMemo(() => new RecentStore(appKV()), []);
   const [recent, setRecent] = useState<RecentItem[]>([]);
   const refreshRecent = useCallback(() => recentStore.list().then(setRecent).catch(() => {}), [recentStore]);
@@ -220,6 +223,18 @@ export default function App() {
     }
   };
 
+  // The editor works on its own copy of the bytes; protected files are refused before it opens.
+  const editDocument = async (ref: DocRef, name?: string) => {
+    try {
+      const bytes = await readDocument(ref);
+      await loadPdf(bytes);
+      setEdit({ src: { ref, name: name ?? (await resolveName(ref)), bytes }, from: route === "editor" ? "tools" : route });
+      setRoute("editor");
+    } catch (e) {
+      setToast(t.convertErrors[asConvertError(e, "bad-input").code]);
+    }
+  };
+
   const onPageChange = useCallback(
     (page: number) => {
       const cur = openRef.current;
@@ -250,8 +265,18 @@ export default function App() {
           setThemeState(v);
         }}
       >
-        {route === "tools" ? (
-          <ToolsScreen onToast={setToast} />
+        {route === "editor" && edit ? (
+          <EditorScreen
+            key={edit.src.name + edit.src.bytes.length}
+            src={edit.src}
+            onToast={setToast}
+            onClose={() => {
+              setRoute(edit.from === "reader" && !open ? "home" : edit.from);
+              setEdit(null);
+            }}
+          />
+        ) : route === "tools" ? (
+          <ToolsScreen onToast={setToast} onEdit={(ref) => editDocument(ref)} />
         ) : route === "convert" ? (
           <ConvertScreen api={conv} dragOver={dragOver} onToast={setToast} />
         ) : route === "reader" && open ? (
@@ -263,6 +288,7 @@ export default function App() {
             initialPage={open.initialPage}
             onPageChange={onPageChange}
             onClose={onClose}
+            onEdit={() => editDocument(open.ref, open.name)}
           />
         ) : (
           <Home

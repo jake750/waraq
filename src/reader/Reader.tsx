@@ -7,6 +7,7 @@ import {
   File,
   Maximize,
   Moon,
+  PenLine,
   PanelLeft,
   Rows3,
   X,
@@ -43,6 +44,8 @@ type Props = {
   panelOpen?: boolean;
   onPanelToggle?(): void;
   onFind?(): void;
+  /** Opens this document in the editor. */
+  onEdit?(): void;
   /** Highlight rectangles per 1-based page. */
   highlights?: Map<number, HighlightRect[]>;
   /** Page to jump to when it changes (e.g. current search match). */
@@ -348,7 +351,7 @@ export default function Reader(p: Props) {
             <ChevronsLeftRightEllipsis size={19} />
           </button>
           <button
-            className="icon-btn"
+            className="icon-btn desk-only"
             aria-pressed={fit === "page"}
             onClick={() => setFit("page")}
             title={t.fitPage}
@@ -372,7 +375,7 @@ export default function Reader(p: Props) {
             ))}
           </div>
           <button
-            className="icon-btn"
+            className="icon-btn desk-only"
             aria-pressed={rtl}
             onClick={() => setRtl(!rtl)}
             title={`${t.direction}: ${rtl ? t.dirRtl : t.dirLtr}`}
@@ -389,6 +392,12 @@ export default function Reader(p: Props) {
           >
             <Moon size={18} />
           </button>
+          {p.onEdit && (
+            <button className="btn btn-ghost btn-sm reader-edit" onClick={p.onEdit} title={t.edit} aria-label={t.edit}>
+              <PenLine size={17} />
+              <span>{t.edit}</span>
+            </button>
+          )}
         </div>
       </header>
 
