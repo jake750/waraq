@@ -51,6 +51,8 @@ pub fn run() {
             mobile::android_share,
             mobile::android_view,
             mobile::android_display_name,
+            mobile::android_incoming,
+            mobile::android_persist,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Waraq");

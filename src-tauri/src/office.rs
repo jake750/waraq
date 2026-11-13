@@ -30,6 +30,7 @@ pub fn filter_for(target: &str) -> Option<&'static str> {
     }
 }
 
+#[cfg(test)]
 pub fn sha256_hex(mut r: impl Read) -> std::io::Result<String> {
     let mut h = Sha256::new();
     let mut buf = vec![0u8; 1 << 16];

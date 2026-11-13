@@ -24,7 +24,7 @@ import {
 import { open } from "@tauri-apps/plugin-dialog";
 import { useT } from "../i18n";
 import { isAndroid } from "../platform";
-import { folderOf, readDocument, resolveName, suffixName, toDocRef, type DocRef } from "../files/docRef";
+import { folderOf, keepAccess, readDocument, resolveName, suffixName, toDocRef, type DocRef } from "../files/docRef";
 import { openPdf } from "../pdf/openPdf";
 import { asConvertError } from "../convert/errors";
 import { openOutput, revealOutput, saveOutput, shareOutput } from "../convert/native";
@@ -44,7 +44,7 @@ export async function pickPdfs(multiple: boolean): Promise<DocRef[]> {
   const dev = import.meta.env.DEV ? new URLSearchParams(location.search).get("pick") : null;
   if (dev) return dev.split(",").map((p) => ({ kind: "path", path: `dev:${p}` }));
   const r = await open({ multiple, directory: false, filters: [{ name: "PDF", extensions: ["pdf"] }] }).catch(() => null);
-  return (Array.isArray(r) ? r : typeof r === "string" ? [r] : []).map(toDocRef);
+  return keepAccess((Array.isArray(r) ? r : typeof r === "string" ? [r] : []).map(toDocRef));
 }
 
 /** Reads and checks a PDF for the tools (protected/corrupt files fail here, before any work). */

@@ -63,7 +63,13 @@ export const OPENABLE_EXTS = ["pdf", "docx", "doc", "odt", "rtf", "txt", "md", "
 export async function pickFiles(multiple = true): Promise<DocRef[]> {
   const picked = await open({ multiple, directory: false, filters: [{ name: "Documents", extensions: OPENABLE_EXTS }] });
   const list = Array.isArray(picked) ? picked : typeof picked === "string" ? [picked] : [];
-  return list.map(toDocRef);
+  return keepAccess(list.map(toDocRef));
+}
+
+/** Android: keep read access to picked files after a restart, so Recent can reopen them. */
+export function keepAccess(refs: DocRef[]): DocRef[] {
+  for (const r of refs) if (r.kind === "uri") invoke("android_persist", { uri: r.uri }).catch(() => {});
+  return refs;
 }
 
 /** The file's real name. Android content URIs are often opaque ("document:1000"), so ask the system. */

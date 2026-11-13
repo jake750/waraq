@@ -22,6 +22,7 @@ import PasswordPrompt from "./reader/PasswordPrompt";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { isAndroid } from "./platform";
 
 const inTauri = () => "__TAURI_INTERNALS__" in window;
 
@@ -172,6 +173,20 @@ export default function App() {
         if (alive && path) openDocument({ kind: "path", path });
       })
       .catch(() => {});
+    // Android: files from "Open with" / "Share", at launch and whenever we come back to the front.
+    const takeIncoming = () =>
+      invoke<string[]>("android_incoming")
+        .then((uris) => {
+          const { handleFiles, route } = latest.current;
+          if (alive && uris.length) handleFiles(uris.map((uri) => ({ kind: "uri", uri })), route === "convert");
+        })
+        .catch(() => {});
+    const onVisible = () => document.visibilityState === "visible" && takeIncoming();
+    if (isAndroid()) {
+      takeIncoming();
+      document.addEventListener("visibilitychange", onVisible);
+      offs.push(() => document.removeEventListener("visibilitychange", onVisible));
+    }
     listen<string>("open-file", (e) => openDocument({ kind: "path", path: e.payload })).then((off) =>
       alive ? offs.push(off) : off(),
     );

@@ -17,6 +17,7 @@ import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
+import app.tauri.plugin.JSArray
 import app.tauri.plugin.Plugin
 import java.io.File
 import java.io.FileInputStream
@@ -24,6 +25,58 @@ import java.io.FileInputStream
 /** Android-only services for Waraq: saving outputs to Downloads, sharing, file names, HTML → PDF printing. */
 @TauriPlugin
 class WaraqPlugin(private val activity: Activity) : Plugin(activity) {
+
+  /** Files handed to us by another app ("Open with", "Share") not yet taken by the page. */
+  private val pending = mutableListOf<String>()
+
+  private fun urisOf(intent: Intent?): List<Uri> {
+    if (intent == null) return emptyList()
+    @Suppress("DEPRECATION")
+    return when (intent.action) {
+      Intent.ACTION_VIEW -> listOfNotNull(intent.data)
+      Intent.ACTION_SEND -> listOfNotNull(intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)
+      Intent.ACTION_SEND_MULTIPLE -> intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM) ?: emptyList()
+      else -> emptyList()
+    }
+  }
+
+  override fun load(webView: WebView) {
+    super.load(webView)
+    synchronized(pending) { urisOf(activity.intent).forEach { pending.add(it.toString()) } }
+  }
+
+  /** A file opened while the app is already running: queued, and the page is told. */
+  override fun onNewIntent(intent: Intent) {
+    val uris = urisOf(intent).map { it.toString() }
+    if (uris.isEmpty()) return
+    synchronized(pending) { pending.addAll(uris) }
+    trigger("incoming", JSObject())
+  }
+
+  /** Takes (and clears) the files waiting to be opened. */
+  @Command
+  fun incoming(invoke: Invoke) {
+    val list = JSArray()
+    synchronized(pending) {
+      pending.forEach { list.put(it) }
+      pending.clear()
+    }
+    val result = JSObject()
+    result.put("uris", list)
+    invoke.resolve(result)
+  }
+
+  /** Keeps read access to a picked file across restarts, so Recent can reopen it (best effort). */
+  @Command
+  fun persist(invoke: Invoke) {
+    val uri = Uri.parse(invoke.getArgs().getString("uri") ?: return invoke.reject("missing uri"))
+    try {
+      activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    } catch (e: Exception) {
+      // Not a persistable grant (e.g. a share or a VIEW intent): the file works for this session only.
+    }
+    invoke.resolve()
+  }
 
   /** Copies a finished file (app cache) into Downloads/Waraq as a new entry. Never overwrites. */
   @Command

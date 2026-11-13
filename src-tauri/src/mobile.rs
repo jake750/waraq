@@ -76,6 +76,24 @@ pub async fn android_view(app: tauri::AppHandle, uri: String, mime: String) -> R
 }
 
 #[derive(Deserialize)]
+struct IncomingResp {
+    uris: Vec<String>,
+}
+
+/// Files another app asked us to open or shared with us, not yet handled.
+#[tauri::command]
+pub async fn android_incoming(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    let r: IncomingResp = call(&app, "incoming", serde_json::json!({})).await?;
+    Ok(r.uris)
+}
+
+#[tauri::command]
+pub async fn android_persist(app: tauri::AppHandle, uri: String) -> Result<(), String> {
+    let _: Value = call(&app, "persist", serde_json::json!({ "uri": uri })).await?;
+    Ok(())
+}
+
+#[derive(Deserialize)]
 struct NameResp {
     name: Option<String>,
 }
