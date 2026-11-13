@@ -1,5 +1,9 @@
 mod files;
 mod launch;
+mod mobile;
+#[cfg(windows)]
+mod office;
+mod print;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -23,7 +27,30 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![files::read_file, launch::startup_file])
+        .plugin(tauri_plugin_opener::init())
+        .plugin(mobile::init())
+        .invoke_handler(tauri::generate_handler![
+            files::read_file,
+            files::save_output,
+            files::open_output,
+            files::reveal_output,
+            files::temp_dir,
+            launch::startup_file,
+            #[cfg(any(windows, target_os = "android"))]
+            print::html_to_pdf,
+            #[cfg(windows)]
+            office::office_status,
+            #[cfg(windows)]
+            office::office_install,
+            #[cfg(windows)]
+            office::office_convert,
+            #[cfg(windows)]
+            office::office_cancel,
+            mobile::android_save_to_downloads,
+            mobile::android_share,
+            mobile::android_view,
+            mobile::android_display_name,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Waraq");
 }
