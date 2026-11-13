@@ -21,6 +21,10 @@ jobs:
         run: npm ci
 
       - name: Build universal macOS app
+        # Updater bundles are signed (bundle.createUpdaterArtifacts), so the build needs the key.
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --target universal-apple-darwin
 
       - name: Upload bundles

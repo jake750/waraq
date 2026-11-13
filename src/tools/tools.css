@@ -7,7 +7,7 @@
 }
 
 .tools-inner {
-  max-width: 960px;
+  max-width: var(--page-max);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -29,44 +29,86 @@
   transform: scaleX(-1);
 }
 
-.tool-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 14px;
+.tool-feature,
+.tool-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: start;
+  border: 0;
+  background: transparent;
+  color: var(--text);
 }
 
-.tool-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 20px;
-  text-align: start;
+.tool-feature {
+  --fold-bg: var(--bg);
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+.tool-feature:hover {
+  border-color: var(--stroke-strong);
+}
+.tool-feature .tool-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+}
+.tool-feature .tool-title {
+  font-size: 18px;
+}
+.tool-feature-cta {
+  flex: none;
+  margin-inline-start: auto;
+  pointer-events: none;
+}
+
+.tool-group {
+  margin-top: 8px;
+}
+
+.tool-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   background: var(--surface);
   border: 1px solid var(--stroke);
   border-radius: var(--r-md);
-  color: var(--text);
-  transition: border-color var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
-  animation: rise var(--t-med) var(--ease-out) both;
+  overflow: hidden;
+}
+.tool-list li + li {
+  border-top: 1px solid var(--stroke);
 }
 
-.tool-card:hover {
-  border-color: var(--accent);
+.tool-row {
+  min-height: 68px;
+  padding: 12px 16px;
+  transition: background var(--t-fast) var(--ease-out);
 }
-
-.tool-card:active {
-  transform: scale(0.98);
+.tool-row:hover {
+  background: var(--surface-2);
 }
 
 .tool-icon {
-  width: 44px;
-  height: 44px;
+  flex: none;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--accent-soft);
   color: var(--accent-text);
-  margin-bottom: 6px;
+}
+
+.tool-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .tool-title {
@@ -75,8 +117,23 @@
 }
 
 .tool-sub {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-2);
+}
+
+.tool-chevron {
+  flex: none;
+  color: var(--text-3);
+}
+
+@media (max-width: 719px) {
+  .tool-feature {
+    flex-wrap: wrap;
+    padding: 18px;
+  }
+  .tool-feature-cta {
+    display: none;
+  }
 }
 
 .tool-file {

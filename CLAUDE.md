@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Waraq (ورق)**: a document converter, PDF reader and PDF editor for Windows (Tauri desktop) and
 Android. The UI is Arabic-first (RTL), with a full English translation (`src/i18n.ts`). Windows
-conversions go through a per-user LibreOffice install; Android uses built-in engines only — nothing
-the app does reaches the network except that one optional LibreOffice download (SHA-256 pinned). The
+conversions go through a per-user LibreOffice install; Android uses built-in engines only. The app
+reaches the network for only two things: that one optional LibreOffice download (SHA-256 pinned), and update checks against this repo's GitHub
+releases (`latest.json`; automatic at most once a day, can be turned off in Settings). The
 app never overwrites an opened file: every operation writes a new file (suffixed, e.g. `"name
 (edited).pdf"`; Android writes to `Download/Waraq`).
 
@@ -32,13 +33,35 @@ npx tauri android build --apk --target x86_64      # release APK, emulator testi
 cd src-tauri && cargo test  # Rust unit tests (files.rs, office.rs, ...)
 ```
 
+**Updates and signing.** `bundle.createUpdaterArtifacts` is on, so every `tauri build` needs the
+updater signing key in the environment (`TAURI_SIGNING_PRIVATE_KEY` = path or contents of
+`~/.tauri/waraq.key`, plus `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`); the matching public key is
+`plugins.updater.pubkey` in `tauri.conf.json`. Never commit the private key. Releases come from
+`.github/workflows/release.yml`: bump `version` in `tauri.conf.json` (and `package.json`/`Cargo.toml`),
+push a `vX.Y.Z` tag, and tauri-action builds Windows + macOS, signs them and publishes `latest.json`
+(the repo secrets `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD` must be set). Desktop installs update
+through `tauri-plugin-updater` (`src/update/native.ts`); Android can't self-update a sideloaded
+APK, so `update.rs`'s `latest_release` reads the same `latest.json` and the app opens the release
+page — attach the APK (signed with the release keystore below) to each release by hand. Android only
+installs an APK over an existing one signed with the same key, so every release APK must come from
+`waraq-release.keystore`; anyone still on an older debug-signed APK has to uninstall it once.
+
 The GitHub Actions workflow `.github/workflows/build-macos.yml` (`workflow_dispatch`) builds a
 universal macOS `.dmg`/`.app` via `tauri build --target universal-apple-darwin`. It must run on
 `macos-15` — `macos-14` is rejected outright for this account and `macos-13`/`macos-13-large`
 queue forever without ever getting a runner. The macOS app is unsigned (no Apple Developer
-certificate), so it needs "right-click → Open" past Gatekeeper on first launch. The Android release
-APK is signed with the debug keystore (`~/.android/debug.keystore`), not a release key — fine for
-sideloading, not for the Play Store.
+certificate), so it needs "right-click → Open" past Gatekeeper on first launch.
+
+**Android signing.** A real release keystore exists at `~/.android/waraq-release.keystore`
+(alias `waraq`) — deliberately outside the repo, never committed. `src-tauri/gen/android/app/
+build.gradle.kts` reads `src-tauri/gen/android/app/keystore.properties` (gitignored by Tauri's own
+generated `.gitignore`; holds `storeFile`/`storePassword`/`keyAlias`/`keyPassword`) and wires a
+`release` `signingConfig` from it when that file exists, so `npx tauri android build --apk
+--target aarch64` produces an APK already signed with the release key — no manual zipalign/
+apksigner pass needed. Without that properties file (e.g. a fresh clone, or CI), release builds
+stay unsigned, same as before. **The repo is public** — the keystore and its password must never
+be added to git; ask the user before touching `.gitignore` entries that cover them. The user holds
+the actual password (asked for it once, keep it out of this file and out of anything committed).
 
 **Browser preview without Tauri** (`npm run dev` + the Browser pane, no `tauri dev`): there is no
 Tauri IPC bridge, so `readDocument` (`src/files/docRef.ts`) special-cases

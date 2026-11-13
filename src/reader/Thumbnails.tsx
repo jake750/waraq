@@ -1,3 +1,4 @@
+import { pageCanvas } from "../pdf/pageCanvas";
 import { leasePage, type PageLease } from "./pageLease";
 import { memo, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
@@ -52,7 +53,7 @@ const Thumb = memo(function Thumb({
     let cancelled = false;
     let task: RenderTask | undefined;
     let lease: PageLease | undefined;
-    const canvas = document.createElement("canvas");
+    const canvas = pageCanvas();
     host.current!.replaceChildren(canvas);
     (async () => {
       lease = await leasePage(doc, page);

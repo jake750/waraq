@@ -1,3 +1,4 @@
+import { pageCanvas } from "../pdf/pageCanvas";
 import { useEffect, useRef, useState } from "react";
 import { TextLayer, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import { buildPageText, type GlyphItem } from "../text/search";
@@ -45,7 +46,7 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
     let layer: TextLayer | undefined;
     let lease: PageLease | undefined;
     // A fresh canvas per render: pdf.js refuses a canvas whose previous render is still cancelling.
-    const canvas = document.createElement("canvas");
+    const canvas = pageCanvas();
     canvasHost.current!.replaceChildren(canvas);
     const textDiv = textRef.current!;
     (async () => {

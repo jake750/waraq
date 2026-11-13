@@ -4,6 +4,7 @@ mod mobile;
 #[cfg(windows)]
 mod office;
 mod print;
+mod update;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -22,6 +23,12 @@ pub fn run() {
             let _ = w.set_focus();
         }
     }));
+
+    // Desktop: signed self-updates from GitHub releases (see update.rs for Android).
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init());
 
     builder
         .plugin(tauri_plugin_dialog::init())
@@ -53,6 +60,8 @@ pub fn run() {
             mobile::android_display_name,
             mobile::android_incoming,
             mobile::android_persist,
+            #[cfg(target_os = "android")]
+            update::latest_release,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Waraq");

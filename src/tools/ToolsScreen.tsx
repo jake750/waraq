@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  ChevronRight,
   CheckSquare,
   ExternalLink,
   FilePen,
@@ -35,9 +36,9 @@ import { compressPdf, type Reencode } from "./compress";
 import PdfThumb from "./PdfThumb";
 import "./tools.css";
 
-type Tool = "organize" | "merge" | "split" | "compress";
+export type Tool = "organize" | "merge" | "split" | "compress";
 type Source = { ref: DocRef; name: string; bytes: Uint8Array; doc: PDFDocumentProxy };
-type Props = { onToast(msg: string): void; onEdit(ref: DocRef): void };
+type Props = { onToast(msg: string): void; onEdit(ref: DocRef): void; initialTool?: Tool };
 
 export async function pickPdfs(multiple: boolean): Promise<DocRef[]> {
   // Browser preview only: ?pick=/fixtures/a.pdf,/fixtures/b.pdf stands in for the file dialog.
@@ -57,9 +58,9 @@ async function loadSource(ref: DocRef): Promise<Source> {
 
 const save = (bytes: Uint8Array, name: string, src: Source) => saveOutput(bytes, name, folderOf(src.ref), "application/pdf");
 
-export default function ToolsScreen({ onToast, onEdit }: Props) {
+export default function ToolsScreen({ onToast, onEdit, initialTool }: Props) {
   const t = useT();
-  const [tool, setTool] = useState<Tool | null>(null);
+  const [tool, setTool] = useState<Tool | null>(initialTool ?? null);
   const fail = (e: unknown) => onToast(t.convertErrors[asConvertError(e, "bad-input").code]);
   if (tool) {
     const back = () => setTool(null);
@@ -88,12 +89,33 @@ export default function ToolsScreen({ onToast, onEdit }: Props) {
       </div>
     );
   }
-  const cards: [Tool | "edit", string, string, ReactNode][] = [
-    ["edit", t.toolEdit, t.toolEditSub, <FilePen size={22} />],
-    ["organize", t.toolOrganize, t.toolOrganizeSub, <LayoutGrid size={22} />],
-    ["merge", t.toolMerge, t.toolMergeSub, <FileStack size={22} />],
-    ["split", t.toolSplit, t.toolSplitSub, <Scissors size={22} />],
-    ["compress", t.toolCompress, t.toolCompressSub, <Minimize2 size={22} />],
+  const openTool = async (id: Tool | "edit") => {
+    if (id !== "edit") return setTool(id);
+    const [ref] = await pickPdfs(false);
+    if (ref) onEdit(ref);
+  };
+  const row = (id: Tool | "edit", title: string, sub: string, icon: ReactNode) => (
+    <li key={id}>
+      <button className="tool-row" onClick={() => openTool(id)}>
+        <span className="tool-icon">{icon}</span>
+        <span className="tool-text">
+          <span className="tool-title">{title}</span>
+          <span className="tool-sub">{sub}</span>
+        </span>
+        <ChevronRight size={18} className="tool-chevron flip-rtl" />
+      </button>
+    </li>
+  );
+  const groups: [string, [Tool, string, string, ReactNode][]][] = [
+    [
+      t.toolsGroupPages,
+      [
+        ["organize", t.toolOrganize, t.toolOrganizeSub, <LayoutGrid size={20} />],
+        ["merge", t.toolMerge, t.toolMergeSub, <FileStack size={20} />],
+        ["split", t.toolSplit, t.toolSplitSub, <Scissors size={20} />],
+      ],
+    ],
+    [t.toolsGroupSize, [["compress", t.toolCompress, t.toolCompressSub, <Minimize2 size={20} />]]],
   ];
   return (
     <div className="tools">
@@ -104,24 +126,22 @@ export default function ToolsScreen({ onToast, onEdit }: Props) {
             <p>{t.toolsSub}</p>
           </div>
         </header>
-        <div className="tool-cards">
-          {cards.map(([id, title, sub, icon], i) => (
-            <button
-              key={id}
-              className="tool-card"
-              onClick={async () => {
-                if (id !== "edit") return setTool(id);
-                const [ref] = await pickPdfs(false);
-                if (ref) onEdit(ref);
-              }}
-              style={{ animationDelay: `${i * 40}ms` }}
-            >
-              <span className="tool-icon">{icon}</span>
-              <span className="tool-title">{title}</span>
-              <span className="tool-sub">{sub}</span>
-            </button>
-          ))}
-        </div>
+        <button className="tool-feature fold" onClick={() => openTool("edit")}>
+          <span className="tool-icon">
+            <FilePen size={24} />
+          </span>
+          <span className="tool-text">
+            <span className="tool-title">{t.toolEdit}</span>
+            <span className="tool-sub">{t.toolEditSub}</span>
+          </span>
+          <span className="btn btn-primary btn-sm tool-feature-cta">{t.toolEditCta}</span>
+        </button>
+        {groups.map(([name, items]) => (
+          <section key={name} className="tool-group">
+            <h2 className="section-title">{name}</h2>
+            <ul className="tool-list">{items.map(([id, title, sub, icon]) => row(id, title, sub, icon))}</ul>
+          </section>
+        ))}
       </div>
     </div>
   );
