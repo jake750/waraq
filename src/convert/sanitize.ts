@@ -1,6 +1,8 @@
 // Converted documents are data, never code: strip everything that could run or reach the network.
 
 const DROP = "script,style,iframe,frame,frameset,object,embed,link,meta,base,form,input,button,select,textarea,noscript,template,svg script";
+// Attributes that make a browser fetch something as soon as the page loads (or is clicked, for ping).
+const FETCHES = new Set(["background", "poster", "lowsrc", "dynsrc", "longdesc", "data", "codebase", "action", "formaction", "ping", "manifest", "srcdoc"]);
 const BLOCKS = "p,h1,h2,h3,h4,h5,h6,li,td,th,blockquote,dd,dt,figcaption,caption,pre";
 
 /** Sanitizes an HTML fragment (or the children of `root`) and marks blocks dir="auto" so Arabic lays out RTL. */
@@ -14,8 +16,11 @@ export function sanitizeElement(root: Element): string {
   root.querySelectorAll("*").forEach((el) => {
     for (const { name, value } of [...el.attributes]) {
       const n = name.toLowerCase();
-      if (n.startsWith("on")) el.removeAttribute(name);
-      else if ((n === "href" || n === "xlink:href") && /^\s*(javascript|vbscript|data):/i.test(value)) el.removeAttribute(name);
+      const link = el.localName === "a" || el.localName === "area";
+      if (n.startsWith("on") || FETCHES.has(n)) el.removeAttribute(name);
+      else if ((n === "href" || n === "xlink:href") && /^\s*(javascript|vbscript|data):/i.test(value) && link) el.removeAttribute(name);
+      // Outside links (svg <image>, <use>, …) an href loads at once: keep only inline images and #fragments.
+      else if ((n === "href" || n === "xlink:href") && !link && !/^\s*(#|data:image\/)/i.test(value)) el.removeAttribute(name);
       else if (n === "src" || n === "srcset") {
         if (n === "srcset" || !/^data:image\//i.test(value)) el.removeAttribute(name);
       } else if (n === "style" && /url\s*\(|expression\s*\(/i.test(value)) el.removeAttribute(name);

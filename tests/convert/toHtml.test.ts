@@ -83,3 +83,15 @@ test("tables and lists take the direction of their text", async () => {
   expect(out).toMatch(/<ul dir="ltr"/);
   expect(out).toMatch(/<ol dir="rtl"/);
 });
+
+test("nothing in the sanitized html can fetch from the network", async () => {
+  const { sanitizeFragment } = await import("../../src/convert/sanitize");
+  const out = sanitizeFragment(
+    `<table background="http://x.test/a.png"><tr><td>a</td></tr></table>` +
+      `<video poster="https://x.test/p.jpg"></video>` +
+      `<svg><image href="https://x.test/i.png"/><use xlink:href="http://x.test/s.svg#a"/></svg>` +
+      `<a href="https://keep.test/page">link</a>`,
+  );
+  expect(out).not.toMatch(/x\.test/);
+  expect(out).toContain("https://keep.test/page"); // a link loads nothing until someone follows it
+});

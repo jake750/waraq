@@ -90,7 +90,9 @@ const FONTS = `"Traditional Arabic", "Simplified Arabic", "Noto Naskh Arabic", "
 export function htmlDocument(title: string, body: string, opts: PageOpts = DEFAULT_PAGE): string {
   const size = `${opts.size} ${opts.landscape ? "landscape" : "portrait"}`;
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
+<html><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:">
+<title>${escapeHtml(title)}</title>
 <style>
 @page { size: ${size}; margin: ${opts.marginMm}mm; }
 html { font-family: ${FONTS}; font-size: 12pt; line-height: 1.6; color: #111; }

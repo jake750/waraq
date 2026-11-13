@@ -45,3 +45,8 @@ test("docx output reopens with the Arabic text and RTL paragraphs", async () => 
   expect(xml).toMatch(/<w:bidi\/>/);
   expect(xml).toMatch(/<w:rtl\/>/);
 });
+
+test("the printable page forbids every network load", () => {
+  const page = htmlDocument("t", "<p>x</p>");
+  expect(page).toMatch(/<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:">/);
+});
