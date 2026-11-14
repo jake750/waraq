@@ -26,7 +26,9 @@ import { useT } from "../i18n";
 import { BACK_DIALOG, useBack } from "../shell/back";
 import { openPdf } from "../pdf/openPdf";
 import { pageLayout, type PageLayout } from "../text/search";
-import { folderOf, suffixName, type DocRef } from "../files/docRef";
+import { docKey, folderOf, suffixName, type DocRef } from "../files/docRef";
+import { appKV } from "../files/kv";
+import { DraftStore, type Draft } from "./drafts";
 import { saveOutput } from "../convert/native";
 import { asConvertError } from "../convert/errors";
 import type { Saved } from "../convert/queue";
@@ -111,6 +113,10 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const [saved, setSaved] = useState<Saved | null>(null);
   const [cleanAt, setCleanAt] = useState<{ marks: Mark[]; values: Record<string, FieldValue> }>({ marks: emptyHistory.present, values: {} });
   const [leaveAsk, setLeaveAsk] = useState(false);
+  // Unsaved work from an earlier session, offered once on open. `undefined` = not looked up yet.
+  const [draft, setDraft] = useState<Draft | null | undefined>(undefined);
+  const drafts = useMemo(() => new DraftStore(appKV()), []);
+  const draftKey = useMemo(() => `${docKey(src.ref)}#${src.bytes.length}`, [src]);
   const [width, setWidth] = useState(800);
   const [zoom, setZoom] = useState(1);
   const scroller = useRef<HTMLDivElement>(null);
@@ -118,6 +124,30 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const marks = hist.present;
   const dirty = marks !== cleanAt.marks || values !== cleanAt.values;
+
+  useEffect(() => {
+    drafts.get(draftKey).then(setDraft, () => setDraft(null));
+  }, [drafts, draftKey]);
+
+  // Keeps the work as a draft while there are unsaved changes (not while a restore is still on offer).
+  useEffect(() => {
+    if (draft !== null) return;
+    const id = setTimeout(() => {
+      (dirty ? drafts.put(draftKey, marks, values) : drafts.remove(draftKey)).catch(() => {});
+    }, 800);
+    return () => clearTimeout(id);
+  }, [dirty, marks, values, draft, drafts, draftKey]);
+
+  const restoreDraft = () => {
+    if (!draft) return;
+    dispatch({ type: "reset", marks: draft.marks });
+    setValues(draft.values);
+    setDraft(null);
+  };
+  const dropDraft = () => {
+    drafts.remove(draftKey).catch(() => {});
+    setDraft(null);
+  };
 
   // Open the document and read its page sizes and form fields.
   useEffect(() => {
@@ -311,6 +341,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
       setSaved(s);
       setCleanAt({ marks, values });
       setSaveAsk(false);
+      drafts.remove(draftKey).catch(() => {});
     } catch (e) {
       onToast(t.convertErrors[asConvertError(e, "bad-input").code]);
     } finally {
@@ -395,6 +426,18 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
           </button>
         </div>
       </header>
+
+      {draft && (
+        <div className="ed-draft" role="status">
+          <span>{t.edDraftFound}</span>
+          <button className="btn btn-ghost btn-sm" onClick={dropDraft}>
+            {t.edDraftDiscard}
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={restoreDraft}>
+            {t.edDraftRestore}
+          </button>
+        </div>
+      )}
 
       <div className="ed-strip" role="toolbar" aria-label={t.edTools}>
         {/* Grouped by job: select · mark up text · draw · insert. */}
@@ -589,7 +632,13 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
             <h2 id="leave-title">{t.edLeaveTitle}</h2>
             <p>{t.edLeaveSub}</p>
             <div className="dialog-actions">
-              <button className="btn btn-ghost danger" onClick={onClose}>
+              <button
+                className="btn btn-ghost danger"
+                onClick={() => {
+                  drafts.remove(draftKey).catch(() => {});
+                  onClose();
+                }}
+              >
                 {t.edLeave}
               </button>
               <button className="btn btn-primary" onClick={() => setLeaveAsk(false)}>

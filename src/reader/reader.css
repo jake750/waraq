@@ -205,6 +205,24 @@
   user-select: none;
 }
 
+/* Links from the PDF, above the text so a tap follows them. */
+.link-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.link-layer a {
+  position: absolute;
+  pointer-events: auto;
+  border-radius: 2px;
+}
+.link-layer a:hover,
+.link-layer a:focus-visible {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
 .hl-layer {
   position: absolute;
   inset: 0;
@@ -552,5 +570,15 @@
 @media (hover: none) {
   .reader-unfull {
     opacity: 0.85;
+  }
+}
+
+/* Touch screens scroll by finger: no scrollbar eating into the page's width. */
+@media (pointer: coarse) {
+  .reader-scroll {
+    scrollbar-width: none;
+  }
+  .reader-scroll::-webkit-scrollbar {
+    display: none;
   }
 }

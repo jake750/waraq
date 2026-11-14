@@ -5,6 +5,7 @@ import { buildPageText, type GlyphItem } from "../text/search";
 import { detectRtl } from "../text/arabic";
 import { leasePage, type PageLease } from "./pageLease";
 import { canvasPixels } from "./layout";
+import { openLink, pageLinks, type PageLink } from "./links";
 
 export type HighlightRect = { x: number; y: number; w: number; h: number; current: boolean };
 
@@ -19,6 +20,8 @@ type Props = {
   height: number;
   /** Reports the page's real size at scale 1 (pages can differ from page 1). */
   onSize?(pageNumber: number, w: number, h: number): void;
+  /** A link inside the document was followed. */
+  onGoTo?(page: number): void;
 };
 
 type Viewport = { width: number; height: number; convertToViewportPoint(x: number, y: number): number[] };
@@ -32,11 +35,12 @@ const MAX_PIXELS = window.matchMedia?.("(pointer: coarse)").matches ? 6e6 : 16e6
  * One page: canvas + selectable text layer + search highlights.
  * Cancels its render and frees the bitmap on unmount, so only mounted pages cost memory.
  */
-export default function PageView({ doc, pageNumber, scale, night, highlights, width, height, onSize }: Props) {
+export default function PageView({ doc, pageNumber, scale, night, highlights, width, height, onSize, onGoTo }: Props) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const hlRef = useRef<HTMLDivElement>(null);
   const [vp, setVp] = useState<Viewport | null>(null);
+  const [links, setLinks] = useState<PageLink[]>([]);
   const sizeCb = useRef(onSize);
   sizeCb.current = onSize;
   /** The page the canvas on screen shows (it stays up, stretched, while a new zoom renders). */
@@ -95,6 +99,7 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
       host.replaceChildren(canvas);
       attached = true;
       showing.current = { doc, page: pageNumber };
+      pageLinks(doc, page).then((l) => !cancelled && setLinks(l), () => {});
       const content = await page.getTextContent();
       if (cancelled) return;
       const items = content.items.filter((it) => "str" in it && it.str !== "") as unknown as GlyphItem[];
@@ -148,6 +153,28 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
       <div ref={canvasHost} className={night ? "canvas-host night" : "canvas-host"} />
       <div ref={hlRef} className="hl-layer" />
       <div ref={textRef} className="textLayer" />
+      {vp && links.length > 0 && (
+        <div className="link-layer">
+          {links.map((l, i) => {
+            const [x1, y1] = vp.convertToViewportPoint(l.rect[0], l.rect[1]);
+            const [x2, y2] = vp.convertToViewportPoint(l.rect[2], l.rect[3]);
+            const style = { left: Math.min(x1, x2), top: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) };
+            return (
+              <a
+                key={i}
+                href={l.url ?? `#page=${l.page}`}
+                title={l.url ?? undefined}
+                style={style}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (l.url) openLink(l.url).catch(() => {});
+                  else if (l.page) onGoTo?.(l.page);
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

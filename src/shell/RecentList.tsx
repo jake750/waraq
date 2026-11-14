@@ -53,7 +53,7 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
               </span>
             </button>
             <button
-              className="icon-btn"
+              className="icon-btn recent-remove"
               onClick={() => onRemove(item)}
               aria-label={t.removeFromRecent}
               title={t.removeFromRecent}

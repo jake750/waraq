@@ -9,6 +9,7 @@
 .convert-inner {
   max-width: var(--page-max);
   margin: 0 auto;
+  padding-bottom: 72px; /* a toast never covers the last job */
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -217,9 +218,18 @@ select:focus-visible {
   .convert {
     padding: 24px 16px;
   }
+  /* The title keeps its line; "Add files" shrinks to its icon beside it. */
   .convert-head {
-    flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .convert-add {
+    flex: none;
+    padding-inline: 12px;
+    min-height: 44px;
+  }
+  .convert-add-label {
+    display: none;
   }
   .convert-head h1 {
     font-size: 24px;

@@ -28,6 +28,22 @@
 
 /* ---------- Tool strip ---------- */
 
+/* Offer to bring back unsaved work from last time. */
+.ed-draft {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--stroke);
+  font-size: 14px;
+}
+.ed-draft span {
+  flex: 1 1 220px;
+}
+
 .ed-strip {
   flex: none;
   display: flex;

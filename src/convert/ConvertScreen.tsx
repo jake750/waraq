@@ -47,9 +47,9 @@ export default function ConvertScreen({ api, dragOver, onToast }: Props) {
             <p>{t.convertSub}</p>
           </div>
           {queue.jobs.length > 0 && (
-            <button className="btn btn-ghost" onClick={addFiles}>
+            <button className="btn btn-ghost convert-add" onClick={addFiles} aria-label={t.addFiles} title={t.addFiles}>
               <Plus size={18} />
-              {t.addFiles}
+              <span className="convert-add-label">{t.addFiles}</span>
             </button>
           )}
         </header>
@@ -86,7 +86,7 @@ export default function ConvertScreen({ api, dragOver, onToast }: Props) {
                 <label className="convert-select">
                   <span>{t.convertAllTo}</span>
                   <select value="" onChange={(e) => e.target.value && api.setAll(e.target.value as Target)}>
-                    <option value="">—</option>
+                    <option value="">{t.chooseFormat}</option>
                     {allTargets.map((tg) => (
                       <option key={tg} value={tg}>
                         {LABEL[tg]}

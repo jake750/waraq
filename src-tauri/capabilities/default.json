@@ -19,7 +19,10 @@
         },
         {
           "url": "https://github.com/jake750/waraq/issues/new*"
-        }
+        },
+        { "url": "https://*" },
+        { "url": "http://*" },
+        { "url": "mailto:*" }
       ]
     }
   ]

@@ -9,6 +9,7 @@
 .tools-inner {
   max-width: var(--page-max);
   margin: 0 auto;
+  padding-bottom: 72px;
   display: flex;
   flex-direction: column;
   gap: 20px;

@@ -485,6 +485,7 @@ export default function Reader(p: Props) {
                         height={sizes[pg - 1].h * scale}
                         highlights={p.highlights?.get(pg) ?? NO_HIGHLIGHTS}
                         onSize={onPageSize}
+                        onGoTo={goTo}
                       />
                     ))}
                   </div>

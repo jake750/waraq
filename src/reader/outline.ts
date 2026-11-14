@@ -4,7 +4,7 @@ export type OutlineItem = { title: string; page: number /* 1-based */; depth: nu
 
 type RawNode = { title: string; dest: string | unknown[] | null; items: RawNode[] };
 
-async function pageOf(doc: PDFDocumentProxy, dest: RawNode["dest"]): Promise<number | null> {
+export async function pageOf(doc: PDFDocumentProxy, dest: RawNode["dest"]): Promise<number | null> {
   try {
     const explicit = typeof dest === "string" ? await doc.getDestination(dest) : dest;
     if (!Array.isArray(explicit) || explicit.length === 0) return null;

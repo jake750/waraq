@@ -617,15 +617,17 @@ function TextEditor({ style, value, onDone }: { style: React.CSSProperties; valu
   );
 }
 
-const NOTE_W = 240;
+// At most 240px, and never more than ~60% of a narrow (phone) page.
+const noteWidth = (pageW: number) => Math.max(160, Math.min(240, pageW * 0.6));
 
 function NoteEditor({ at, pageW, value, onDone, onDelete }: { at: Pt; pageW: number; value: string; onDone(text: string): void; onDelete(): void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const { text, change, finish, skip } = useCommit(value, onDone);
   useFocus(ref);
-  const left = Math.max(8, Math.min(at[0], pageW - NOTE_W - 8));
+  const w = noteWidth(pageW);
+  const left = Math.max(8, Math.min(at[0], pageW - w - 8));
   return (
-    <div className="ed-note" style={{ left, top: at[1] + 6, width: NOTE_W }} onPointerDown={(e) => e.stopPropagation()}>
+    <div className="ed-note" style={{ left, top: at[1] + 6, width: w }} onPointerDown={(e) => e.stopPropagation()}>
       <textarea
         ref={ref}
         dir="auto"
