@@ -33,8 +33,8 @@ cd src-tauri && cargo test  # Rust unit tests
   release of their own; they ride in the next one. After pushing the change, run `npm run release` (patch; or `minor`/`major`/`X.Y.Z`): it
   bumps `tauri.conf.json`, `package.json`, `package-lock.json`, `Cargo.toml` and `Cargo.lock`, commits and
   pushes to `main`. `.github/workflows/release.yml` sees an untagged version on main, builds Windows and
-  universal macOS, signs the updater bundles, publishes `latest.json` and creates the tag. Then build the
-  Android APK in the main checkout and attach it. Watch runs with `gh run watch <id>` in the background,
+  universal macOS, signs the updater bundles, publishes `latest.json`, creates the tag, and its `android` job
+  builds the signed APK and attaches it (`Waraq_X.Y.Z_android.apk`). Watch runs with `gh run watch <id>` in the background,
   never by polling.
 - **macOS:** only `macos-15` runners work (14 rejected, 13 never starts); "not acquired by Runner" → `gh run
   rerun <id> --failed`. The app is unsigned: users need right-click → Open once.
@@ -42,12 +42,13 @@ cd src-tauri && cargo test  # Rust unit tests
   (`~/.tauri/waraq.key`) and `_PASSWORD`, which are also repo secrets. The public key lives in
   `plugins.updater.pubkey`. Desktop updates itself through `tauri-plugin-updater` (`src/update/`).
 - **Android updates:** Android can't self-update a sideloaded APK, so `update.rs`'s `latest_release` reads the
-  same `latest.json` and the app opens the release page. Build the APK locally and attach it by hand:
-  `gh release upload vX.Y.Z Waraq_X.Y.Z_android.apk --clobber`.
+  same `latest.json` and the app opens the release page. The `android` job in `release.yml` attaches the
+  APK; by hand: `gh release upload vX.Y.Z Waraq_X.Y.Z_android.apk --clobber`.
 - **Android signing:** the keystore is `~/.android/waraq-release.keystore` (alias `waraq`), outside the repo.
   `build.gradle.kts` signs release builds only when `src-tauri/gen/android/app/keystore.properties` exists.
-  That file is gitignored and exists only in the main checkout, not in worktrees, so build release APKs
-  there. Every release APK must use this key, or Android refuses to install it over the old one.
+  That file is gitignored and exists only in the main checkout (local builds) and in CI, written from the
+  repo secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` (set by the
+  user). Every release APK must use this key, or Android refuses to install it over the old one.
 - **Public repo:** never commit or write down keys, keystores or passwords; ask before touching their `.gitignore`.
 - **Line endings** mix LF/CRLF: keep each file's own (`sed -i`/Python text mode rewrite them → whole-file diffs).
 

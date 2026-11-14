@@ -5,7 +5,7 @@ name: Release
 # Pushing a vX.Y.Z tag by hand still works too.
 # tauri-action builds Windows and macOS, signs the updater bundles with TAURI_SIGNING_PRIVATE_KEY
 # and uploads latest.json, which the installed apps read to update themselves.
-# The Android APK is still built locally and attached to the same release by hand (Waraq.apk).
+# The android job builds the signed APK and attaches it to the same release.
 
 on:
   push:
@@ -58,6 +58,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -84,3 +85,67 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           args: ${{ matrix.args }}
+
+  # Signed release APK, attached to the same release once tauri-action has created it.
+  # Needs the repo secrets ANDROID_KEYSTORE_BASE64 (the keystore file, base64), ANDROID_KEYSTORE_PASSWORD and
+  # ANDROID_KEY_PASSWORD; build.gradle.kts signs only when keystore.properties exists, written here from them.
+  android:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Signing config
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then echo "::error::ANDROID_KEYSTORE_BASE64 secret is missing"; exit 1; fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/waraq-release.keystore"
+          {
+            echo "storeFile=$RUNNER_TEMP/waraq-release.keystore"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=waraq"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > src-tauri/gen/android/app/keystore.properties
+          echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        run: npx tauri android build --apk --target aarch64
+
+      - name: Attach to the release
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          apk="Waraq_${version}_android.apk"
+          cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk "$apk"
+          # The desktop jobs create the release; wait for it (up to 40 minutes).
+          for i in $(seq 1 80); do
+            gh release view "v$version" > /dev/null 2>&1 && break
+            sleep 30
+          done
+          gh release upload "v$version" "$apk" --clobber
