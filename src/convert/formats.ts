@@ -30,6 +30,31 @@ export function fmtOf(name: string): Fmt | null {
   return m ? (EXT[m[1].toLowerCase()] ?? null) : null;
 }
 
+const MIME: Record<string, Fmt> = {
+  "application/pdf": "pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/msword": "doc",
+  "application/vnd.oasis.opendocument.text": "odt",
+  "application/rtf": "rtf",
+  "text/rtf": "rtf",
+  "text/plain": "txt",
+  "text/markdown": "md",
+  "text/x-markdown": "md",
+  "text/html": "html",
+  "application/xhtml+xml": "html",
+  "application/epub+zip": "epub",
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+/** Android names can lack an extension ("report" from Drive/WhatsApp): add one from the MIME type. */
+export function nameWithType(name: string, mime: string | null | undefined): string {
+  if (fmtOf(name)) return name;
+  const f = mime ? MIME[mime.split(";")[0].trim().toLowerCase()] : undefined;
+  return f ? `${name}.${f}` : name;
+}
+
 const BOTH: Record<Fmt, Target[]> = {
   docx: ["pdf", "txt", "md", "html"],
   doc: [],

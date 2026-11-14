@@ -93,15 +93,16 @@ pub async fn android_persist(app: tauri::AppHandle, uri: String) -> Result<(), S
     Ok(())
 }
 
-#[derive(Deserialize)]
-struct NameResp {
+#[derive(Deserialize, Serialize)]
+pub struct NameResp {
     name: Option<String>,
+    mime: Option<String>,
 }
 
+/// The file's display name and MIME type (either may be missing).
 #[tauri::command]
-pub async fn android_display_name(app: tauri::AppHandle, uri: String) -> Result<Option<String>, String> {
-    let r: NameResp = call(&app, "displayName", serde_json::json!({ "uri": uri })).await?;
-    Ok(r.name)
+pub async fn android_display_name(app: tauri::AppHandle, uri: String) -> Result<NameResp, String> {
+    call(&app, "displayName", serde_json::json!({ "uri": uri })).await
 }
 
 /// Full-screen reading: hides the system bars (on desktop the window itself goes full screen).

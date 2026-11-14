@@ -1,4 +1,4 @@
-import { engineFor, fmtOf, outputName, targetsFor } from "../../src/convert/formats";
+import { engineFor, fmtOf, nameWithType, outputName, targetsFor } from "../../src/convert/formats";
 
 test("formats by extension, any case", () => {
   expect(fmtOf("تقرير.DOCX")).toBe("docx");
@@ -55,4 +55,13 @@ test("engines", () => {
   expect(engineFor("pdf", "docx", "desktop", true)).toBe("pdf");
   expect(engineFor("pdf", "png", "android", false)).toBe("pdf");
   expect(engineFor("jpg", "pdf", "desktop", true)).toBe("images");
+});
+
+test("names without an extension get one from the MIME type (Android providers)", () => {
+  expect(nameWithType("تقرير", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")).toBe("تقرير.docx");
+  expect(nameWithType("1000", "application/pdf")).toBe("1000.pdf");
+  expect(nameWithType("notes", "text/plain; charset=utf-8")).toBe("notes.txt");
+  expect(nameWithType("report.docx", "application/octet-stream")).toBe("report.docx");
+  expect(nameWithType("report", "application/octet-stream")).toBe("report");
+  expect(nameWithType("report", null)).toBe("report");
 });

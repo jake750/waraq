@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
+import { nameWithType } from "../convert/formats";
 import { PdfError } from "../pdf/openPdf";
 
 /** Where a document lives: a filesystem path (desktop) or an Android content URI. */
@@ -75,8 +76,8 @@ export function keepAccess(refs: DocRef[]): DocRef[] {
 /** The file's real name. Android content URIs are often opaque ("document:1000"), so ask the system. */
 export async function resolveName(ref: DocRef): Promise<string> {
   if (ref.kind === "uri") {
-    const name = await invoke<string | null>("android_display_name", { uri: ref.uri }).catch(() => null);
-    if (name) return name;
+    const r = await invoke<{ name?: string | null; mime?: string | null }>("android_display_name", { uri: ref.uri }).catch(() => null);
+    return nameWithType(r?.name || docName(ref), r?.mime);
   }
   return docName(ref);
 }

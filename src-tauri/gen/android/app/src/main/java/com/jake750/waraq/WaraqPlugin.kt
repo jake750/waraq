@@ -185,6 +185,8 @@ class WaraqPlugin(private val activity: Activity) : Plugin(activity) {
     val uri = Uri.parse(invoke.getArgs().getString("uri") ?: return invoke.reject("missing uri"))
     val result = JSObject()
     result.put("name", queryName(uri))
+    // Some providers (Drive, WhatsApp, Downloads) give names without an extension: the type tells the format.
+    result.put("mime", try { activity.contentResolver.getType(uri) } catch (e: Exception) { null })
     invoke.resolve(result)
   }
 
