@@ -1,12 +1,16 @@
 name: Release
 
-# Push a tag like v0.2.0 (matching "version" in src-tauri/tauri.conf.json) to publish a release.
+# Runs when a commit that changes "version" in src-tauri/tauri.conf.json lands on main (the release PR from
+# scripts/release.mjs): if no vX.Y.Z tag exists yet, it publishes that release and tauri-action creates the tag.
+# Pushing a vX.Y.Z tag by hand still works too.
 # tauri-action builds Windows and macOS, signs the updater bundles with TAURI_SIGNING_PRIVATE_KEY
 # and uploads latest.json, which the installed apps read to update themselves.
 # The Android APK is still built locally and attached to the same release by hand (Waraq.apk).
 
 on:
   push:
+    branches: [main]
+    paths: ["src-tauri/tauri.conf.json"]
     tags: ["v*"]
   workflow_dispatch: {}
 
@@ -14,7 +18,30 @@ permissions:
   contents: write
 
 jobs:
+  # On main, release only when the version in tauri.conf.json has no tag yet.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "v$version is already tagged, nothing to release"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Releasing v$version"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
+    needs: check
+    if: needs.check.outputs.release == 'true'
     strategy:
       fail-fast: false
       matrix:
