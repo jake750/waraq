@@ -19,7 +19,7 @@ const dryRun = args.includes("--dry-run");
 const bump = args.find((a) => !a.startsWith("--")) ?? "patch";
 
 const run = (cmd, cmdArgs, opts = {}) =>
-  execFileSync(cmd, cmdArgs, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"], ...opts }).trim();
+  execFileSync(cmd, cmdArgs, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"], ...opts })?.trim() ?? "";
 const fail = (msg) => {
   console.error(`release: ${msg}`);
   process.exit(1);
