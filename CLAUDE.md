@@ -26,12 +26,13 @@ cd src-tauri && cargo test  # Rust unit tests
 ## Releases and signing
 
 - **Always release (standing rule from the user):** every change that reaches `main` ships in a new release,
-  without asking. Once a feature/fix PR is merged, open a `chore(release): vX.Y.Z` PR (patch bump unless told
-  otherwise), push the `vX.Y.Z` tag on that release commit, wait for the workflow, then build the Android APK
-  in the main checkout and attach it to the release. The CLAUDE.md change for a release rides in that PR.
-- **Release:** bump `version` in `tauri.conf.json`, `package.json`, `package-lock.json` and `Cargo.toml`
-  (plus the `waraq` entry in `Cargo.lock`), then push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds
-  Windows and universal macOS, signs the updater bundles and publishes `latest.json`.
+  without asking. Once a feature/fix PR is merged, run `npm run release` (patch; or `minor`/`major`/`X.Y.Z`)
+  from a clean main checkout: it bumps `tauri.conf.json`, `package.json`, `package-lock.json`, `Cargo.toml`
+  and `Cargo.lock`, commits on `claude/release-X.Y.Z` and opens the `chore(release): vX.Y.Z` PR. When the
+  user merges it, `.github/workflows/release.yml` sees an untagged version on main, builds Windows and
+  universal macOS, signs the updater bundles, publishes `latest.json` and creates the tag. Then build the
+  Android APK in the main checkout and attach it. Watch runs with `gh run watch <id>` in the background,
+  never by polling. A CLAUDE.md change for a release rides in that PR.
 - **macOS:** only `macos-15` runners work (14 rejected, 13 never starts); "not acquired by Runner" → `gh run
   rerun <id> --failed`. The app is unsigned: users need right-click → Open once.
 - **Updater key:** `bundle.createUpdaterArtifacts` is on, so builds need `TAURI_SIGNING_PRIVATE_KEY`
