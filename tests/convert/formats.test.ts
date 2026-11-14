@@ -87,3 +87,15 @@ test("formats from the file's own bytes", async () => {
   expect(sniffFmt(read("office/sample.txt"))).toBeNull();
   expect(fmtOf("report.docx ")).toBe("docx");
 });
+
+test("docx is found from the zip's ends, not by scanning the whole file", () => {
+  const enc = (s: string) => new TextEncoder().encode(s);
+  const big = new Uint8Array(300 * 1024);
+  big.set([0x50, 0x4b, 0x03, 0x04]);
+  big.set(enc("word/document.xml"), big.length - 200); // central directory
+  expect(sniffFmt(big)).toBe("docx");
+  const middle = new Uint8Array(300 * 1024);
+  middle.set([0x50, 0x4b, 0x03, 0x04]);
+  middle.set(enc("word/document.xml"), 150 * 1024);
+  expect(sniffFmt(middle)).toBe(null);
+});

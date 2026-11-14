@@ -256,6 +256,10 @@
   .reader-page {
     margin-inline-end: auto;
   }
+  /* Matches PAD in Reader.tsx on phones. */
+  .page-row {
+    padding-inline: 10px;
+  }
   .reader-panel {
     position: fixed;
     inset-inline: 0;

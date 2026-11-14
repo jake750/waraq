@@ -22,11 +22,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { open } from "@tauri-apps/plugin-dialog";
 import { useT } from "../i18n";
 import { useBack } from "../shell/back";
 import { isAndroid } from "../platform";
-import { folderOf, keepAccess, readDocument, resolveName, suffixName, toDocRef, type DocRef } from "../files/docRef";
+import { folderOf, readDocument, resolveName, suffixName, type DocRef } from "../files/docRef";
 import { openPdf } from "../pdf/openPdf";
 import { asConvertError } from "../convert/errors";
 import { openOutput, revealOutput, saveOutput, shareOutput } from "../convert/native";
@@ -35,19 +34,14 @@ import { assemble, loadPdf, splitGroups, type PageSpec, type SplitMode } from ".
 import { deleteSel, insertAfter, moveSel, rotateSel, type Item } from "./organize";
 import { compressPdf, type Reencode } from "./compress";
 import PdfThumb from "./PdfThumb";
+import { pickPdfs } from "./pickPdfs";
+export { pickPdfs };
 import "./tools.css";
 
 export type Tool = "organize" | "merge" | "split" | "compress";
 type Source = { ref: DocRef; name: string; bytes: Uint8Array; doc: PDFDocumentProxy };
 type Props = { onToast(msg: string): void; onEdit(ref: DocRef): void; initialTool?: Tool };
 
-export async function pickPdfs(multiple: boolean): Promise<DocRef[]> {
-  // Browser preview only: ?pick=/fixtures/a.pdf,/fixtures/b.pdf stands in for the file dialog.
-  const dev = import.meta.env.DEV ? new URLSearchParams(location.search).get("pick") : null;
-  if (dev) return dev.split(",").map((p) => ({ kind: "path", path: `dev:${p}` }));
-  const r = await open({ multiple, directory: false, filters: [{ name: "PDF", extensions: ["pdf"] }] }).catch(() => null);
-  return keepAccess((Array.isArray(r) ? r : typeof r === "string" ? [r] : []).map(toDocRef));
-}
 
 /** Reads and checks a PDF for the tools (protected/corrupt files fail here, before any work). */
 async function loadSource(ref: DocRef): Promise<Source> {

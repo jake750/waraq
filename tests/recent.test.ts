@@ -35,3 +35,13 @@ test("setLastPage on unknown key is ignored", async () => {
   await s.setLastPage("nope", 3);
   expect(await s.list()).toEqual([]);
 });
+
+test("the same Android file under a new uri replaces its old entry and keeps the page", async () => {
+  const s = new RecentStore(memKV());
+  await s.touch({ kind: "uri", uri: "content://a/1" }, "report.pdf");
+  await s.setLastPage("content://a/1", 4);
+  await s.touch({ kind: "path", path: "report.pdf" }, "report.pdf");
+  const item = await s.touch({ kind: "uri", uri: "content://b/9" }, "report.pdf");
+  expect(item.lastPage).toBe(4);
+  expect((await s.list()).map((i) => i.key)).toEqual(["content://b/9", "report.pdf"]);
+});

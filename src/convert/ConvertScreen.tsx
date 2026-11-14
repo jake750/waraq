@@ -2,11 +2,10 @@ import { AlertCircle, ArrowRight, Check, ExternalLink, FileText, FolderOpen, Ima
 import { useT } from "../i18n";
 import { isAndroid } from "../platform";
 import { pickFiles } from "../files/docRef";
-import { targetsFor, type Target } from "./formats";
-import { MIME } from "./run";
+import { TARGET_MIME as MIME, targetsFor, type Target } from "./formats";
 import { officeCancel, openOutput, pickFolder, revealOutput, shareOutput } from "./native";
 import type { Job } from "./queue";
-import type { ConvertApi } from "./useConvert";
+import { skippedText, type ConvertApi } from "./useConvert";
 import OfficePromptDialog from "./OfficePrompt";
 import "./convert.css";
 
@@ -31,7 +30,7 @@ export default function ConvertScreen({ api, dragOver, onToast }: Props) {
     const refs = await pickFiles(true).catch(() => []);
     if (!refs.length) return;
     const skipped = await api.add(refs);
-    if (skipped) onToast(t.skippedFiles(skipped));
+    if (skipped.length) onToast(skippedText(t, skipped));
   };
 
   const chooseFolder = async () => {
@@ -162,7 +161,8 @@ function JobRow({ job, api, platform, onToast }: { job: Job; api: ConvertApi; pl
   const t = useT();
   const targets = targetsFor(job.fmt, platform);
   const isImage = IMAGE.includes(job.fmt);
-  const fail = (e: unknown) => onToast(String(e));
+  // Native errors are technical text: show a plain sentence instead.
+  const fail = () => onToast(t.actionFailed);
   const status =
     job.state === "queued"
       ? t.jobQueued

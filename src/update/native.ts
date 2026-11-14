@@ -9,6 +9,9 @@ import { isNewer } from "./updates";
 
 export const RELEASES_URL = "https://github.com/jake750/waraq/releases/latest";
 
+/** The APK the release workflow attaches to every release. */
+export const apkUrl = (version: string) => `https://github.com/jake750/waraq/releases/download/v${version}/Waraq_${version}_android.apk`;
+
 export type Found = {
   version: string;
   notes?: string;
@@ -34,8 +37,9 @@ export async function checkForUpdate(): Promise<Found | null> {
       version: latest.version,
       notes: latest.notes ?? undefined,
       install: async () => {
+        // Straight to the APK (the browser downloads it), not the release page with its list of files.
         const { openUrl } = await import("@tauri-apps/plugin-opener");
-        await openUrl(RELEASES_URL);
+        await openUrl(apkUrl(latest.version)).catch(() => openUrl(RELEASES_URL));
       },
     };
   }

@@ -3,12 +3,12 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { folderOf, resolveName, type DocRef } from "../files/docRef";
+import type { Strings } from "../i18n";
 import { isAndroid } from "../platform";
 import { asConvertError } from "./errors";
 import { engineFor, fmtOf, targetsFor, type Target } from "./formats";
 import { appDeps, officeInstall, officeStatus, type OfficeStatus } from "./native";
 import { emptyQueue, nextJob, reduce, type Input, type Job } from "./queue";
-import { runJob } from "./run";
 
 export type SaveMode = { kind: "beside" } | { kind: "folder"; dir: string };
 export type OfficePrompt =
@@ -18,6 +18,13 @@ export type OfficePrompt =
   | { stage: "failed" };
 
 const platform = () => (isAndroid() ? "android" : "desktop");
+
+export type Skipped = { name: string; unknown: boolean };
+
+/** The toast for files the converter skipped: names the file and says why. */
+export function skippedText(t: Strings, skipped: Skipped[]): string {
+  return skipped.length === 1 ? t.skippedOne(skipped[0].name, skipped[0].unknown) : t.skippedMany(skipped.length, skipped[0].name);
+}
 
 
 export function useConvert() {
@@ -48,7 +55,9 @@ export function useConvert() {
     controllers.current.set(job.id, ac);
     const mode = saveRef.current;
     const dir = mode.kind === "folder" ? mode.dir : folderOf(job.inputs[0].ref);
-    runJob(job, appDeps(() => officeReady.current), { dir }, ac.signal, (value) => dispatch({ type: "progress", id: job.id, value }))
+    // The engines (mammoth, pdf-lib, docx…) load with the first conversion, not with the app.
+    import("./run")
+      .then(({ runJob }) => runJob(job, appDeps(() => officeReady.current), { dir }, ac.signal, (value) => dispatch({ type: "progress", id: job.id, value })))
       .then(
         (output) => dispatch({ type: "done", id: job.id, output }),
         (e) => dispatch({ type: "fail", id: job.id, error: asConvertError(e).code }),
@@ -59,14 +68,15 @@ export function useConvert() {
       });
   }, [queue]);
 
-  /** Adds files; returns how many were skipped as not convertible. */
-  const add = useCallback(async (refs: DocRef[]): Promise<number> => {
+  /** Adds files; returns the ones skipped as not convertible (unknown = the type itself isn't recognised). */
+  const add = useCallback(async (refs: DocRef[]): Promise<Skipped[]> => {
     const inputs: Input[] = await Promise.all(refs.map(async (ref) => ({ ref, name: await resolveName(ref) })));
     dispatch({ type: "add", inputs, platform: platform() });
-    return inputs.filter((i) => {
+    return inputs.flatMap((i): Skipped[] => {
       const f = fmtOf(i.name);
-      return !f || targetsFor(f, platform()).length === 0;
-    }).length;
+      if (!f) return [{ name: i.name, unknown: true }];
+      return targetsFor(f, platform()).length === 0 ? [{ name: i.name, unknown: false }] : [];
+    });
   }, []);
 
   const needsOffice = (jobs: Job[]) =>

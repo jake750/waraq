@@ -28,9 +28,11 @@ export class RecentStore {
   async touch(ref: DocRef, name: string): Promise<RecentItem> {
     const key = docKey(ref);
     const items = await this.list();
-    const old = items.find((i) => i.key === key);
+    // Android gives the same file a new content:// URI each time another app shares it: one entry per name.
+    const same = (i: RecentItem) => i.key === key || (ref.kind === "uri" && i.ref.kind === "uri" && i.name === name);
+    const old = items.find((i) => i.key === key) ?? items.find(same);
     const item: RecentItem = { key, name, ref, openedAt: this.now(), lastPage: old?.lastPage ?? 1 };
-    await this.save([item, ...items.filter((i) => i.key !== key)].slice(0, this.max));
+    await this.save([item, ...items.filter((i) => !same(i))].slice(0, this.max));
     return item;
   }
 

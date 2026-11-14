@@ -23,6 +23,11 @@ export default function Home({ onOpen, onQuick, dragOver, recent }: Props) {
   return (
     <div className="home page-scroll">
       <div className="page-inner">
+        {/* Phones have no sidebar, so the app's name and mark sit at the top of Home. */}
+        <header className="home-brand">
+          <img src="/logo.svg" alt="" />
+          <span>{t.appName}</span>
+        </header>
         <section className={`dropzone fold${dragOver ? " over" : ""}`}>
           <div className="dropzone-icon">
             <FileUp size={26} />

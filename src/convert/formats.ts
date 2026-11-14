@@ -62,6 +62,13 @@ const ascii = (b: Uint8Array, from: number, to: number) => {
   return s;
 };
 
+const hasBytes = (b: Uint8Array, text: string, from: number, to: number) => {
+  const sig = Array.from(text, (c) => c.charCodeAt(0));
+  const end = Math.min(to, b.length) - sig.length;
+  for (let i = Math.max(0, from); i <= end; i++) if (b[i] === sig[0] && startsWith(b, sig, i)) return true;
+  return false;
+};
+
 /** The format from the file's own bytes, for names that say nothing (no or unknown extension). */
 export function sniffFmt(b: Uint8Array): Fmt | null {
   if (ascii(b, 0, 1024).includes("%PDF-")) return "pdf";
@@ -75,7 +82,10 @@ export function sniffFmt(b: Uint8Array): Fmt | null {
     const head = ascii(b, 30, 100);
     if (head.startsWith("mimetypeapplication/vnd.oasis.opendocument.text")) return "odt";
     if (head.startsWith("mimetypeapplication/epub+zip")) return "epub";
-    return ascii(b, 0, b.length).includes("word/document.xml") ? "docx" : null;
+    // The part is named in its local header (near the start) and in the central directory (at the end):
+    // look only there, never at the whole file.
+    const WIN = 64 * 1024;
+    return hasBytes(b, "word/document.xml", 0, WIN) || hasBytes(b, "word/document.xml", b.length - WIN, b.length) ? "docx" : null;
   }
   return null;
 }
@@ -128,3 +138,14 @@ export function engineFor(f: Fmt, t: Target, platform: Platform, loAvailable: bo
   if (f === "doc" && platform === "desktop" && loAvailable) return "libreoffice"; // better than text-only
   return "html";
 }
+
+/** The MIME type of each output, for opening and sharing it. */
+export const TARGET_MIME: Record<Target, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  txt: "text/plain",
+  md: "text/markdown",
+  html: "text/html",
+  png: "image/png",
+  jpg: "image/jpeg",
+};

@@ -29,7 +29,8 @@ export type ViewMode = "continuous" | "single" | "spread";
 type Size = { w: number; h: number };
 
 const GAP = 16;
-const PAD = 24;
+// Space around the pages: phones keep only a thin margin so the page itself gets the width.
+const PAD = typeof window !== "undefined" && window.innerWidth < 720 ? 10 : 24;
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 5;
 const ZOOM_STEP = 1.2;

@@ -5,7 +5,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { DocRef } from "../files/docRef";
 import { PdfError } from "../pdf/openPdf";
 import { ConvertError, asConvertError } from "./errors";
-import { engineFor, outputName, type Platform, type Target } from "./formats";
+import { engineFor, outputName, TARGET_MIME, type Platform, type Target } from "./formats";
 import { DEFAULT_PAGE, htmlDocument, htmlToDocx, htmlToMarkdown, htmlToText, type PageOpts } from "./fromHtml";
 import { pdfToDocx, pdfToMarkdown, pdfToText } from "./fromPdf";
 import { imagesToPdf, type ImageInput } from "./imagesToPdf";
@@ -29,15 +29,7 @@ export type RunDeps = {
 
 export type RunOpts = { dir: string; page?: PageOpts; dpi?: number; fit?: "page" | "image" };
 
-export const MIME: Record<Target, string> = {
-  pdf: "application/pdf",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  txt: "text/plain",
-  md: "text/markdown",
-  html: "text/html",
-  png: "image/png",
-  jpg: "image/jpeg",
-};
+export const MIME = TARGET_MIME;
 
 const utf8 = (s: string) => new TextEncoder().encode(s);
 

@@ -8,14 +8,16 @@ import { openPdf } from "../pdf/openPdf";
 import { isAndroid } from "../platform";
 import { ConvertError, type ConvertErrorCode } from "./errors";
 import type { PageOpts } from "./fromHtml";
-import { renderPageImage } from "./fromPdf";
 import type { Saved } from "./queue";
 import type { RunDeps } from "./run";
 
 const CODES: ConvertErrorCode[] = ["bad-input", "unsupported", "engine-failed", "timeout", "cancelled", "office-missing", "write-failed", "protected"];
-const toError = (e: unknown) => {
-  const s = String(e);
-  const code = CODES.find((c) => s.includes(c)) ?? (s.includes("file-missing") ? "bad-input" : "engine-failed");
+/** Native errors are "code" or "code: detail"; anything else (OS text) is a plain engine failure. */
+export const toError = (e: unknown) => {
+  const s = String(e).trim();
+  const head = s.split(":")[0].trim();
+  const code: ConvertErrorCode =
+    CODES.find((c) => c === head) ?? (head === "file-missing" || head === "read-failed" ? "bad-input" : "engine-failed");
   return new ConvertError(code, s);
 };
 const call = <T>(cmd: string, args?: Record<string, unknown>, opts?: Parameters<typeof invoke>[2]) =>
@@ -23,7 +25,6 @@ const call = <T>(cmd: string, args?: Record<string, unknown>, opts?: Parameters<
     throw toError(e);
   });
 
-const join = (dir: string, name: string) => dir + (dir.includes("\\") ? "\\" : "/") + name;
 
 /** Writes bytes as a new file in `dir` ("" = app cache). Returns the final path. */
 export function writeNew(bytes: Uint8Array, dir: string, name: string): Promise<string> {
@@ -47,7 +48,8 @@ export async function saveOutput(bytes: Uint8Array, name: string, dir: string, m
 export async function printPdf(html: string, page: PageOpts, signal: AbortSignal): Promise<Uint8Array> {
   const dir = await call<string>("temp_dir");
   const htmlPath = await writeNew(new TextEncoder().encode(html), dir, "page.html");
-  const outPath = join(dir, "out.pdf");
+  // Named after the unique page file, so two conversions at once never share an output.
+  const outPath = htmlPath.replace(/\.html$/i, ".pdf");
   if (signal.aborted) throw new ConvertError("cancelled");
   await call("html_to_pdf", { htmlPath, outPath, opts: { size: page.size, landscape: page.landscape } });
   const buf = await call<ArrayBuffer>("read_file", { path: outPath });
@@ -115,7 +117,7 @@ export function appDeps(officeReady: () => boolean): RunDeps {
     printPdf,
     save: saveOutput,
     openPdf: (b) => openPdf(b),
-    renderPage: (doc: PDFDocumentProxy, i, fmt, dpi) => renderPageImage(doc, i, fmt, dpi),
+    renderPage: async (doc: PDFDocumentProxy, i, fmt, dpi) => (await import("./fromPdf")).renderPageImage(doc, i, fmt, dpi),
     toPng: webpToPng,
   };
 }

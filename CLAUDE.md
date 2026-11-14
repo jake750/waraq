@@ -25,6 +25,13 @@ npx tauri android build --apk --target aarch64   # release APK (x86_64 for the e
 cd src-tauri && cargo test  # Rust unit tests
 ```
 
+## Definition of done
+
+A change is done when: `npx tsc --noEmit -p .` and `npm test` pass (the release workflow's `check` job runs
+both and blocks the release otherwise); new logic has a test next to its mirror in `tests/`; every new string
+exists in English and Arabic; UI changes were looked at in the browser preview at phone width (375px) and in
+dark mode; Rust changes pass `cargo test`; and nothing writes over an opened file.
+
 ## Releases and signing
 
 - **Always release (standing rule from the user):** every change to the app that reaches `main` ships in a

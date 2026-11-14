@@ -18,13 +18,22 @@ permissions:
   contents: write
 
 jobs:
-  # On main, release only when the version in tauri.conf.json has no tag yet.
+  # On main, release only when the version in tauri.conf.json has no tag yet,
+  # and never with failing tests or type errors.
   check:
     runs-on: ubuntu-latest
     outputs:
       release: ${{ steps.version.outputs.release }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Tests and types
+        run: |
+          npm ci
+          npx tsc --noEmit -p .
+          npm test
       - id: version
         run: |
           if [ "${{ github.ref_type }}" = "tag" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -110,7 +119,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -135,8 +144,9 @@ jobs:
           } > src-tauri/gen/android/app/keystore.properties
           echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
 
+      # 64-bit and older 32-bit ARM phones in one universal APK.
       - name: Build APK
-        run: npx tauri android build --apk --target aarch64
+        run: npx tauri android build --apk --target aarch64 --target armv7
 
       - name: Attach to the release
         run: |

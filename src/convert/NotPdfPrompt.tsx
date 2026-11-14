@@ -2,10 +2,10 @@ import { FileText } from "lucide-react";
 import { useT } from "../i18n";
 import { BACK_DIALOG, useBack } from "../shell/back";
 
-type Props = { name: string; busy: boolean; onConvert(): void; onOpen(): void; onCancel(): void };
+type Props = { name: string; busy: boolean; canOpen: boolean; onConvert(): void; onOpen(): void; onCancel(): void };
 
 /** A non-PDF was opened: convert it (Convert screen) or read it as a temporary PDF. */
-export default function NotPdfPrompt({ name, busy, onConvert, onOpen, onCancel }: Props) {
+export default function NotPdfPrompt({ name, busy, canOpen, onConvert, onOpen, onCancel }: Props) {
   const t = useT();
   useBack(true, () => !busy && onCancel(), BACK_DIALOG);
   return (
@@ -16,17 +16,22 @@ export default function NotPdfPrompt({ name, busy, onConvert, onOpen, onCancel }
           <FileText size={22} />
         </div>
         <h2 id="notpdf-title">{t.notPdfTitle}</h2>
-        <p dir="auto">{t.notPdfBody(name)}</p>
+        <p dir="auto" className="clamp" title={name}>
+          {t.notPdfBody(name)}
+        </p>
         {busy && <p className="dialog-status">{t.preparing}</p>}
-        <div className="dialog-actions">
+        {/* Converting is what most people want for a document, so it is the main action. */}
+        <div className="dialog-actions stack">
           <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}>
             {t.cancel}
           </button>
-          <button type="button" className="btn btn-ghost" onClick={onConvert} disabled={busy}>
+          {canOpen && (
+            <button type="button" className="btn btn-ghost" onClick={onOpen} disabled={busy}>
+              {t.notPdfOpen}
+            </button>
+          )}
+          <button type="button" className="btn btn-primary" onClick={onConvert} disabled={busy} autoFocus>
             {t.notPdfConvert}
-          </button>
-          <button type="button" className="btn btn-primary" onClick={onOpen} disabled={busy} autoFocus>
-            {t.notPdfOpen}
           </button>
         </div>
       </div>

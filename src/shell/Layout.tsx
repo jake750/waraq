@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { BookOpen, Download, Home as HomeIcon, RefreshCw, Repeat2, Settings, ShieldCheck, Wrench, X } from "lucide-react";
+import { BookOpen, Bug, Download, Home as HomeIcon, RefreshCw, Repeat2, Settings, ShieldCheck, Wrench, X } from "lucide-react";
 import { useLang, useT, type Lang } from "../i18n";
 import { BACK_DIALOG, useBack } from "./back";
 import type { ThemePref } from "../prefs";
 import { isAndroid } from "../platform";
 import type { Updates } from "../update/useUpdates";
+import { reportUrl, systemName } from "./report";
 
 export type Route = "home" | "convert" | "tools" | "reader" | "editor";
 
@@ -112,6 +113,23 @@ function Prefs({ theme, onTheme, updates }: Pick<Props, "theme" | "onTheme" | "u
         </div>
       </div>
       <UpdateSection u={updates} />
+      <div className="pref">
+        <span className="field-label">{t.reportTitle}</span>
+        <p className="settings-hint">{t.reportHint}</p>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={async () => {
+            const url = reportUrl(updates.version, systemName(navigator.userAgent), t.reportIssueTitle, t.reportIssueBody);
+            if ("__TAURI_INTERNALS__" in window) {
+              const { openUrl } = await import("@tauri-apps/plugin-opener");
+              await openUrl(url).catch(() => {});
+            } else window.open(url, "_blank", "noopener");
+          }}
+        >
+          <Bug size={16} />
+          {t.reportButton}
+        </button>
+      </div>
       <p className="settings-note">
         <ShieldCheck size={18} />
         <span>{t.settingsPrivacy}</span>

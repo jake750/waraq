@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { dict, dirFor, LangContext, type Lang, type Strings } from "./i18n";
 import { loadLang, loadTheme, resolveTheme, saveLang, saveTheme, type ThemePref } from "./prefs";
@@ -7,12 +7,14 @@ import Home, { type QuickAction } from "./shell/Home";
 import ReaderScreen from "./reader/ReaderScreen";
 import { displayName, docKey, pickFiles, readDocument, resolveName, type DocRef } from "./files/docRef";
 import ConvertScreen from "./convert/ConvertScreen";
-import ToolsScreen, { pickPdfs, type Tool } from "./tools/ToolsScreen";
-import EditorScreen, { type EditSource } from "./editor/EditorScreen";
+import type { Tool } from "./tools/ToolsScreen";
+import type { EditSource } from "./editor/EditorScreen";
+import { pickPdfs } from "./tools/pickPdfs";
+import ErrorBoundary from "./shell/ErrorBoundary";
 import { loadPdf } from "./tools/pages";
 import NotPdfPrompt from "./convert/NotPdfPrompt";
-import { useConvert } from "./convert/useConvert";
-import { openAsPdf } from "./convert/openAsPdf";
+import { skippedText, useConvert } from "./convert/useConvert";
+import { fmtOf, targetsFor } from "./convert/formats";
 import { asConvertError } from "./convert/errors";
 import { openPdf, PdfError, type PdfErrorCode } from "./pdf/openPdf";
 import { RecentStore, type RecentItem } from "./files/recent";
@@ -27,6 +29,10 @@ import { useUpdates } from "./update/useUpdates";
 import { BACK_DIALOG, BACK_ROUTE, useBack } from "./shell/back";
 
 const inTauri = () => "__TAURI_INTERNALS__" in window;
+
+// The editor and the tools are big (fontkit, pdf-lib) and not needed to show Home: load them on first use.
+const EditorScreen = lazy(() => import("./editor/EditorScreen"));
+const ToolsScreen = lazy(() => import("./tools/ToolsScreen"));
 
 // id: one per open, so reopening the same file gets a fresh reader (no stale search text).
 type OpenDoc = { id: number; ref: DocRef; key: string; name: string; doc: PDFDocumentProxy; initialPage: number };
@@ -83,7 +89,8 @@ export default function App() {
 
   useEffect(() => {
     if (!toast) return;
-    const id = setTimeout(() => setToast(null), 4000);
+    // Long messages stay longer: about 70 ms per character, between 4 and 10 seconds.
+    const id = setTimeout(() => setToast(null), Math.min(10000, Math.max(4000, toast.length * 70)));
     return () => clearTimeout(id);
   }, [toast]);
 
@@ -152,9 +159,13 @@ export default function App() {
       if (!refs.length) return;
       const named = await Promise.all(refs.map(async (ref) => ({ ref, name: await resolveName(ref) })));
       if (!toQueue && named.length === 1 && /\.pdf$/i.test(named[0].name)) return openDocument(named[0].ref);
-      if (!toQueue && named.length === 1) return setNotPdf({ ...named[0], busy: false });
+      if (!toQueue && named.length === 1) {
+        // Unknown types can't be read or converted: say so instead of offering choices that fail.
+        if (!fmtOf(named[0].name)) return setToast(skippedText(t, [{ name: named[0].name, unknown: true }]));
+        return setNotPdf({ ...named[0], busy: false });
+      }
       const skipped = await conv.add(refs);
-      if (skipped) setToast(t.skippedFiles(skipped));
+      if (skipped.length) setToast(skippedText(t, skipped));
       setRoute("convert");
     },
     [openDocument, conv, t],
@@ -236,6 +247,7 @@ export default function App() {
     if (!notPdf) return;
     setNotPdf({ ...notPdf, busy: true });
     try {
+      const { openAsPdf } = await import("./convert/openAsPdf");
       const out = await openAsPdf(notPdf.ref, notPdf.name, !!conv.office?.installed);
       setNotPdf(null);
       await openDocument({ kind: "path", path: out.path }, undefined, { name: out.name });
@@ -304,6 +316,8 @@ export default function App() {
           setThemeState(v);
         }}
       >
+        <ErrorBoundary t={t} resetKey={route} onHome={() => setRoute("home")}>
+        <Suspense fallback={<div className="screen-loading">{t.loading}</div>}>
         {route === "editor" && edit ? (
           <EditorScreen
             key={edit.src.name + edit.src.bytes.length}
@@ -348,6 +362,8 @@ export default function App() {
             }
           />
         )}
+        </Suspense>
+        </ErrorBoundary>
       </Layout>
       {locked && (
         <PasswordPrompt
@@ -361,6 +377,10 @@ export default function App() {
         <NotPdfPrompt
           name={notPdf.name}
           busy={notPdf.busy}
+          canOpen={(() => {
+            const f = fmtOf(notPdf.name);
+            return !!f && targetsFor(f, isAndroid() ? "android" : "desktop").includes("pdf");
+          })()}
           onConvert={() => {
             const ref = notPdf.ref;
             setNotPdf(null);
