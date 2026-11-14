@@ -93,3 +93,14 @@ test("a sideways-stored phone photo is drawn turned upright into its box", async
   const ap = annot.lookup(PDFName.of("AP"), PDFDict).lookup(PDFName.of("N")) as PDFRawStream;
   expect(new TextDecoder().decode(ap.getContents())).toContain("0 -40 60 0 300 340 cm");
 });
+
+test("pen strokes are saved as the same smooth curve the editor shows", async () => {
+  const ink: Mark = { ...base, id: "i", kind: "ink", paths: [[[10, 10], [50, 60], [90, 20], [130, 70]]], width: 2 };
+  const out = await writeMarks(await blank(), [ink], fonts, { flatten: false });
+  const page = (await PDFDocument.load(out)).getPage(0);
+  const annot = page.node.lookupMaybe(PDFName.of("Annots"), PDFArray)!.lookup(0, PDFDict);
+  const ap = annot.lookup(PDFName.of("AP"), PDFDict).lookup(PDFName.of("N")) as PDFRawStream;
+  const content = new TextDecoder().decode(ap.getContents());
+  expect(content).toMatch(/^.*10 10 m .* c .* 130 70 c S/);
+  expect(content).not.toMatch(/ l S/);
+});

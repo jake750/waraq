@@ -23,6 +23,7 @@ import {
 } from "pdf-lib";
 import { loadPdf } from "../tools/pages";
 import { paragraphRtl, visualRuns } from "./bidi";
+import { smoothCurve } from "./geometry";
 import type { Mark, Pt, Rect, Rgb } from "./marks";
 
 export type EditorFonts = { arabic: Uint8Array; latin: Uint8Array };
@@ -95,7 +96,16 @@ function describe(m: Exclude<Mark, { kind: "text" }>): { subtype: string; ap: Ap
       const pts = m.paths.flat();
       const content =
         `${col(m.color)} RG ${f(m.width)} w 1 J 1 j ` +
-        m.paths.map((p) => p.map(([x, y], i) => `${f(x)} ${f(y)} ${i ? "l" : "m"}`).join(" ") + " S").join(" ");
+        m.paths
+          .map((p) => {
+            // The same smooth curve the editor shows (a single tap stays a round dot).
+            const { start, curves } = smoothCurve(p);
+            const body = curves.length
+              ? curves.map((c) => c.map(([x, y]) => `${f(x)} ${f(y)}`).join(" ") + " c").join(" ")
+              : `${f(start[0] + 0.01)} ${f(start[1])} l`;
+            return `${f(start[0])} ${f(start[1])} m ${body} S`;
+          })
+          .join(" ");
       return { subtype: "Ink", ap: { bbox: bounds(pts, m.width), content }, entries: { InkList: m.paths.map((p) => p.flat()), BS: { W: m.width } } };
     }
     case "rect":

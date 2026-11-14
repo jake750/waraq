@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
-import type { PDFDocumentProxy, PageViewport } from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from "pdfjs-dist";
 import PageView from "../reader/PageView";
 import { useT } from "../i18n";
 import type { PageLayout } from "../text/search";
 import { css, newId, type Mark, type Pt, type Rect, type Rgb } from "./marks";
-import { moveMark, resizeBox, selectText } from "./geometry";
+import { hasText, markBounds, moveMark, scalePaths, selectText, simplify, spanRect, svgStroke } from "./geometry";
 
 export type Tool = "select" | "highlight" | "underline" | "strike" | "ink" | "rect" | "ellipse" | "line" | "arrow" | "text" | "note";
 export const TEXT_TOOLS: Tool[] = ["highlight", "underline", "strike"];
@@ -38,16 +38,58 @@ type Draft =
   | { kind: "sel"; rects: Rect[]; text: string }
   | { kind: "ink"; pts: Pt[] }
   | { kind: "shape"; a: Pt; b: Pt }
-  | { kind: "move"; id: string; dx: number; dy: number }
-  | { kind: "resize"; id: string; f: number };
+  /** A mark being moved or reshaped, as it will be when the pointer is let go. */
+  | { kind: "live"; id: string; mark: Mark };
+
+/** A handle on a selected mark: a corner of its box (0..3, see `corners`), an end of a line, or a text box's side. */
+type Handle = { corner: number } | { end: "a" | "b" } | { side: true };
+
+const corners = (r: Rect): Pt[] => [
+  [r.x, r.y],
+  [r.x + r.w, r.y],
+  [r.x + r.w, r.y + r.h],
+  [r.x, r.y + r.h],
+];
+const MIN_SIZE = 4;
+
+/** `r` with corner `k` dragged to `at`, the opposite corner fixed; `keep` keeps the aspect (and never flips). */
+function stretch(r: Rect, k: number, at: Pt, keep: boolean): Rect {
+  const c = corners(r);
+  const o = c[(k + 2) % 4];
+  const sx = Math.sign(c[k][0] - o[0]) || 1;
+  const sy = Math.sign(c[k][1] - o[1]) || 1;
+  let dx = at[0] - o[0];
+  let dy = at[1] - o[1];
+  if (keep && r.w && r.h) {
+    const s = Math.max(MIN_SIZE / Math.min(r.w, r.h), Math.max((dx * sx) / r.w, (dy * sy) / r.h));
+    dx = sx * r.w * s;
+    dy = sy * r.h * s;
+  } else {
+    if (Math.abs(dx) < MIN_SIZE) dx = (Math.sign(dx) || sx) * MIN_SIZE;
+    if (Math.abs(dy) < MIN_SIZE) dy = (Math.sign(dy) || sy) * MIN_SIZE;
+  }
+  return spanRect(o, [o[0] + dx, o[1] + dy]);
+}
+
+const coarse = () => window.matchMedia?.("(pointer: coarse)").matches ?? false;
 
 /** One page in the editor: the rendered page with its marks drawn over it, and the pointer tools. */
 export default function EditorPage(p: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const [vp, setVp] = useState<PageViewport | null>(null);
+  const [page, setPage] = useState<PDFPageProxy | null>(null);
   const [visible, setVisible] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const gesture = useRef<{ start: Pt; screen: Pt; layout?: PageLayout; pts?: Pt[] } | null>(null);
+  /** `area`: a page without text (a scan): text tools mark the dragged rectangle instead. */
+  const gesture = useRef<{
+    start: Pt;
+    screen: Pt;
+    layout?: PageLayout;
+    area?: boolean;
+    /** Resolves once `layout`/`area` are known. */
+    ready?: Promise<void>;
+    last?: Pt;
+    pts?: Pt[];
+  } | null>(null);
   const w = p.size.w * p.scale;
   const h = p.size.h * p.scale;
 
@@ -59,23 +101,54 @@ export default function EditorPage(p: Props) {
     return () => io.disconnect();
   }, []);
 
+  // With a text tool in hand, read the text of the pages on screen ahead of the first drag.
+  const textTool = TEXT_TOOLS.includes(p.tool);
+  const { layout, index } = p;
+  useEffect(() => {
+    if (textTool && visible) layout(index).catch(() => {});
+  }, [textTool, visible, layout, index]);
+
   useEffect(() => {
     let alive = true;
     p.doc
       .getPage(p.index + 1)
-      .then((page) => alive && setVp(page.getViewport({ scale: p.scale })))
+      .then((pg) => alive && setPage(pg))
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [p.doc, p.index, p.scale]);
+  }, [p.doc, p.index]);
+  // Derived in the same render as the new size: marks never lag a frame behind a zoom.
+  const vp: PageViewport | null = useMemo(() => page?.getViewport({ scale: p.scale }) ?? null, [page, p.scale]);
 
+  // One object URL per image, kept while the image is on the page (re-creating them on every
+  // change made images flicker while other marks were edited).
+  const urlCache = useRef(new Map<Uint8Array, string>());
   const urls = useMemo(() => {
+    const cache = urlCache.current;
+    const live = new Set<Uint8Array>();
     const m = new Map<string, string>();
-    for (const k of p.marks) if (k.kind === "image") m.set(k.id, URL.createObjectURL(new Blob([k.bytes as BlobPart], { type: k.fmt === "png" ? "image/png" : "image/jpeg" })));
+    for (const k of p.marks) {
+      if (k.kind !== "image") continue;
+      live.add(k.bytes);
+      let u = cache.get(k.bytes);
+      if (!u) cache.set(k.bytes, (u = URL.createObjectURL(new Blob([k.bytes as BlobPart], { type: k.fmt === "png" ? "image/png" : "image/jpeg" }))));
+      m.set(k.id, u);
+    }
+    for (const [bytes, u] of cache)
+      if (!live.has(bytes)) {
+        URL.revokeObjectURL(u);
+        cache.delete(bytes);
+      }
     return m;
   }, [p.marks]);
-  useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
+  useEffect(() => {
+    const cache = urlCache.current;
+    return () => {
+      cache.forEach((u) => URL.revokeObjectURL(u));
+      cache.clear();
+    };
+  }, []);
 
   const toView = (q: Pt): Pt => (vp ? (vp.convertToViewportPoint(q[0], q[1]) as Pt) : [0, 0]);
   const toPdf = (e: { clientX: number; clientY: number }): Pt => {
@@ -130,70 +203,115 @@ export default function EditorPage(p: Props) {
     }
     e.currentTarget.setPointerCapture(e.pointerId);
     gesture.current = { start: at, screen: [e.clientX, e.clientY], pts: [at] };
-    if (TEXT_TOOLS.includes(p.tool)) gesture.current.layout = await p.layout(p.index).catch(() => undefined);
     if (p.tool === "ink") setDraft({ kind: "ink", pts: [at] });
+    if (TEXT_TOOLS.includes(p.tool)) {
+      const g = gesture.current;
+      g.ready = p
+        .layout(p.index)
+        .then((l) => {
+          g.layout = l;
+          g.area = !hasText(l);
+        })
+        .catch(() => {
+          g.area = true;
+        });
+    }
   };
 
   const move = (e: RPointerEvent<HTMLDivElement>) => {
     const g = gesture.current;
     if (!g || !vp) return;
     const at = toPdf(e);
-    if (TEXT_TOOLS.includes(p.tool)) {
-      const s = g.layout ? selectText(g.layout, g.start, at) : null;
-      setDraft(s ? { kind: "sel", rects: s.rects, text: s.text } : null);
-    } else if (p.tool === "ink") {
-      g.pts!.push(at);
+    g.last = at;
+    if (TEXT_TOOLS.includes(p.tool)) setDraft(markup(g, at));
+    else if (p.tool === "ink") {
+      // Every sample the pointer took since the last frame, not just the last one: smooth, fast strokes.
+      const evs = e.nativeEvent.getCoalescedEvents?.() ?? [];
+      if (evs.length) for (const ev of evs) g.pts!.push(toPdf(ev));
+      else g.pts!.push(at);
       setDraft({ kind: "ink", pts: [...g.pts!] });
     } else if (SHAPES.includes(p.tool)) setDraft({ kind: "shape", a: g.start, b: at });
   };
 
-  const up = () => {
+  /** What a text tool marks between the gesture's start and `at`: the text, or on a scan the dragged area. */
+  const markup = (g: NonNullable<typeof gesture.current>, at: Pt): Draft | null => {
+    if (g.area) {
+      const r = spanRect(g.start, at);
+      return r.w > 2 && r.h > 2 ? { kind: "sel", rects: [r], text: "" } : null;
+    }
+    const s = g.layout ? selectText(g.layout, g.start, at) : null;
+    return s ? { kind: "sel", rects: s.rects, text: s.text } : null;
+  };
+
+  const up = async () => {
     const g = gesture.current;
     gesture.current = null;
-    const d = draft;
+    let d = draft;
     setDraft(null);
-    if (!g || !d) return;
+    if (!g) return;
+    // A quick drag can end before the page's text was read: mark it now that it is.
+    if (TEXT_TOOLS.includes(p.tool) && g.last && d?.kind !== "sel") {
+      await g.ready;
+      d = markup(g, g.last);
+    }
+    if (!d) return;
     const base = { id: newId(), page: p.index };
     if (d.kind === "sel" && d.rects.length && TEXT_TOOLS.includes(p.tool))
       p.onAdd({ ...base, kind: p.tool as "highlight", rects: d.rects, text: d.text, color: p.color });
-    else if (d.kind === "ink" && d.pts.length > 1) p.onAdd({ ...base, kind: "ink", paths: [d.pts], color: p.color, width: p.stroke });
+    else if (d.kind === "ink" && d.pts.length) {
+      // Drop samples that add nothing (under half a screen pixel off the curve): smaller files, same look.
+      const pts = simplify(d.pts, 0.5 / p.scale);
+      p.onAdd({ ...base, kind: "ink", paths: [pts], color: p.color, width: p.stroke });
+    }
     else if (d.kind === "shape" && Math.hypot(d.a[0] - d.b[0], d.a[1] - d.b[1]) > 3)
       p.onAdd({ ...base, kind: p.tool as "rect", a: d.a, b: d.b, color: p.color, width: p.stroke });
   };
 
-  // ---- moving and resizing a selected mark ----
-  const grab = (e: RPointerEvent, m: Mark, mode: "move" | "resize") => {
+  // ---- moving and reshaping a selected mark ----
+  const reshape = (m: Mark, h: Handle | null, start: Pt, at: Pt, dxScreen: number): Mark => {
+    if (!h) return moveMark(m, at[0] - start[0], at[1] - start[1]);
+    if ("side" in h) return m.kind === "text" ? { ...m, width: Math.max(30, m.width + dxScreen / p.scale) } : m;
+    if ("end" in h) return m.kind === "line" || m.kind === "arrow" ? { ...m, [h.end]: at } : m;
+    switch (m.kind) {
+      case "rect":
+      case "ellipse": {
+        const r = stretch(spanRect(m.a, m.b), h.corner, at, false);
+        return { ...m, a: [r.x, r.y], b: [r.x + r.w, r.y + r.h] };
+      }
+      case "image":
+        return { ...m, box: stretch(m.box, h.corner, at, true) };
+      case "ink": {
+        const from = markBounds(m);
+        return { ...m, paths: scalePaths(m.paths, from, stretch(from, h.corner, at, true)) };
+      }
+      default:
+        return m;
+    }
+  };
+
+  const grab = (e: RPointerEvent, m: Mark, h: Handle | null) => {
     if (p.tool !== "select" || p.editing === m.id) return;
     e.stopPropagation();
     e.preventDefault();
     if (p.editing) p.onEdit(null);
     p.onSelect(m.id);
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    const start = toPdf(e);
-    const sx = e.clientX;
-    let last: Draft | null = null;
     const el = e.currentTarget as Element;
+    el.setPointerCapture(e.pointerId);
+    const start = toPdf(e);
+    const [sx, sy] = [e.clientX, e.clientY];
+    let last: Mark | null = null;
     const onMove = (ev: PointerEvent) => {
-      if (mode === "move") {
-        const at = toPdf(ev);
-        last = { kind: "move", id: m.id, dx: at[0] - start[0], dy: at[1] - start[1] };
-      } else {
-        const base = m.kind === "image" ? screenBox(rectPts(m.box)).w : m.kind === "text" ? m.width * p.scale : 1;
-        last = { kind: "resize", id: m.id, f: Math.max(0.05, (base + ev.clientX - sx) / base) };
-      }
-      setDraft(last);
+      // A small wobble while tapping to select isn't a move.
+      if (!last && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 3) return;
+      last = reshape(m, h, start, toPdf(ev), ev.clientX - sx);
+      setDraft({ kind: "live", id: m.id, mark: last });
     };
     const onUp = () => {
       el.removeEventListener("pointermove", onMove as EventListener);
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointercancel", onUp);
       setDraft(null);
-      if (!last) return;
-      if (last.kind === "move" && Math.hypot(last.dx, last.dy) > 0.5) p.onUpdate(m.id, moveMark(m, last.dx, last.dy));
-      if (last.kind === "resize") {
-        if (m.kind === "image") p.onUpdate(m.id, { box: resizeBox(m.box, m.box.w * last.f) } as Partial<Mark>);
-        if (m.kind === "text") p.onUpdate(m.id, { width: Math.max(30, m.width * last.f) } as Partial<Mark>);
-      }
+      if (last) p.onUpdate(m.id, last);
     };
     el.addEventListener("pointermove", onMove as EventListener);
     el.addEventListener("pointerup", onUp);
@@ -201,13 +319,25 @@ export default function EditorPage(p: Props) {
   };
 
   // A mark as currently shown (live while dragging).
-  const shown = <M extends Mark>(m: M): M => {
-    if (draft?.kind === "move" && draft.id === m.id) return moveMark(m, draft.dx, draft.dy) as M;
-    if (draft?.kind === "resize" && draft.id === m.id) {
-      if (m.kind === "image") return { ...m, box: resizeBox(m.box, m.box.w * draft.f) };
-      if (m.kind === "text") return { ...m, width: Math.max(30, m.width * draft.f) };
-    }
-    return m;
+  const shown = <M extends Mark>(m: M): M => (draft?.kind === "live" && draft.id === m.id ? (draft.mark as M) : m);
+
+  /** Handles of a selected mark, in screen space. */
+  const handles = (raw: Mark, m: Mark) => {
+    const r = coarse() ? 10 : 6;
+    const dot = (key: string, [x, y]: Pt, h: Handle, cursor: string) => (
+      <circle key={key} className="handle" cx={x} cy={y} r={r} style={{ cursor }} onPointerDown={(e) => grab(e, raw, h)} />
+    );
+    if (m.kind === "line" || m.kind === "arrow") return [dot("a", toView(m.a), { end: "a" }, "move"), dot("b", toView(m.b), { end: "b" }, "move")];
+    const box = m.kind === "rect" || m.kind === "ellipse" ? spanRect(m.a, m.b) : m.kind === "image" ? m.box : m.kind === "ink" ? markBounds(m) : null;
+    if (!box) return null;
+    const cs = corners(box);
+    return cs.map((c, k) => {
+      const v = toView(c);
+      const o = toView(cs[(k + 2) % 4]);
+      // A diagonal cursor matching the corner's direction on screen.
+      const cursor = (v[0] - o[0]) * (v[1] - o[1]) > 0 ? "nwse-resize" : "nesw-resize";
+      return dot(`c${k}`, v, { corner: k }, cursor);
+    });
   };
 
   const sw = (n: number) => Math.max(1, n * p.scale);
@@ -219,7 +349,7 @@ export default function EditorPage(p: Props) {
     const common = {
       "data-id": m.id,
       className: `mark${selectable ? " grab" : ""}${sel ? " selected" : ""}`,
-      onPointerDown: (e: RPointerEvent<SVGGElement>) => grab(e, raw, "move"),
+      onPointerDown: (e: RPointerEvent<SVGGElement>) => grab(e, raw, null),
       onDoubleClick: () => (m.kind === "note" ? p.onEdit(m.id) : undefined),
     };
     const c = css((m as { color?: Rgb }).color ?? [0, 0, 0]);
@@ -244,7 +374,7 @@ export default function EditorPage(p: Props) {
         box = screenBox(m.rects.flatMap(rectPts));
         break;
       case "ink": {
-        const d = m.paths.map((path) => "M" + path.map((q) => toView(q).join(" ")).join(" L")).join(" ");
+        const d = m.paths.map((path) => svgStroke(path, toView)).join(" ");
         body = (
           <>
             <path d={d} className="hit" />
@@ -278,7 +408,8 @@ export default function EditorPage(p: Props) {
       case "arrow": {
         const [a, b] = [toView(m.a), toView(m.b)];
         const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
-        const len = Math.max(8, sw(m.width) * 4);
+        // Same size as in the saved PDF (write.ts arrowHead), in page points.
+        const len = Math.max(8, m.width * 4) * p.scale;
         const head = (k: number) => [b[0] - len * Math.cos(ang + k), b[1] - len * Math.sin(ang + k)];
         const d = `M${a.join(" ")} L${b.join(" ")}` + (m.kind === "arrow" ? ` M${head(0.45).join(" ")} L${b.join(" ")} L${head(-0.45).join(" ")}` : "");
         body = (
@@ -316,9 +447,7 @@ export default function EditorPage(p: Props) {
       <g key={m.id} {...common}>
         {body}
         {sel && box && <rect className="sel-box" x={box.x - 4} y={box.y - 4} width={box.w + 8} height={box.h + 8} />}
-        {sel && m.kind === "image" && box && (
-          <rect className="handle" x={box.x + box.w - 6} y={box.y + box.h - 6} width={12} height={12} onPointerDown={(e) => grab(e, raw, "resize")} />
-        )}
+        {sel && m.id !== "draft" && handles(raw, m)}
       </g>
     );
   };
@@ -348,7 +477,7 @@ export default function EditorPage(p: Props) {
                 return <rect key={i} x={s.x} y={s.y} width={s.w} height={s.h} fill={css(p.color, 0.35)} />;
               })}
             {draft?.kind === "ink" && (
-              <path d={"M" + draft.pts.map((q) => toView(q).join(" ")).join(" L")} fill="none" stroke={css(p.color)} strokeWidth={sw(p.stroke)} strokeLinecap="round" strokeLinejoin="round" />
+              <path d={svgStroke(draft.pts, toView)} fill="none" stroke={css(p.color)} strokeWidth={sw(p.stroke)} strokeLinecap="round" strokeLinejoin="round" />
             )}
             {draft?.kind === "shape" &&
               drawMark({ id: "draft", page: p.index, kind: p.tool as "rect", a: draft.a, b: draft.b, color: p.color, width: p.stroke })}
@@ -376,11 +505,11 @@ export default function EditorPage(p: Props) {
                 key={m.id}
                 className={`ed-text${selectable ? " grab" : ""}${sel ? " selected" : ""}`}
                 style={style}
-                onPointerDown={(e) => grab(e, raw, "move")}
+                onPointerDown={(e) => grab(e, raw, null)}
                 onDoubleClick={() => p.onEdit(m.id)}
               >
                 {m.text}
-                {sel && <span className="handle side" onPointerDown={(e) => grab(e, raw, "resize")} />}
+                {sel && <span className="handle side" onPointerDown={(e) => grab(e, raw, { side: true })} />}
               </div>
             );
           })}

@@ -92,14 +92,33 @@
   color: var(--danger);
 }
 
+/* Floats over the pages: showing it must not push the page away from under the pointer. */
 .ed-hint {
-  flex: none;
-  padding: 6px 12px;
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  max-width: calc(100% - 32px);
+  padding: 6px 14px;
   font-size: 13px;
   text-align: center;
   color: var(--text-2);
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--stroke);
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  animation: hint-out 4s var(--ease-out) forwards;
+}
+@keyframes hint-out {
+  0%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .ed-saved {
@@ -115,6 +134,7 @@
 /* ---------- Pages ---------- */
 
 .ed-body {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -197,9 +217,10 @@
   stroke: transparent;
   stroke-width: 14px;
 }
+/* A shape is picked up anywhere inside it, not only on its thin outline. */
 .mark .hit rect,
 .mark .hit ellipse {
-  fill: none;
+  fill: transparent;
   stroke: transparent;
   stroke-width: 14px;
 }
@@ -482,6 +503,14 @@
   }
   .ed-bar-end {
     margin-inline-start: auto;
+  }
+  /* The reader's bar moves to the bottom on phones; the editor keeps its title bar on top, since
+     the tool strip already takes the bottom edge. */
+  .editor .ed-bar {
+    order: 0;
+    padding-bottom: 8px;
+    border-top: 0;
+    border-bottom: 1px solid var(--stroke);
   }
   /* Tools sit at the bottom on a phone, where the thumb is. */
   .ed-strip {

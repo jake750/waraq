@@ -39,15 +39,34 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
   const [vp, setVp] = useState<Viewport | null>(null);
   const sizeCb = useRef(onSize);
   sizeCb.current = onSize;
+  /** The page the canvas on screen shows (it stays up, stretched, while a new zoom renders). */
+  const showing = useRef<{ doc: PDFDocumentProxy; page: number } | null>(null);
+
+  // Frees whatever bitmap is still on screen when the page goes away.
+  useEffect(() => {
+    const host = canvasHost.current!;
+    return () => {
+      for (const c of host.querySelectorAll("canvas")) c.width = c.height = 0;
+      host.replaceChildren();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     let task: RenderTask | undefined;
     let layer: TextLayer | undefined;
     let lease: PageLease | undefined;
+    const host = canvasHost.current!;
     // A fresh canvas per render: pdf.js refuses a canvas whose previous render is still cancelling.
+    // It goes on screen only once drawn, so a zoom shows the old bitmap stretched instead of a blank page.
     const canvas = pageCanvas();
-    canvasHost.current!.replaceChildren(canvas);
+    let attached = false;
+    const sameSource = showing.current?.doc === doc && showing.current.page === pageNumber;
+    if (!sameSource) {
+      for (const c of host.querySelectorAll("canvas")) c.width = c.height = 0;
+      host.replaceChildren();
+      showing.current = null;
+    }
     const textDiv = textRef.current!;
     (async () => {
       lease = await leasePage(doc, pageNumber);
@@ -72,6 +91,10 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
         return; // cancelled
       }
       if (cancelled) return;
+      for (const c of host.querySelectorAll("canvas")) c.width = c.height = 0;
+      host.replaceChildren(canvas);
+      attached = true;
+      showing.current = { doc, page: pageNumber };
       const content = await page.getTextContent();
       if (cancelled) return;
       const items = content.items.filter((it) => "str" in it && it.str !== "") as unknown as GlyphItem[];
@@ -95,8 +118,7 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
       task?.cancel();
       layer?.cancel();
       lease?.release();
-      canvas.width = canvas.height = 0;
-      canvas.remove();
+      if (!attached) canvas.width = canvas.height = 0;
       textDiv.replaceChildren();
     };
   }, [doc, pageNumber, scale]);
