@@ -1,11 +1,13 @@
 import { FileText } from "lucide-react";
 import { useT } from "../i18n";
+import { BACK_DIALOG, useBack } from "../shell/back";
 
 type Props = { name: string; busy: boolean; onConvert(): void; onOpen(): void; onCancel(): void };
 
 /** A non-PDF was opened: convert it (Convert screen) or read it as a temporary PDF. */
 export default function NotPdfPrompt({ name, busy, onConvert, onOpen, onCancel }: Props) {
   const t = useT();
+  useBack(true, () => !busy && onCancel(), BACK_DIALOG);
   return (
     <>
       <div className="scrim" onClick={busy ? undefined : onCancel} />

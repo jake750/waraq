@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useT } from "../i18n";
+import { BACK_DIALOG, useBack } from "../shell/back";
 import { appKV } from "../files/kv";
 
 const KEY = "signatures";
@@ -47,6 +48,7 @@ function cropped(canvas: HTMLCanvasElement): string | null {
 /** Draw a signature (or pick a saved one). Saved signatures stay on this device only. */
 export default function SignaturePad({ onUse, onCancel }: { onUse(s: Signature): void; onCancel(): void }) {
   const t = useT();
+  useBack(true, onCancel, BACK_DIALOG);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [saved, setSaved] = useState<string[]>([]);
   const [empty, setEmpty] = useState(true);

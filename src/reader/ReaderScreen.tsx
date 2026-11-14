@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useT } from "../i18n";
+import { useBack } from "../shell/back";
 import { findMatches, pageLayout, type PageLayout } from "../text/search";
 import { matchRects } from "./highlight";
 import OutlinePanel from "./OutlinePanel";
@@ -28,6 +29,8 @@ export default function ReaderScreen(p: Props) {
   const t = useT();
   const { doc } = p;
   const [panelOpen, setPanelOpen] = useState(() => !isPhone());
+  // On a phone the panel covers the page: back closes it first.
+  useBack(panelOpen && isPhone(), () => setPanelOpen(false));
   const [tab, setTab] = useState<Tab>("thumbs");
   const [ratio, setRatio] = useState(1.414);
   const [focusToken, setFocusToken] = useState(0);

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useT } from "../i18n";
+import { useBack } from "../shell/back";
 import { isAndroid } from "../platform";
 import { folderOf, keepAccess, readDocument, resolveName, suffixName, toDocRef, type DocRef } from "../files/docRef";
 import { openPdf } from "../pdf/openPdf";
@@ -61,6 +62,7 @@ const save = (bytes: Uint8Array, name: string, src: Source) => saveOutput(bytes,
 export default function ToolsScreen({ onToast, onEdit, initialTool }: Props) {
   const t = useT();
   const [tool, setTool] = useState<Tool | null>(initialTool ?? null);
+  useBack(!!tool, () => setTool(null));
   const fail = (e: unknown) => onToast(t.convertErrors[asConvertError(e, "bad-input").code]);
   if (tool) {
     const back = () => setTool(null);

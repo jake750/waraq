@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { BookOpen, Download, Home as HomeIcon, RefreshCw, Repeat2, Settings, ShieldCheck, Wrench, X } from "lucide-react";
 import { useLang, useT, type Lang } from "../i18n";
+import { BACK_DIALOG, useBack } from "./back";
 import type { ThemePref } from "../prefs";
 import { isAndroid } from "../platform";
 import type { Updates } from "../update/useUpdates";
@@ -126,6 +127,7 @@ export default function Layout(p: Props) {
   // While reading or editing, the sidebar folds to an icon rail so the page gets the room.
   const rail = p.route === "reader" || p.route === "editor";
   const [settings, setSettings] = useState(false);
+  useBack(settings, () => setSettings(false), BACK_DIALOG);
   useEffect(() => {
     if (!settings) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSettings(false);

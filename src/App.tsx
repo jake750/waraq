@@ -24,6 +24,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { isAndroid } from "./platform";
 import { useUpdates } from "./update/useUpdates";
+import { BACK_DIALOG, BACK_ROUTE, useBack } from "./shell/back";
 
 const inTauri = () => "__TAURI_INTERNALS__" in window;
 
@@ -284,6 +285,11 @@ export default function App() {
     prev?.doc.loadingTask.destroy().catch(() => {});
     refreshRecent();
   }, [refreshRecent]);
+
+  // Android back: the reader closes like its close button; other screens go back to Home.
+  // The editor handles back itself (it asks before dropping unsaved changes).
+  useBack(route !== "home" && route !== "editor", () => (route === "reader" ? onClose() : setRoute("home")), BACK_ROUTE);
+  useBack(!!locked, () => setLocked(null), BACK_DIALOG);
 
   return (
     <LangContext.Provider value={langCtx}>
