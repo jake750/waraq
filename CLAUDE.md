@@ -27,8 +27,10 @@ cd src-tauri && cargo test  # Rust unit tests
 
 ## Releases and signing
 
-- **Always release (standing rule from the user):** every change that reaches `main` ships in a new release,
-  without asking. After pushing the change, run `npm run release` (patch; or `minor`/`major`/`X.Y.Z`): it
+- **Always release (standing rule from the user):** every change to the app that reaches `main` ships in a
+  new release, without asking: anything under `src/`, `src-tauri/` (code, config, icons) or `public/`, or a
+  dependency change. Changes to only CI, scripts, tests, fixtures or docs (CLAUDE.md, README) do not get a
+  release of their own; they ride in the next one. After pushing the change, run `npm run release` (patch; or `minor`/`major`/`X.Y.Z`): it
   bumps `tauri.conf.json`, `package.json`, `package-lock.json`, `Cargo.toml` and `Cargo.lock`, commits and
   pushes to `main`. `.github/workflows/release.yml` sees an untagged version on main, builds Windows and
   universal macOS, signs the updater bundles, publishes `latest.json` and creates the tag. Then build the
