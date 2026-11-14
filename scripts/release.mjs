@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Opens a release PR in one step: bumps the version in every file that carries it, commits on a fresh
-// claude/release-X.Y.Z branch cut from origin/main, pushes it and opens the PR.
-// Once the PR is merged, .github/workflows/release.yml sees the new version on main, tags it and builds.
+// Releases in one step: bumps the version in every file that carries it, commits on top of the current
+// HEAD (which must contain origin/main) and pushes it straight to main. .github/workflows/release.yml then
+// sees the new version on main, builds Windows and macOS and creates the vX.Y.Z tag. Works from a worktree.
 //
 //   node scripts/release.mjs [patch|minor|major|X.Y.Z] [--dry-run]
 //
-// --dry-run only rewrites the files in the working tree (no branch, commit, push or PR).
+// --dry-run only rewrites the files in the working tree (no commit or push).
 // Each file is edited in place with a targeted replace, so its line endings stay as they are.
 
 import { execFileSync } from "node:child_process";
@@ -41,9 +41,13 @@ const edits = [
 
 if (!dryRun) {
   if (run("git", ["status", "--porcelain"])) fail("working tree is not clean");
-  run("git", ["fetch", "origin", "main"]);
+  run("git", ["fetch", "-q", "origin", "main"]);
+  try {
+    run("git", ["merge-base", "--is-ancestor", "origin/main", "HEAD"]);
+  } catch {
+    fail("HEAD does not contain origin/main: pull or rebase first");
+  }
   if (run("git", ["ls-remote", "--tags", "origin", `refs/tags/v${next}`])) fail(`tag v${next} already exists`);
-  run("git", ["switch", "-c", `claude/release-${next}`, "origin/main"], { stdio: "inherit" });
 }
 
 for (const [file, re, expected = 1] of edits) {
@@ -58,25 +62,11 @@ if (dryRun) process.exit(0);
 
 const files = edits.map(([f]) => f);
 run("git", ["add", ...files]);
-run("git", ["commit", "-q", "-m", `chore(release): v${next}\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`]);
-run("git", ["push", "-q", "-u", "origin", `claude/release-${next}`], { stdio: "inherit" });
+run("git", ["commit", "-q", "-m", `chore(release): v${next}
 
-let changes = "";
-try {
-  changes = run("git", ["log", "--format=- %s", "--no-merges", `v${current}..origin/main`], { stdio: "pipe" });
-} catch {} // no local v<current> tag: leave the list out
-changes ||= "- (see the merged PRs)";
-const body = [
-  `Bumps the version to ${next}. Merging this PR makes the release workflow tag \`v${next}\` and build`,
-  "Windows and macOS. The Android APK is attached afterwards.",
-  "",
-  `Changes since v${current}:`,
-  changes,
-  "",
-  "🤖 Generated with [Claude Code](https://claude.com/claude-code)",
-].join("\n");
-const url = run("gh", ["pr", "create", "--base", "main", "--title", `chore(release): v${next}`, "--body", body]);
-console.log(url);
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`]);
+run("git", ["push", "-q", "origin", "HEAD:main"], { stdio: "inherit" });
+console.log(`release: pushed v${next} to main; the release workflow builds it and creates the tag`);
 
 function nextVersion(version, kind) {
   if (/^\d+\.\d+\.\d+$/.test(kind)) return kind;

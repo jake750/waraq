@@ -9,7 +9,9 @@ download (SHA-256 pinned) and update checks against this repo's GitHub releases 
 day, can be turned off in Settings). The app never overwrites an opened file: every operation writes a new one
 (e.g. `"name (edited).pdf"`; Android writes to `Download/Waraq`).
 
-Talk to the user in Arabic; code, comments and commit messages are English. The user merges PRs themself.
+Talk to the user in Arabic; code, comments and commit messages are English. **No PRs (user's choice,
+2026-11-14):** commit finished work and push it straight to `main` (`git push origin HEAD:main` from a
+worktree, after rebasing on `origin/main`); never wait for the user to merge.
 
 ## Commands
 
@@ -26,13 +28,12 @@ cd src-tauri && cargo test  # Rust unit tests
 ## Releases and signing
 
 - **Always release (standing rule from the user):** every change that reaches `main` ships in a new release,
-  without asking. Once a feature/fix PR is merged, run `npm run release` (patch; or `minor`/`major`/`X.Y.Z`)
-  from a clean main checkout: it bumps `tauri.conf.json`, `package.json`, `package-lock.json`, `Cargo.toml`
-  and `Cargo.lock`, commits on `claude/release-X.Y.Z` and opens the `chore(release): vX.Y.Z` PR. When the
-  user merges it, `.github/workflows/release.yml` sees an untagged version on main, builds Windows and
+  without asking. After pushing the change, run `npm run release` (patch; or `minor`/`major`/`X.Y.Z`): it
+  bumps `tauri.conf.json`, `package.json`, `package-lock.json`, `Cargo.toml` and `Cargo.lock`, commits and
+  pushes to `main`. `.github/workflows/release.yml` sees an untagged version on main, builds Windows and
   universal macOS, signs the updater bundles, publishes `latest.json` and creates the tag. Then build the
   Android APK in the main checkout and attach it. Watch runs with `gh run watch <id>` in the background,
-  never by polling. A CLAUDE.md change for a release rides in that PR.
+  never by polling.
 - **macOS:** only `macos-15` runners work (14 rejected, 13 never starts); "not acquired by Runner" → `gh run
   rerun <id> --failed`. The app is unsigned: users need right-click → Open once.
 - **Updater key:** `bundle.createUpdaterArtifacts` is on, so builds need `TAURI_SIGNING_PRIVATE_KEY`
