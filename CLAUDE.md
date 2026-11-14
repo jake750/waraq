@@ -25,6 +25,10 @@ cd src-tauri && cargo test  # Rust unit tests
 
 ## Releases and signing
 
+- **Always release (standing rule from the user):** every change that reaches `main` ships in a new release,
+  without asking. Once a feature/fix PR is merged, open a `chore(release): vX.Y.Z` PR (patch bump unless told
+  otherwise), push the `vX.Y.Z` tag on that release commit, wait for the workflow, then build the Android APK
+  in the main checkout and attach it to the release. The CLAUDE.md change for a release rides in that PR.
 - **Release:** bump `version` in `tauri.conf.json`, `package.json`, `package-lock.json` and `Cargo.toml`
   (plus the `waraq` entry in `Cargo.lock`), then push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds
   Windows and universal macOS, signs the updater bundles and publishes `latest.json`.
