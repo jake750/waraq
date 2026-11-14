@@ -11,6 +11,8 @@ import { runJob } from "./run";
 
 export async function openAsPdf(ref: DocRef, name: string, officeInstalled: boolean): Promise<Saved> {
   const fmt = fmtOf(name);
+  // Old Word (.doc) needs LibreOffice, which only the PC version has.
+  if (fmt === "doc" && isAndroid()) throw new ConvertError("office-missing");
   if (!fmt || !targetsFor(fmt, isAndroid() ? "android" : "desktop").includes("pdf")) throw new ConvertError("unsupported");
   const dir = await invoke<string>("temp_dir");
   const job: Job = { id: 0, inputs: [{ name, ref }], name, fmt, target: "pdf", state: "running", progress: 0 };

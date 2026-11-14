@@ -59,14 +59,12 @@ export function useConvert() {
       });
   }, [queue]);
 
-  /** Adds files; returns how many were skipped as not convertible. */
-  const add = useCallback(async (refs: DocRef[]): Promise<number> => {
+  /** Adds files; returns how many were skipped as not convertible, and whether all of those are old Word (.doc). */
+  const add = useCallback(async (refs: DocRef[]): Promise<{ skipped: number; allDoc: boolean }> => {
     const inputs: Input[] = await Promise.all(refs.map(async (ref) => ({ ref, name: await resolveName(ref) })));
     dispatch({ type: "add", inputs, platform: platform() });
-    return inputs.filter((i) => {
-      const f = fmtOf(i.name);
-      return !f || targetsFor(f, platform()).length === 0;
-    }).length;
+    const skipped = inputs.map((i) => fmtOf(i.name)).filter((f) => !f || targetsFor(f, platform()).length === 0);
+    return { skipped: skipped.length, allDoc: skipped.length > 0 && skipped.every((f) => f === "doc") };
   }, []);
 
   const needsOffice = (jobs: Job[]) =>

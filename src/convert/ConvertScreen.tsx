@@ -30,8 +30,8 @@ export default function ConvertScreen({ api, dragOver, onToast }: Props) {
   const addFiles = async () => {
     const refs = await pickFiles(true).catch(() => []);
     if (!refs.length) return;
-    const skipped = await api.add(refs);
-    if (skipped) onToast(t.skippedFiles(skipped));
+    const { skipped, allDoc } = await api.add(refs);
+    if (skipped) onToast(allDoc ? t.skippedDoc : t.skippedFiles(skipped));
   };
 
   const chooseFolder = async () => {

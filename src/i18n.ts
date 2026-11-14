@@ -95,6 +95,7 @@ const en = {
   imagesCount: (n: number) => `${n} images`,
   filesCount: (n: number) => `${n} files`,
   skippedFiles: (n: number) => (n === 1 ? "1 file can't be converted and was skipped" : `${n} files can't be converted and were skipped`),
+  skippedDoc: "Old Word files (.doc) convert on the PC only. Save it as .docx and try again.",
   convertErrors: {
     "bad-input": "The file is damaged or isn't what its name says",
     unsupported: "This conversion isn't available here",
@@ -345,6 +346,7 @@ const ar: typeof en = {
   imagesCount: (n: number) => `${n} صور`,
   filesCount: (n: number) => `${n} ملفات`,
   skippedFiles: (n: number) => (n === 1 ? "تعذّر تحويل ملف واحد فتم تخطيه" : `تعذّر تحويل ${n} ملفات فتم تخطيها`),
+  skippedDoc: "ملفات Word القديمة (‎.doc) تُحوَّل على الكمبيوتر فقط. احفظه بصيغة ‎.docx وحاول مجددًا.",
   convertErrors: {
     "bad-input": "الملف تالف أو ليس من النوع الذي يدل عليه اسمه",
     unsupported: "هذا التحويل غير متاح هنا",

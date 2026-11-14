@@ -1,4 +1,4 @@
-import { engineFor, fmtOf, nameWithType, outputName, targetsFor } from "../../src/convert/formats";
+import { engineFor, fmtOf, nameWithType, outputName, sniffFmt, targetsFor } from "../../src/convert/formats";
 
 test("formats by extension, any case", () => {
   expect(fmtOf("تقرير.DOCX")).toBe("docx");
@@ -64,4 +64,23 @@ test("names without an extension get one from the MIME type (Android providers)"
   expect(nameWithType("report.docx", "application/octet-stream")).toBe("report.docx");
   expect(nameWithType("report", "application/octet-stream")).toBe("report");
   expect(nameWithType("report", null)).toBe("report");
+});
+
+test("formats from the file's own bytes", async () => {
+  const { readFileSync } = await import("node:fs");
+  const read = (p: string) => new Uint8Array(readFileSync(`fixtures/${p}`));
+  for (const [file, fmt] of [
+    ["office/sample.docx", "docx"],
+    ["office/sample.odt", "odt"],
+    ["office/sample.epub", "epub"],
+    ["office/sample.rtf", "rtf"],
+    ["office/sample.png", "png"],
+    ["office/sample.jpg", "jpg"],
+    ["office/sample.webp", "webp"],
+    ["arabic-book.pdf", "pdf"],
+  ] as const)
+    expect(sniffFmt(read(file)), file).toBe(fmt);
+  expect(sniffFmt(new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0]))).toBe("doc");
+  expect(sniffFmt(read("office/sample.txt"))).toBeNull();
+  expect(fmtOf("report.docx ")).toBe("docx");
 });

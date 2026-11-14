@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
-import { nameWithType } from "../convert/formats";
+import { fmtOf, nameWithType, sniffFmt } from "../convert/formats";
 import { PdfError } from "../pdf/openPdf";
 
 /** Where a document lives: a filesystem path (desktop) or an Android content URI. */
@@ -77,7 +77,11 @@ export function keepAccess(refs: DocRef[]): DocRef[] {
 export async function resolveName(ref: DocRef): Promise<string> {
   if (ref.kind === "uri") {
     const r = await invoke<{ name?: string | null; mime?: string | null }>("android_display_name", { uri: ref.uri }).catch(() => null);
-    return nameWithType(r?.name || docName(ref), r?.mime);
+    const name = nameWithType(r?.name || docName(ref), r?.mime);
+    if (fmtOf(name)) return name;
+    // Neither the name nor the type says what it is (e.g. "application/octet-stream"): look at the bytes.
+    const f = await readDocument(ref).then(sniffFmt, () => null);
+    return f ? `${name.trim()}.${f}` : name;
   }
   return docName(ref);
 }

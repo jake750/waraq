@@ -26,7 +26,7 @@ const EXT: Record<string, Fmt> = {
 };
 
 export function fmtOf(name: string): Fmt | null {
-  const m = /\.([a-z0-9]+)$/i.exec(name);
+  const m = /\.([a-z0-9]+)$/i.exec(name.trim());
   return m ? (EXT[m[1].toLowerCase()] ?? null) : null;
 }
 
@@ -53,6 +53,31 @@ export function nameWithType(name: string, mime: string | null | undefined): str
   if (fmtOf(name)) return name;
   const f = mime ? MIME[mime.split(";")[0].trim().toLowerCase()] : undefined;
   return f ? `${name}.${f}` : name;
+}
+
+const startsWith = (b: Uint8Array, sig: number[], at = 0) => sig.every((v, i) => b[at + i] === v);
+const ascii = (b: Uint8Array, from: number, to: number) => {
+  let s = "";
+  for (let i = from; i < Math.min(to, b.length); i++) s += String.fromCharCode(b[i]);
+  return s;
+};
+
+/** The format from the file's own bytes, for names that say nothing (no or unknown extension). */
+export function sniffFmt(b: Uint8Array): Fmt | null {
+  if (ascii(b, 0, 1024).includes("%PDF-")) return "pdf";
+  if (startsWith(b, [0x89, 0x50, 0x4e, 0x47])) return "png";
+  if (startsWith(b, [0xff, 0xd8, 0xff])) return "jpg";
+  if (ascii(b, 0, 4) === "RIFF" && ascii(b, 8, 12) === "WEBP") return "webp";
+  if (startsWith(b, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) return "doc";
+  if (ascii(b, 0, 5) === "{\\rtf") return "rtf";
+  if (startsWith(b, [0x50, 0x4b, 0x03, 0x04])) {
+    // ODT/EPUB store "mimetype" first; DOCX names its parts in plain text in the zip headers.
+    const head = ascii(b, 30, 100);
+    if (head.startsWith("mimetypeapplication/vnd.oasis.opendocument.text")) return "odt";
+    if (head.startsWith("mimetypeapplication/epub+zip")) return "epub";
+    return ascii(b, 0, b.length).includes("word/document.xml") ? "docx" : null;
+  }
+  return null;
 }
 
 const BOTH: Record<Fmt, Target[]> = {
