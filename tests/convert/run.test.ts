@@ -69,9 +69,16 @@ test("docx to pdf falls back to the built-in engine", async () => {
   expect(new TextDecoder().decode(saved[0].bytes)).toContain("تقرير الربع الأول");
 });
 
-test("a .doc file without LibreOffice reports office-missing", async () => {
+test("a .doc file without LibreOffice goes through the built-in reader", async () => {
+  const { d, calls, saved } = deps({ platform: "android" });
+  await run(job("office/sample.doc", "doc", "pdf"), d);
+  expect(calls).toEqual(["print"]);
+  expect(new TextDecoder().decode(saved[0].bytes)).toContain("تقرير الربع الأول");
+});
+
+test("a .doc file → DOCX still needs LibreOffice", async () => {
   const { d } = deps();
-  await expect(run(job("office/sample.docx", "doc", "pdf"), d)).rejects.toMatchObject({ code: "office-missing" });
+  await expect(run(job("office/sample.doc", "doc", "docx"), d)).rejects.toMatchObject({ code: "office-missing" });
 });
 
 test("pdf pages become one image each", async () => {

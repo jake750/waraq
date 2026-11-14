@@ -153,8 +153,8 @@ export default function App() {
       const named = await Promise.all(refs.map(async (ref) => ({ ref, name: await resolveName(ref) })));
       if (!toQueue && named.length === 1 && /\.pdf$/i.test(named[0].name)) return openDocument(named[0].ref);
       if (!toQueue && named.length === 1) return setNotPdf({ ...named[0], busy: false });
-      const { skipped, allDoc } = await conv.add(refs);
-      if (skipped) setToast(allDoc ? t.skippedDoc : t.skippedFiles(skipped));
+      const skipped = await conv.add(refs);
+      if (skipped) setToast(t.skippedFiles(skipped));
       setRoute("convert");
     },
     [openDocument, conv, t],

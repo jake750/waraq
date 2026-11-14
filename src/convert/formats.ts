@@ -82,7 +82,7 @@ export function sniffFmt(b: Uint8Array): Fmt | null {
 
 const BOTH: Record<Fmt, Target[]> = {
   docx: ["pdf", "txt", "md", "html"],
-  doc: [],
+  doc: ["pdf", "txt", "md", "html"], // built-in reader (docText.ts): text and tables, no images
   odt: ["pdf", "txt"],
   rtf: ["pdf", "txt"],
   txt: ["pdf", "docx", "md", "html"],
@@ -97,7 +97,7 @@ const BOTH: Record<Fmt, Target[]> = {
 
 // Needs LibreOffice: only on the PC.
 const PC_ONLY: Partial<Record<Fmt, Target[]>> = {
-  doc: ["pdf", "docx", "txt"],
+  doc: ["docx"],
   odt: ["docx"],
   rtf: ["docx"],
 };
@@ -123,8 +123,8 @@ const OFFICE: Fmt[] = ["docx", "doc", "odt", "rtf"];
 export function engineFor(f: Fmt, t: Target, platform: Platform, loAvailable: boolean): Engine {
   if (f === "pdf") return "pdf";
   if (f === "png" || f === "jpg" || f === "webp") return "images";
-  if (f === "doc") return "libreoffice";
   if (OFFICE.includes(f) && platform === "desktop" && loAvailable && (t === "pdf" || t === "docx")) return "libreoffice";
-  if (OFFICE.includes(f) && t === "docx") return "libreoffice"; // ODT/RTF → DOCX is PC-only and needs it
+  if (OFFICE.includes(f) && t === "docx") return "libreoffice"; // DOC/ODT/RTF → DOCX is PC-only and needs it
+  if (f === "doc" && platform === "desktop" && loAvailable) return "libreoffice"; // better than text-only
   return "html";
 }

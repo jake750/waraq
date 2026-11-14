@@ -14,7 +14,7 @@ const sorted = (a: string[]) => [...a].sort();
 test("conversion matrix on the PC", () => {
   const t = (f: Parameters<typeof targetsFor>[0]) => sorted(targetsFor(f, "desktop"));
   expect(t("docx")).toEqual(sorted(["pdf", "txt", "md", "html"]));
-  expect(t("doc")).toEqual(sorted(["pdf", "docx", "txt"]));
+  expect(t("doc")).toEqual(sorted(["pdf", "docx", "txt", "md", "html"]));
   expect(t("odt")).toEqual(sorted(["pdf", "txt", "docx"]));
   expect(t("rtf")).toEqual(sorted(["pdf", "txt", "docx"]));
   expect(t("txt")).toEqual(sorted(["pdf", "docx", "md", "html"]));
@@ -27,8 +27,8 @@ test("conversion matrix on the PC", () => {
   expect(t("webp")).toEqual(["pdf"]);
 });
 
-test("the phone has no legacy .doc and no ODT/RTF → DOCX", () => {
-  expect(targetsFor("doc", "android")).toEqual([]);
+test("the phone reads legacy .doc built-in, but has no DOC/ODT/RTF → DOCX", () => {
+  expect(sorted(targetsFor("doc", "android"))).toEqual(sorted(["pdf", "txt", "md", "html"]));
   expect(sorted(targetsFor("odt", "android"))).toEqual(sorted(["pdf", "txt"]));
   expect(sorted(targetsFor("rtf", "android"))).toEqual(sorted(["pdf", "txt"]));
   expect(sorted(targetsFor("docx", "android"))).toEqual(sorted(["pdf", "txt", "md", "html"]));
@@ -48,6 +48,9 @@ test("engines", () => {
   expect(engineFor("docx", "pdf", "android", false)).toBe("html");
   expect(engineFor("docx", "txt", "desktop", true)).toBe("html");
   expect(engineFor("doc", "txt", "desktop", true)).toBe("libreoffice");
+  expect(engineFor("doc", "pdf", "desktop", false)).toBe("html");
+  expect(engineFor("doc", "pdf", "android", false)).toBe("html");
+  expect(engineFor("doc", "docx", "android", false)).toBe("libreoffice");
   expect(engineFor("odt", "docx", "desktop", true)).toBe("libreoffice");
   expect(engineFor("rtf", "pdf", "desktop", true)).toBe("libreoffice");
   expect(engineFor("rtf", "txt", "desktop", true)).toBe("html");

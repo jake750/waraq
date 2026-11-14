@@ -101,6 +101,9 @@ test("remove and clear finished", () => {
 });
 
 test("android gets only built-in targets", () => {
-  const q = run(emptyQueue, { type: "add", inputs: [ref("a.doc"), ref("b.odt")], platform: "android" });
-  expect(q.jobs.map((j) => [j.name, j.target])).toEqual([["b.odt", "pdf"]]);
+  const q = run(emptyQueue, { type: "add", inputs: [ref("a.doc"), ref("b.odt"), ref("c.xyz")], platform: "android" });
+  expect(q.jobs.map((j) => [j.name, j.target])).toEqual([
+    ["a.doc", "pdf"],
+    ["b.odt", "pdf"],
+  ]);
 });

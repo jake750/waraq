@@ -1,6 +1,7 @@
 // Every text-like input becomes sanitized HTML; the writers (fromHtml, printPdf) take it from there.
 import mammoth from "mammoth";
 import { marked } from "marked";
+import { docToHtml } from "./docText";
 import { ConvertError } from "./errors";
 import type { Fmt } from "./formats";
 import { epubToHtml } from "./epub";
@@ -55,6 +56,8 @@ export async function toHtml(bytes: Uint8Array, f: Fmt): Promise<HtmlDoc> {
         const title = /<h1[^>]*>([\s\S]*?)<\/h1>/.exec(body)?.[1]?.replace(/<[^>]+>/g, "") ?? "";
         return { title, body };
       }
+      case "doc":
+        return { title: "", body: sanitizeFragment(docToHtml(bytes).body) };
       case "odt": {
         const { title, body } = await odtToHtml(bytes);
         return { title, body: sanitizeFragment(body) };

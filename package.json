@@ -26,6 +26,7 @@
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-store": "^2.5.1",
     "@tauri-apps/plugin-updater": "^2.14.1",
+    "cfb": "^1.2.2",
     "docx": "^9.15.3",
     "jszip": "^3.10.2",
     "lucide-react": "^1.72.0",

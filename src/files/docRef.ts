@@ -78,9 +78,12 @@ export async function resolveName(ref: DocRef): Promise<string> {
   if (ref.kind === "uri") {
     const r = await invoke<{ name?: string | null; mime?: string | null }>("android_display_name", { uri: ref.uri }).catch(() => null);
     const name = nameWithType(r?.name || docName(ref), r?.mime);
-    if (fmtOf(name)) return name;
-    // Neither the name nor the type says what it is (e.g. "application/octet-stream"): look at the bytes.
+    const said = fmtOf(name);
+    if (said && said !== "doc") return name;
+    // Neither the name nor the type says what it is (e.g. "application/octet-stream"), or it says .doc,
+    // which is often a renamed .docx: look at the bytes.
     const f = await readDocument(ref).then(sniffFmt, () => null);
+    if (said) return f === "docx" ? name.trim().replace(/\.doc$/i, ".docx") : name;
     return f ? `${name.trim()}.${f}` : name;
   }
   return docName(ref);
