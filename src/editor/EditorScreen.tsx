@@ -23,6 +23,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useT } from "../i18n";
+import { BACK_DIALOG, useBack } from "../shell/back";
 import { openPdf } from "../pdf/openPdf";
 import { pageLayout, type PageLayout } from "../text/search";
 import { folderOf, suffixName, type DocRef } from "../files/docRef";
@@ -258,6 +259,12 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   }, [selected]);
 
   const leave = () => (dirty ? setLeaveAsk(true) : onClose());
+
+  // Android back: close what's open on top, otherwise leave (asking first if there are changes).
+  useBack(true, leave);
+  useBack(formsOpen, () => setFormsOpen(false), BACK_DIALOG);
+  useBack(saveAsk, () => !busy && setSaveAsk(false), BACK_DIALOG);
+  useBack(leaveAsk, () => setLeaveAsk(false), BACK_DIALOG);
 
   // Arrow keys nudge the selected mark (one point, ten with Shift).
   const nudge = (dx: number, dy: number) => {

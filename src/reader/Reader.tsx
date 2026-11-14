@@ -17,6 +17,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useT } from "../i18n";
+import { useBack } from "../shell/back";
 import { detectRtl } from "../text/arabic";
 import { pageText, type Match } from "../text/search";
 import { fitScale, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber } from "./layout";
@@ -207,6 +208,7 @@ export default function Reader(p: Props) {
     void setFullscreen(full);
   }, [full]);
   useEffect(() => () => void setFullscreen(false), []);
+  useBack(full, () => setFull(false));
   // The browser's own exit (Esc in a browser, the Android back gesture) turns it off here too.
   useEffect(() => {
     const onChange = () => {
