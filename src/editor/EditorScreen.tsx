@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
   Circle,
@@ -32,7 +32,7 @@ import type { Saved } from "../convert/queue";
 import { Results } from "../tools/ToolsScreen";
 import { emptyHistory, historyReduce } from "./history";
 import { COLORS, css, newId, type Mark, type Rgb } from "./marks";
-import { fitBox } from "./geometry";
+import { fitBox, moveMark } from "./geometry";
 import { listFields, fillFields, type Field, type FieldValue } from "./forms";
 import { writeMarks } from "./write";
 import { editorFonts } from "./fonts";
@@ -48,6 +48,25 @@ const GAP = 16;
 const STROKES = [1.5, 3, 6];
 const SIZES = [11, 14, 20, 28];
 const isPhone = () => window.matchMedia?.("(max-width: 719px)").matches ?? false;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 4;
+const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +z.toFixed(3)));
+/** Each tool keeps its own colour: yellow highlights don't turn the pen or a strike-through yellow. */
+const TOOL_COLORS: Record<Tool, Rgb> = {
+  select: COLORS.black,
+  highlight: COLORS.yellow,
+  underline: COLORS.blue,
+  strike: COLORS.red,
+  ink: COLORS.blue,
+  rect: COLORS.red,
+  ellipse: COLORS.red,
+  line: COLORS.red,
+  arrow: COLORS.red,
+  text: COLORS.black,
+  note: COLORS.yellow,
+};
+const STROKED: Mark["kind"][] = ["ink", "rect", "ellipse", "line", "arrow"];
+const sameColor = (a: Rgb, b: Rgb) => a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
 
 /** Image bytes as PNG or JPEG (other formats are redrawn to PNG), with their pixel size. */
 async function readImage(file: File): Promise<{ bytes: Uint8Array; fmt: "png" | "jpg"; w: number; h: number }> {
@@ -75,7 +94,8 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const [hist, dispatch] = useReducer(historyReduce, emptyHistory);
   const [tool, setTool] = useState<Tool>("select");
-  const [color, setColor] = useState<Rgb>(COLORS.yellow);
+  const [colors, setColors] = useState(TOOL_COLORS);
+  const color = colors[tool];
   const [stroke, setStroke] = useState(STROKES[1]);
   const [textSize, setTextSize] = useState(SIZES[1]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -142,6 +162,31 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   // Fit to width, then the user's zoom on top (small text is easier to mark zoomed in).
   const scale = Math.min(1.6, Math.max(0.3, (width - (isPhone() ? 16 : 48)) / maxW)) * zoom;
 
+  // Zooming keeps the spot in the middle of the screen where it was (not the top-left corner).
+  const lastScale = useRef(scale);
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    const old = lastScale.current;
+    lastScale.current = scale;
+    if (!el || old === scale) return;
+    const f = scale / old;
+    el.scrollTop = (el.scrollTop + el.clientHeight / 2) * f - el.clientHeight / 2;
+    el.scrollLeft = (el.scrollLeft + el.clientWidth / 2) * f - el.clientWidth / 2;
+  }, [scale]);
+
+  // Ctrl + wheel (and a trackpad pinch, which browsers report the same way) zooms the pages.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setZoom((z) => clampZoom(z * Math.exp(-e.deltaY * 0.0025)));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
   const layout = useCallback(
     (i: number) => {
       if (!doc) return Promise.reject(new Error("no doc"));
@@ -182,15 +227,28 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     setEditing(null);
     setSelected(null);
     setTool(k);
-    // Sensible first colour per kind of tool, until the user picks one.
-    if ((TEXT_TOOLS.includes(k) || k === "note") && color === COLORS.black) setColor(COLORS.yellow);
-    if ((k === "text" || k === "ink") && color === COLORS.yellow) setColor(k === "text" ? COLORS.black : COLORS.blue);
   };
 
+  // The selected mark: the colour, thickness and size controls change it.
+  const sel = marks.find((x) => x.id === selected) ?? null;
+  const selColor = sel && "color" in sel ? sel.color : null;
+
   const chooseColor = (c: Rgb) => {
-    setColor(c);
-    const m = marks.find((x) => x.id === selected);
-    if (m && "color" in m) dispatch({ type: "update", id: m.id, patch: { color: c } as Partial<Mark> });
+    if (sel && "color" in sel) {
+      dispatch({ type: "update", id: sel.id, patch: { color: c } as Partial<Mark> });
+      // The next mark of that kind starts in the same colour.
+      if (sel.kind in TOOL_COLORS) setColors((old) => ({ ...old, [sel.kind]: c }));
+    } else setColors((old) => ({ ...old, [tool]: c }));
+  };
+
+  const chooseStroke = (w: number) => {
+    setStroke(w);
+    if (sel && STROKED.includes(sel.kind)) dispatch({ type: "update", id: sel.id, patch: { width: w } as Partial<Mark> });
+  };
+
+  const chooseSize = (n: number) => {
+    setTextSize(n);
+    if (sel?.kind === "text") dispatch({ type: "update", id: sel.id, patch: { size: n } as Partial<Mark> });
   };
 
   const remove = useCallback(() => {
@@ -201,9 +259,14 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
 
   const leave = () => (dirty ? setLeaveAsk(true) : onClose());
 
-  // Keyboard: undo/redo, delete, escape.
-  const keys = useRef({ remove, leave, editing });
-  keys.current = { remove, leave, editing };
+  // Arrow keys nudge the selected mark (one point, ten with Shift).
+  const nudge = (dx: number, dy: number) => {
+    if (sel) dispatch({ type: "update", id: sel.id, patch: moveMark(sel, dx, dy) });
+  };
+
+  // Keyboard: undo/redo, delete, escape, nudge.
+  const keys = useRef({ remove, leave, editing, nudge, hasSel: !!sel });
+  keys.current = { remove, leave, editing, nudge, hasSel: !!sel };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -217,6 +280,13 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
         dispatch({ type: "redo" });
       } else if (e.key === "Delete" || e.key === "Backspace") keys.current.remove();
       else if (e.key === "Escape") setSelected(null);
+      else if (keys.current.hasSel && e.key.startsWith("Arrow")) {
+        e.preventDefault();
+        const d = e.shiftKey ? 10 : 1;
+        const dx = e.key === "ArrowRight" ? d : e.key === "ArrowLeft" ? -d : 0;
+        const dy = e.key === "ArrowUp" ? d : e.key === "ArrowDown" ? -d : 0;
+        keys.current.nudge(dx, dy);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -254,7 +324,13 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     ["text", <Type size={18} />, t.edText],
     ["note", <StickyNote size={18} />, t.edNote],
   ];
-  const showStroke = tool === "ink" || ["rect", "ellipse", "line", "arrow"].includes(tool);
+  // Controls follow what they would change: the tool in hand, or the selected mark.
+  const showColors = tool !== "select" || !!selColor;
+  const showStroke = sel ? STROKED.includes(sel.kind) : STROKED.includes(tool as Mark["kind"]);
+  const showSize = sel ? sel.kind === "text" : tool === "text";
+  const curColor = selColor ?? color;
+  const curStroke = sel && "width" in sel && sel.kind !== "text" ? sel.width : stroke;
+  const curSize = sel?.kind === "text" ? sel.size : textSize;
   const byPage = useMemo(() => {
     const m = new Map<number, Mark[]>();
     for (const k of marks) m.set(k.page, [...(m.get(k.page) ?? []), k]);
@@ -290,10 +366,10 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
           {src.name}
         </div>
         <div className="ed-bar-end">
-          <button className="icon-btn" onClick={() => setZoom((z) => Math.max(1, +(z / 1.25).toFixed(3)))} disabled={zoom <= 1} title={t.zoomOut} aria-label={t.zoomOut}>
+          <button className="icon-btn" onClick={() => setZoom((z) => clampZoom(z / 1.25))} disabled={zoom <= ZOOM_MIN} title={t.zoomOut} aria-label={t.zoomOut}>
             <ZoomOut size={18} />
           </button>
-          <button className="icon-btn" onClick={() => setZoom((z) => Math.min(4, +(z * 1.25).toFixed(3)))} disabled={zoom >= 4} title={t.zoomIn} aria-label={t.zoomIn}>
+          <button className="icon-btn" onClick={() => setZoom((z) => clampZoom(z * 1.25))} disabled={zoom >= ZOOM_MAX} title={t.zoomIn} aria-label={t.zoomIn}>
             <ZoomIn size={18} />
           </button>
           <button className="icon-btn" onClick={() => dispatch({ type: "undo" })} disabled={!hist.past.length} title={t.edUndo} aria-label={t.edUndo}>
@@ -337,39 +413,43 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
             </div>
           </Fragment>
         ))}
-        <span className="ed-sep" />
-        <div className="ed-group" role="radiogroup" aria-label={t.edColor}>
-          {Object.entries(COLORS).map(([name, c]) => (
-            <button
-              key={name}
-              role="radio"
-              aria-checked={color === c}
-              className="ed-swatch"
-              style={{ background: css(c) }}
-              onClick={() => chooseColor(c)}
-              aria-label={t.edColors[name as keyof typeof t.edColors]}
-              title={t.edColors[name as keyof typeof t.edColors]}
-            />
-          ))}
-        </div>
+        {showColors && (
+          <>
+            <span className="ed-sep" />
+            <div className="ed-group" role="radiogroup" aria-label={t.edColor}>
+              {Object.entries(COLORS).map(([name, c]) => (
+                <button
+                  key={name}
+                  role="radio"
+                  aria-checked={sameColor(curColor, c)}
+                  className="ed-swatch"
+                  style={{ background: css(c) }}
+                  onClick={() => chooseColor(c)}
+                  aria-label={t.edColors[name as keyof typeof t.edColors]}
+                  title={t.edColors[name as keyof typeof t.edColors]}
+                />
+              ))}
+            </div>
+          </>
+        )}
         {showStroke && (
           <>
             <span className="ed-sep" />
             <div className="ed-group" role="radiogroup" aria-label={t.edStroke}>
               {STROKES.map((s) => (
-                <button key={s} role="radio" aria-checked={stroke === s} className="icon-btn ed-stroke" onClick={() => setStroke(s)} aria-label={`${t.edStroke} ${s}`}>
-                  <span style={{ height: Math.max(2, s * 1.2), background: css(color) }} />
+                <button key={s} role="radio" aria-checked={curStroke === s} className="icon-btn ed-stroke" onClick={() => chooseStroke(s)} aria-label={`${t.edStroke} ${s}`}>
+                  <span style={{ height: Math.max(2, s * 1.2), background: css(curColor) }} />
                 </button>
               ))}
             </div>
           </>
         )}
-        {tool === "text" && (
+        {showSize && (
           <>
             <span className="ed-sep" />
             <div className="ed-group" role="radiogroup" aria-label={t.edTextSize}>
               {SIZES.map((s) => (
-                <button key={s} role="radio" aria-checked={textSize === s} className="icon-btn ed-size" onClick={() => setTextSize(s)} aria-label={`${t.edTextSize} ${s}`}>
+                <button key={s} role="radio" aria-checked={curSize === s} className="icon-btn ed-size" onClick={() => chooseSize(s)} aria-label={`${t.edTextSize} ${s}`}>
                   <span style={{ fontSize: 9 + SIZES.indexOf(s) * 3 }}>{t.edAa}</span>
                 </button>
               ))}
@@ -391,9 +471,12 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
           <Results saved={[saved]} />
         </div>
       )}
-      {TEXT_TOOLS.includes(tool) && <div className="ed-hint">{t.edTextHint}</div>}
-
       <div className="ed-body">
+        {TEXT_TOOLS.includes(tool) && (
+          <div key={tool} className="ed-hint" role="status">
+            {t.edTextHint}
+          </div>
+        )}
         <div ref={scroller} className={`ed-pages${tool === "select" ? "" : " drawing"}`}>
           {doc &&
             sizes.map((s, i) => (

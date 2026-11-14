@@ -69,10 +69,40 @@ export default function SignaturePad({ onUse, onCancel }: { onUse(s: Signature):
     ctx.lineWidth = 2.6;
   }, []);
 
-  const last = useRef<[number, number] | null>(null);
-  const pos = (e: React.PointerEvent): [number, number] => {
+  // The stroke being drawn. Each new sample draws a quadratic curve between segment midpoints,
+  // so the ink comes out smooth instead of a chain of straight pieces.
+  const stroke = useRef<[number, number][] | null>(null);
+  const pos = (e: { clientX: number; clientY: number }): [number, number] => {
     const r = canvas.current!.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
+  };
+  const mid = (a: [number, number], b: [number, number]): [number, number] => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const extend = (pt: [number, number]) => {
+    const pts = stroke.current!;
+    const prev = pts[pts.length - 1];
+    if (Math.hypot(pt[0] - prev[0], pt[1] - prev[1]) < 0.75) return;
+    pts.push(pt);
+    const ctx = canvas.current!.getContext("2d")!;
+    const n = pts.length;
+    ctx.beginPath();
+    if (n === 2) {
+      ctx.moveTo(...pts[0]);
+      ctx.lineTo(...mid(pts[0], pts[1]));
+    } else {
+      ctx.moveTo(...mid(pts[n - 3], pts[n - 2]));
+      ctx.quadraticCurveTo(...pts[n - 2], ...mid(pts[n - 2], pts[n - 1]));
+    }
+    ctx.stroke();
+  };
+  const endStroke = () => {
+    const pts = stroke.current;
+    stroke.current = null;
+    if (!pts || pts.length < 2) return;
+    const ctx = canvas.current!.getContext("2d")!;
+    ctx.beginPath();
+    ctx.moveTo(...mid(pts[pts.length - 2], pts[pts.length - 1]));
+    ctx.lineTo(...pts[pts.length - 1]);
+    ctx.stroke();
   };
 
   const clear = () => {
@@ -123,26 +153,22 @@ export default function SignaturePad({ onUse, onCancel }: { onUse(s: Signature):
           className="sig-canvas"
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId);
-            last.current = pos(e);
+            const at = pos(e);
+            stroke.current = [at];
             const ctx = canvas.current!.getContext("2d")!;
             ctx.beginPath();
-            ctx.arc(last.current[0], last.current[1], 1.3, 0, Math.PI * 2);
+            ctx.arc(at[0], at[1], 1.3, 0, Math.PI * 2);
             ctx.fillStyle = INK;
             ctx.fill();
             setEmpty(false);
           }}
           onPointerMove={(e) => {
-            if (!last.current) return;
-            const ctx = canvas.current!.getContext("2d")!;
-            const [x, y] = pos(e);
-            ctx.beginPath();
-            ctx.moveTo(...last.current);
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            last.current = [x, y];
+            if (!stroke.current) return;
+            const evs = e.nativeEvent.getCoalescedEvents?.() ?? [];
+            for (const ev of evs.length ? evs : [e]) extend(pos(ev));
           }}
-          onPointerUp={() => (last.current = null)}
-          onPointerCancel={() => (last.current = null)}
+          onPointerUp={endStroke}
+          onPointerCancel={endStroke}
         />
         <label className="check">
           <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
