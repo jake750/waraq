@@ -1,4 +1,4 @@
-// Small UI preferences kept in localStorage (language, theme).
+// Small UI preferences kept in localStorage (language, theme, conversion choices).
 import type { Lang } from "./i18n";
 
 export type ThemePref = "light" | "dark" | "system";
@@ -19,7 +19,12 @@ function write(key: string, v: string) {
   }
 }
 
-export const loadLang = (): Lang => (read("waraq.lang") === "ar" ? "ar" : "en");
+/** The saved language; on first run, Arabic when the system speaks Arabic. */
+export function loadLang(systemLang = typeof navigator !== "undefined" ? navigator.language : ""): Lang {
+  const v = read("waraq.lang");
+  if (v === "ar" || v === "en") return v;
+  return /^ar([-_]|$)/i.test(systemLang) ? "ar" : "en";
+}
 export const saveLang = (l: Lang) => write("waraq.lang", l);
 
 export function loadTheme(): ThemePref {
@@ -41,3 +46,9 @@ export function loadLastUpdateCheck(): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 export const saveLastUpdateCheck = (t: number) => write("waraq.lastUpdateCheck", String(t));
+
+// Conversion (desktop): "use the built-in engine" instead of LibreOffice, and the chosen output folder.
+export const loadOfficeDeclined = (): boolean => read("waraq.officeDeclined") === "yes";
+export const saveOfficeDeclined = (v: boolean) => write("waraq.officeDeclined", v ? "yes" : "no");
+export const loadSaveFolder = (): string | null => read("waraq.saveFolder") || null;
+export const saveSaveFolder = (dir: string | null) => write("waraq.saveFolder", dir ?? "");

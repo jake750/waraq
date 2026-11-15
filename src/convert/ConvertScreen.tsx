@@ -4,7 +4,7 @@ import { isAndroid } from "../platform";
 import { pickFiles } from "../files/docRef";
 import { TARGET_MIME as MIME, targetsFor, type Target } from "./formats";
 import { officeCancel, openOutput, pickFolder, revealOutput, shareOutput } from "./native";
-import type { Job } from "./queue";
+import type { Job, Saved } from "./queue";
 import { skippedText, type ConvertApi } from "./useConvert";
 import OfficePromptDialog from "./OfficePrompt";
 import "./convert.css";
@@ -13,9 +13,9 @@ const LABEL: Record<Target, string> = { pdf: "PDF", docx: "DOCX", txt: "TXT", md
 const ALL_TARGETS: Target[] = ["pdf", "docx", "txt", "md", "html", "png", "jpg"];
 const IMAGE = ["png", "jpg", "webp"];
 
-type Props = { api: ConvertApi; dragOver: boolean; onToast(msg: string): void };
+type Props = { api: ConvertApi; dragOver: boolean; onToast(msg: string): void; onOpenPdf(output: Saved): void };
 
-export default function ConvertScreen({ api, dragOver, onToast }: Props) {
+export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Props) {
   const t = useT();
   const android = isAndroid();
   const platform = android ? "android" : "desktop";
@@ -25,6 +25,7 @@ export default function ConvertScreen({ api, dragOver, onToast }: Props) {
   const waitingImages = waiting.filter((j) => IMAGE.includes(j.fmt) && j.inputs.length === 1).length;
   const allTargets = ALL_TARGETS.filter((tg) => waiting.some((j) => targetsFor(j.fmt, platform).includes(tg)));
   const finished = queue.jobs.some((j) => j.state === "done" || j.state === "error" || j.state === "cancelled");
+  const failed = queue.jobs.filter((j) => j.state === "error");
 
   const addFiles = async () => {
     const refs = await pickFiles(true).catch(() => []);
@@ -119,11 +120,17 @@ export default function ConvertScreen({ api, dragOver, onToast }: Props) {
 
             <ul className="job-list">
               {queue.jobs.map((j) => (
-                <JobRow key={j.id} job={j} api={api} platform={platform} onToast={onToast} />
+                <JobRow key={j.id} job={j} api={api} platform={platform} onToast={onToast} onOpenPdf={onOpenPdf} />
               ))}
             </ul>
 
             <div className="convert-actions">
+              {failed.length >= 2 && !busy && (
+                <button className="btn btn-ghost" onClick={() => failed.forEach((j) => api.dispatch({ type: "retry", id: j.id }))}>
+                  <RotateCcw size={16} />
+                  {t.retryAll}
+                </button>
+              )}
               {finished && (
                 <button className="btn btn-ghost" onClick={() => api.dispatch({ type: "clearFinished" })}>
                   {t.clearFinished}
@@ -157,7 +164,19 @@ export default function ConvertScreen({ api, dragOver, onToast }: Props) {
   );
 }
 
-function JobRow({ job, api, platform, onToast }: { job: Job; api: ConvertApi; platform: "desktop" | "android"; onToast(m: string): void }) {
+function JobRow({
+  job,
+  api,
+  platform,
+  onToast,
+  onOpenPdf,
+}: {
+  job: Job;
+  api: ConvertApi;
+  platform: "desktop" | "android";
+  onToast(m: string): void;
+  onOpenPdf(output: Saved): void;
+}) {
   const t = useT();
   const targets = targetsFor(job.fmt, platform);
   const isImage = IMAGE.includes(job.fmt);
@@ -216,7 +235,7 @@ function JobRow({ job, api, platform, onToast }: { job: Job; api: ConvertApi; pl
       <span className="job-actions">
         {job.state === "done" && job.output && (
           <>
-            <button className="btn btn-ghost btn-sm" onClick={() => openOutput(job.output!, MIME[job.target]).catch(fail)}>
+            <button className="btn btn-ghost btn-sm" onClick={() => (job.target === "pdf" && !job.output!.count ? onOpenPdf(job.output!) : openOutput(job.output!, MIME[job.target]).catch(fail))}>
               <ExternalLink size={16} />
               {t.openFile}
             </button>

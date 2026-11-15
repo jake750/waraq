@@ -1,4 +1,5 @@
-import { X } from "lucide-react";
+import { useState } from "react";
+import { Search, X } from "lucide-react";
 import { useT } from "../i18n";
 import type { RecentItem } from "../files/recent";
 import { ago } from "./time";
@@ -12,8 +13,18 @@ function folderOf(item: RecentItem): string {
   return parts.slice(-2).join("/");
 }
 
+/** Matches a file name ignoring case and Arabic marks, so "تقرير" finds "تَقْرِير". */
+export function matchesName(name: string, query: string): boolean {
+  const norm = (s: string) => s.normalize("NFKD").replace(/[\u064B-\u065F\u0670\u0300-\u036f]/g, "").toLowerCase();
+  return norm(name).includes(norm(query.trim()));
+}
+
+// The filter appears once the list is long enough to need it.
+const FILTER_FROM = 7;
+
 export default function RecentList({ items, onOpen, onRemove }: Props) {
   const t = useT();
+  const [query, setQuery] = useState("");
   if (items.length === 0)
     return (
       <ul className="recent-list">
@@ -31,9 +42,18 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
           ? t.hoursAgo(a.n)
           : t.daysAgo(a.n);
   };
+  const shown = query.trim() ? items.filter((i) => matchesName(i.name, query)) : items;
   return (
+    <>
+    {items.length >= FILTER_FROM && (
+      <label className="recent-filter">
+        <Search size={16} aria-hidden />
+        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.recentFilter} aria-label={t.recentFilter} dir="auto" />
+      </label>
+    )}
     <ul className="recent-list">
-      {items.map((item) => {
+      {shown.length === 0 && <li className="recent-empty">{t.recentNoMatch}</li>}
+      {shown.map((item) => {
         const folder = folderOf(item);
         return (
           <li key={item.key} className="recent-item">
@@ -64,5 +84,6 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
         );
       })}
     </ul>
+    </>
   );
 }

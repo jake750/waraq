@@ -16,6 +16,9 @@ type Props = {
   theme: ThemePref;
   onTheme(t: ThemePref): void;
   updates: Updates;
+  /** Desktop: LibreOffice's state, and a way to get it. Absent on Android. */
+  office?: { installed: boolean; version: string } | null;
+  onGetOffice?(): void;
   children: ReactNode;
 };
 
@@ -78,7 +81,23 @@ function UpdateSection({ u }: { u: Updates }) {
   );
 }
 
-function Prefs({ theme, onTheme, updates }: Pick<Props, "theme" | "onTheme" | "updates">) {
+function OfficeSection({ office, onGet }: { office: { installed: boolean; version: string }; onGet(): void }) {
+  const t = useT();
+  return (
+    <div className="pref">
+      <span className="field-label">{t.officePref}</span>
+      <p className="settings-hint">{office.installed ? t.officeInstalledAs(office.version) : t.officeNotInstalled}</p>
+      {!office.installed && (
+        <button className="btn btn-ghost btn-sm" onClick={onGet}>
+          <Download size={16} />
+          {t.officeGet}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Prefs({ theme, onTheme, updates, office, onGetOffice }: Pick<Props, "theme" | "onTheme" | "updates" | "office" | "onGetOffice">) {
   const t = useT();
   const { lang, setLang } = useLang();
   const langs: [Lang, string][] = [
@@ -113,6 +132,7 @@ function Prefs({ theme, onTheme, updates }: Pick<Props, "theme" | "onTheme" | "u
         </div>
       </div>
       <UpdateSection u={updates} />
+      {office && onGetOffice && <OfficeSection office={office} onGet={onGetOffice} />}
       <div className="pref">
         <span className="field-label">{t.reportTitle}</span>
         <p className="settings-hint">{t.reportHint}</p>
@@ -224,7 +244,19 @@ export default function Layout(p: Props) {
                 <X size={20} />
               </button>
             </div>
-            <Prefs theme={p.theme} onTheme={p.onTheme} updates={p.updates} />
+            <Prefs
+              theme={p.theme}
+              onTheme={p.onTheme}
+              updates={p.updates}
+              office={p.office}
+              onGetOffice={
+                p.onGetOffice &&
+                (() => {
+                  setSettings(false);
+                  p.onGetOffice!();
+                })
+              }
+            />
           </div>
         </>
       )}

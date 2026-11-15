@@ -47,7 +47,7 @@ export default function PasswordPrompt({ name, wrong, onSubmit, onCancel }: Prop
               aria-describedby={wrong ? "pw-error" : undefined}
               onChange={(e) => setPw(e.target.value)}
             />
-            <button type="button" className="icon-btn" onClick={() => setShow(!show)} aria-label={t.passwordLabel}>
+            <button type="button" className="icon-btn" onClick={() => setShow(!show)} aria-label={show ? t.hidePassword : t.showPassword} title={show ? t.hidePassword : t.showPassword} aria-pressed={show}>
               {show ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </span>

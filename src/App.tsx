@@ -127,6 +127,10 @@ export default function App() {
         setLocked(null);
         setRoute("reader");
         prev?.doc.loadingTask.destroy().catch(() => {});
+        // Say up front when there's no text to search or copy (a scan).
+        import("./pdf/scanned")
+          .then((m) => m.looksScanned(doc))
+          .then((scan) => scan && !stale() && setToast(t.scannedNotice), () => {});
       } catch (e) {
         if (stale()) return;
         const code = e instanceof PdfError ? e.code : "read-failed";
@@ -310,6 +314,11 @@ export default function App() {
         onRoute={setRoute}
         readerAvailable={!!open}
         updates={updates}
+        office={isAndroid() || !inTauri() ? null : conv.office}
+        onGetOffice={() => {
+          conv.askOffice();
+          setRoute("convert");
+        }}
         theme={theme}
         onTheme={(v) => {
           saveTheme(v);
@@ -336,7 +345,13 @@ export default function App() {
             onEdit={(ref) => editDocument(ref)}
           />
         ) : route === "convert" ? (
-          <ConvertScreen api={conv} dragOver={dragOver} onToast={setToast} />
+          <ConvertScreen
+            api={conv}
+            dragOver={dragOver}
+            onToast={setToast}
+            // A PDF result opens in Waraq's own reader.
+            onOpenPdf={(out) => openDocument(out.uri ? { kind: "uri", uri: out.uri } : { kind: "path", path: out.path }, undefined, { name: out.name })}
+          />
         ) : route === "reader" && open ? (
           <ReaderScreen
             key={open.id}
@@ -381,10 +396,13 @@ export default function App() {
             const f = fmtOf(notPdf.name);
             return !!f && targetsFor(f, isAndroid() ? "android" : "desktop").includes("pdf");
           })()}
-          onConvert={() => {
+          onConvert={async () => {
+            // One file, chosen from this dialog: convert it straight away (to PDF, its first target).
             const ref = notPdf.ref;
             setNotPdf(null);
-            handleFiles([ref], true);
+            const skipped = await conv.add([ref], { start: true });
+            if (skipped.length) setToast(skippedText(t, skipped));
+            setRoute("convert");
           }}
           onOpen={onOpenAsPdf}
           onCancel={() => setNotPdf(null)}

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { folderOf, resolveName, type DocRef } from "../files/docRef";
 import type { Strings } from "../i18n";
 import { isAndroid } from "../platform";
+import { loadOfficeDeclined, loadSaveFolder, saveOfficeDeclined, saveSaveFolder } from "../prefs";
 import { asConvertError } from "./errors";
 import { engineFor, fmtOf, targetsFor, type Target } from "./formats";
 import { appDeps, officeInstall, officeStatus, type OfficeStatus } from "./native";
@@ -29,9 +30,18 @@ export function skippedText(t: Strings, skipped: Skipped[]): string {
 
 export function useConvert() {
   const [queue, dispatch] = useReducer(reduce, emptyQueue);
-  const [saveMode, setSaveMode] = useState<SaveMode>({ kind: "beside" });
+  const [saveMode, setSaveModeState] = useState<SaveMode>(() => {
+    const dir = isAndroid() ? null : loadSaveFolder();
+    return dir ? { kind: "folder", dir } : { kind: "beside" };
+  });
+  const setSaveMode = useCallback((m: SaveMode) => {
+    saveSaveFolder(m.kind === "folder" ? m.dir : null);
+    setSaveModeState(m);
+  }, []);
   const [office, setOffice] = useState<OfficeStatus | null>(null);
-  const [declined, setDeclined] = useState(false);
+  const [declined, setDeclined] = useState(loadOfficeDeclined);
+  // Set by add(…, { start: true }): start as soon as the new jobs are in the queue.
+  const startWhenQueued = useRef(false);
   const [prompt, setPrompt] = useState<OfficePrompt | null>(null);
   const controllers = useRef(new Map<number, AbortController>());
   const started = useRef(new Set<number>());
@@ -69,8 +79,9 @@ export function useConvert() {
   }, [queue]);
 
   /** Adds files; returns the ones skipped as not convertible (unknown = the type itself isn't recognised). */
-  const add = useCallback(async (refs: DocRef[]): Promise<Skipped[]> => {
+  const add = useCallback(async (refs: DocRef[], opts?: { start?: boolean }): Promise<Skipped[]> => {
     const inputs: Input[] = await Promise.all(refs.map(async (ref) => ({ ref, name: await resolveName(ref) })));
+    if (opts?.start) startWhenQueued.current = true;
     dispatch({ type: "add", inputs, platform: platform() });
     return inputs.flatMap((i): Skipped[] => {
       const f = fmtOf(i.name);
@@ -90,6 +101,12 @@ export function useConvert() {
     dispatch({ type: "run" });
   }, [office, declined, queue.jobs]);
 
+  useEffect(() => {
+    if (!startWhenQueued.current || !queue.jobs.some((j) => j.state === "queued")) return;
+    startWhenQueued.current = false;
+    start();
+  }, [queue.jobs, start]);
+
   const downloadOffice = useCallback(async () => {
     const total = office?.downloadBytes ?? 0;
     setPrompt({ stage: "downloading", bytes: 0, total });
@@ -97,6 +114,8 @@ export function useConvert() {
       await officeInstall((bytes) => setPrompt(bytes >= total && total > 0 ? { stage: "installing" } : { stage: "downloading", bytes, total }));
       setOffice(await officeStatus());
       officeReady.current = true;
+      setDeclined(false);
+      saveOfficeDeclined(false);
       setPrompt(null);
       dispatch({ type: "run" });
     } catch {
@@ -106,6 +125,7 @@ export function useConvert() {
 
   const chooseBuiltIn = useCallback(() => {
     setDeclined(true);
+    saveOfficeDeclined(true);
     officeReady.current = false;
     setPrompt(null);
     dispatch({ type: "run" });
@@ -132,6 +152,8 @@ export function useConvert() {
     office,
     prompt,
     closePrompt: () => setPrompt(null),
+    /** From Settings: offer the LibreOffice download now. */
+    askOffice: () => setPrompt({ stage: "ask" }),
     downloadOffice,
     chooseBuiltIn,
     setAll: (target: Target) => dispatch({ type: "setAll", target, platform: platform() }),
