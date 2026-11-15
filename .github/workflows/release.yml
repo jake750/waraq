@@ -26,9 +26,10 @@ jobs:
       release: ${{ steps.version.outputs.release }}
     steps:
       - uses: actions/checkout@v4
+      # 22+: pdf.js uses Map.groupBy, which Node 20 lacks.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Tests and types
         run: |
           npm ci
