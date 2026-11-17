@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { CREDITS } from "./credits";
 import { PanelLeft, BookOpen, Bug, Download, Home as HomeIcon, RefreshCw, FileOutput, Settings, ShieldCheck, Wrench, X } from "lucide-react";
 import { useLang, useT, type Lang } from "../i18n";
 import { BACK_DIALOG, useBack } from "./back";
@@ -161,6 +162,21 @@ function Prefs({ theme, onTheme, updates, office, onGetOffice }: Pick<Props, "th
           <Bug size={16} />
           {t.reportButton}
         </button>
+      </div>
+      <div className="pref">
+        <span className="field-label">{t.about}</span>
+        <p className="settings-hint">{t.aboutText}</p>
+        <details className="credits">
+          <summary>{t.openSource}</summary>
+          <ul dir="ltr">
+            {CREDITS.map((c) => (
+              <li key={c.name}>
+                <span>{c.name}</span>
+                <small>{c.license}</small>
+              </li>
+            ))}
+          </ul>
+        </details>
       </div>
     </>
   );
