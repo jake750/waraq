@@ -6,7 +6,9 @@ import { appKV } from "../files/kv";
 
 const KEY = "signatures";
 const MAX_SAVED = 6;
-const INK = "#14204a";
+// Ink choices: the usual dark ink, or blue (common for signatures).
+const INKS = { dark: "#14204a", blue: "#1f4fd1" } as const;
+type Ink = keyof typeof INKS;
 
 export type Signature = { bytes: Uint8Array; w: number; h: number };
 
@@ -53,6 +55,20 @@ export default function SignaturePad({ onUse, onCancel }: { onUse(s: Signature):
   const [saved, setSaved] = useState<string[]>([]);
   const [empty, setEmpty] = useState(true);
   const [keep, setKeep] = useState(true);
+  const [ink, setInk] = useState<Ink>("dark");
+  // Switching ink recolours what is already drawn, so the choice can come before or after signing.
+  const pickInk = (k: Ink) => {
+    setInk(k);
+    const c = canvas.current!;
+    const ctx = c.getContext("2d")!;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = "source-in";
+    ctx.fillStyle = INKS[k];
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.restore();
+    ctx.strokeStyle = ctx.fillStyle = INKS[k];
+  };
   const kv = useRef(appKV());
 
   useEffect(() => {
@@ -67,7 +83,7 @@ export default function SignaturePad({ onUse, onCancel }: { onUse(s: Signature):
     const ctx = c.getContext("2d")!;
     ctx.scale(ratio, ratio);
     ctx.lineCap = ctx.lineJoin = "round";
-    ctx.strokeStyle = INK;
+    ctx.strokeStyle = INKS.dark;
     ctx.lineWidth = 2.6;
   }, []);
 
@@ -160,7 +176,7 @@ export default function SignaturePad({ onUse, onCancel }: { onUse(s: Signature):
             const ctx = canvas.current!.getContext("2d")!;
             ctx.beginPath();
             ctx.arc(at[0], at[1], 1.3, 0, Math.PI * 2);
-            ctx.fillStyle = INK;
+            ctx.fillStyle = INKS[ink];
             ctx.fill();
             setEmpty(false);
           }}
@@ -172,6 +188,20 @@ export default function SignaturePad({ onUse, onCancel }: { onUse(s: Signature):
           onPointerUp={endStroke}
           onPointerCancel={endStroke}
         />
+        <div className="sig-inks" role="group" aria-label={t.edSignInk}>
+          {(Object.keys(INKS) as Ink[]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              className="sig-ink"
+              style={{ background: INKS[k] }}
+              aria-pressed={ink === k}
+              aria-label={k === "blue" ? t.edInkBlue : t.edInkDark}
+              title={k === "blue" ? t.edInkBlue : t.edInkDark}
+              onClick={() => pickInk(k)}
+            />
+          ))}
+        </div>
         <label className="check">
           <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
           <span>{t.edSignKeep}</span>
