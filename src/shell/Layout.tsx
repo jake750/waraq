@@ -230,7 +230,8 @@ export default function Layout(p: Props) {
       </aside>
       <div className="content">{p.children}</div>
       <nav className="tabbar">
-        {items.map((i) => (
+        {/* The reader tab, when a document is open, goes last so the other tabs never move. */}
+        {items.filter((i) => i.r !== "reader").map((i) => (
           <button key={i.r} aria-current={current === i.r ? "page" : undefined} onClick={() => p.onRoute(i.r)}>
             {i.icon}
             {i.label}
@@ -244,6 +245,14 @@ export default function Layout(p: Props) {
           {settingsIcon}
           {t.settings}
         </button>
+        {items
+          .filter((i) => i.r === "reader")
+          .map((i) => (
+            <button key={i.r} aria-current={current === i.r ? "page" : undefined} onClick={() => p.onRoute(i.r)}>
+              {i.icon}
+              {i.label}
+            </button>
+          ))}
       </nav>
       {settings && (
         <>
