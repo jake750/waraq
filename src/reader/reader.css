@@ -659,3 +659,38 @@
     width: 300px;
   }
 }
+
+/* Keyboard shortcuts dialog */
+.kbd-list {
+  margin: 4px 0 0;
+  display: grid;
+  gap: 10px;
+}
+.kbd-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.kbd-list dt {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+.kbd-list dd {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  text-align: end;
+}
+kbd {
+  display: inline-block;
+  min-width: 28px;
+  padding: 3px 7px;
+  border: 1px solid var(--stroke-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font: 600 var(--fs-xs) / 1.4 ui-monospace, monospace;
+  text-align: center;
+}

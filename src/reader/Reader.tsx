@@ -21,6 +21,7 @@ import { useBack } from "../shell/back";
 import { detectRtl } from "../text/arabic";
 import { pageText, type Match } from "../text/search";
 import { loadDocView, saveDocView } from "../prefs";
+import ShortcutsDialog from "./ShortcutsDialog";
 import { fitScale, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber } from "./layout";
 import PageView, { readingOrderSelection, type HighlightRect } from "./PageView";
 import { setFullscreen } from "./fullscreen";
@@ -79,6 +80,7 @@ export default function Reader(p: Props) {
   );
   const [night, setNight] = useState(false);
   const [full, setFull] = useState(false);
+  const [keysHelp, setKeysHelp] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
   const [current, setCurrent] = useState(Math.min(Math.max(p.initialPage ?? 1, 1), n));
   const [pageInput, setPageInput] = useState(String(current));
@@ -232,8 +234,10 @@ export default function Reader(p: Props) {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as Element | null;
       if (target instanceof Element && target.closest("input, textarea, select, [contenteditable]")) return;
+      if (keysHelp) return; // the dialog handles its own keys
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && (e.key === "+" || e.key === "=")) zoomBy(ZOOM_STEP);
+      if (e.key === "?") setKeysHelp(true);
+      else if (mod && (e.key === "+" || e.key === "=")) zoomBy(ZOOM_STEP);
       else if (mod && e.key === "-") zoomBy(1 / ZOOM_STEP);
       else if (mod && e.key === "0") setFit("width");
       else if (mod && e.key.toLowerCase() === "f") onFind?.();
@@ -253,7 +257,7 @@ export default function Reader(p: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [zoomBy, step, rtl, goTo, n, view, onFind, onClose, full]);
+  }, [zoomBy, step, rtl, goTo, n, view, onFind, onClose, full, keysHelp]);
 
   // Copy Arabic selections in reading order.
   useEffect(() => {
@@ -334,6 +338,7 @@ export default function Reader(p: Props) {
 
   return (
     <div className={full ? "reader full" : "reader"}>
+      {keysHelp && <ShortcutsDialog onClose={() => setKeysHelp(false)} />}
       {full && (
         <button className="icon-btn reader-unfull" onClick={() => setFull(false)} title={`${t.exitFullscreen} (Esc)`} aria-label={t.exitFullscreen}>
           <Minimize size={18} />
