@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { BookOpen, Bug, Download, Home as HomeIcon, RefreshCw, FileOutput, Settings, ShieldCheck, Wrench, X } from "lucide-react";
+import { PanelLeft, BookOpen, Bug, Download, Home as HomeIcon, RefreshCw, FileOutput, Settings, ShieldCheck, Wrench, X } from "lucide-react";
 import { useLang, useT, type Lang } from "../i18n";
 import { BACK_DIALOG, useBack } from "./back";
 import type { ThemePref } from "../prefs";
@@ -171,7 +171,24 @@ export default function Layout(p: Props) {
   // The editor is reached from Tools (or the reader); Tools stays marked as where you are.
   const current: Route = p.route === "editor" ? "tools" : p.route;
   // While reading or editing, the sidebar folds to an icon rail so the page gets the room.
-  const rail = p.route === "reader" || p.route === "editor";
+  // Elsewhere the user can fold it by hand; the choice is remembered.
+  const autoRail = p.route === "reader" || p.route === "editor";
+  const [folded, setFolded] = useState(() => {
+    try {
+      return localStorage.getItem("waraq.sidebarFolded") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleFold = () => {
+    setFolded(!folded);
+    try {
+      localStorage.setItem("waraq.sidebarFolded", folded ? "0" : "1");
+    } catch {
+      /* not remembered */
+    }
+  };
+  const rail = autoRail || folded;
   const [settings, setSettings] = useState(false);
   useBack(settings, () => setSettings(false), BACK_DIALOG);
   useEffect(() => {
@@ -217,6 +234,18 @@ export default function Layout(p: Props) {
           ))}
         </nav>
         <div className="sidebar-foot">
+          {!autoRail && (
+            <button
+              className="nav-item fold-toggle"
+              onClick={toggleFold}
+              aria-expanded={!folded}
+              title={rail ? t.sidebarExpand : undefined}
+              aria-label={folded ? t.sidebarExpand : t.sidebarFold}
+            >
+              <PanelLeft size={20} />
+              <span className="nav-label">{t.sidebarFold}</span>
+            </button>
+          )}
           <button
             className="nav-item"
             onClick={() => setSettings(true)}
