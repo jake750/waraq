@@ -12,6 +12,7 @@ import {
   FilePlus2,
   FileStack,
   FolderOpen,
+  Hash,
   LayoutGrid,
   Minimize2,
   RotateCcw,
@@ -20,6 +21,7 @@ import {
   Share2,
   SquareDashed,
   Trash2,
+  UserX,
   X,
 } from "lucide-react";
 import { useT } from "../i18n";
@@ -33,12 +35,13 @@ import type { Saved } from "../convert/queue";
 import { assemble, loadPdf, splitGroups, type PageSpec, type SplitMode } from "./pages";
 import { deleteSel, insertAfter, moveSel, rotateSel, type Item } from "./organize";
 import { compressPdf, type Reencode } from "./compress";
+import { numberPages, stripMetadata, type NumberOpts } from "./stamp";
 import PdfThumb from "./PdfThumb";
 import { pickPdfs } from "./pickPdfs";
 export { pickPdfs };
 import "./tools.css";
 
-export type Tool = "organize" | "merge" | "split" | "compress";
+export type Tool = "organize" | "merge" | "split" | "compress" | "numbers" | "clean";
 type Source = { ref: DocRef; name: string; bytes: Uint8Array; doc: PDFDocumentProxy };
 type Props = { onToast(msg: string): void; onEdit(ref: DocRef): void; initialTool?: Tool };
 
@@ -67,10 +70,21 @@ export default function ToolsScreen({ onToast, onEdit, initialTool }: Props) {
         <Merge fail={fail} onToast={onToast} />
       ) : tool === "split" ? (
         <Split fail={fail} onToast={onToast} />
+      ) : tool === "numbers" ? (
+        <Numbers fail={fail} />
+      ) : tool === "clean" ? (
+        <Clean fail={fail} />
       ) : (
         <Compress fail={fail} onToast={onToast} />
       );
-    const title = { organize: t.toolOrganize, merge: t.toolMerge, split: t.toolSplit, compress: t.toolCompress }[tool];
+    const title = {
+      organize: t.toolOrganize,
+      merge: t.toolMerge,
+      split: t.toolSplit,
+      compress: t.toolCompress,
+      numbers: t.toolNumbers,
+      clean: t.toolClean,
+    }[tool];
     return (
       <div className="tools">
         <div className="tools-inner">
@@ -112,6 +126,13 @@ export default function ToolsScreen({ onToast, onEdit, initialTool }: Props) {
       ],
     ],
     [t.toolsGroupSize, [["compress", t.toolCompress, t.toolCompressSub, <Minimize2 size={20} />]]],
+    [
+      t.toolsGroupMore,
+      [
+        ["numbers", t.toolNumbers, t.toolNumbersSub, <Hash size={20} />],
+        ["clean", t.toolClean, t.toolCleanSub, <UserX size={20} />],
+      ],
+    ],
   ];
   return (
     <div className="tools">
@@ -554,6 +575,99 @@ function Compress({ fail, onToast }: { onToast(m: string): void; fail(e: unknown
           }
         >
           {busy ? t.working : t.compressBtn}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ---------- Page numbers ----------
+
+function Numbers({ fail }: { fail(e: unknown): void }) {
+  const t = useT();
+  const [file, setFile] = useState<{ ref: DocRef; name: string } | null>(null);
+  const [opts, setOpts] = useState<NumberOpts>({ pos: "center", start: 1, skipFirst: false, format: "n" });
+  const [saved, setSaved] = useState<Saved[]>([]);
+  const { busy, run } = useBusy();
+  if (!file) return <Pick label={t.choosePdf} multiple={false} onPicked={async (r) => r[0] && setFile({ ref: r[0], name: await resolveName(r[0]) })} />;
+  const seg = <K extends "pos" | "format">(key: K, items: [NumberOpts[K], string][]) => (
+    <div className="segmented">
+      {items.map(([v, label]) => (
+        <button key={String(v)} aria-pressed={opts[key] === v} onClick={() => setOpts({ ...opts, [key]: v })}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <>
+      <p className="tool-file">
+        <span className="job-name">{file.name}</span>
+      </p>
+      <div className="pref">
+        <span className="field-label">{t.numPos}</span>
+        {seg("pos", [
+          ["center", t.numPosCenter],
+          ["outer", t.numPosOuter],
+        ])}
+      </div>
+      <div className="pref">
+        <span className="field-label">{t.numFormat}</span>
+        {seg("format", [
+          ["n", "1, 2, 3"],
+          ["n-of", "1 / 12"],
+        ])}
+      </div>
+      <label className="check">
+        <input type="checkbox" checked={opts.skipFirst} onChange={(e) => setOpts({ ...opts, skipFirst: e.target.checked })} />
+        <span>{t.numSkipFirst}</span>
+      </label>
+      <div className="convert-actions">
+        <Results saved={saved} />
+        <button
+          className="btn btn-primary"
+          disabled={busy}
+          onClick={() =>
+            run(async () => {
+              const out = await numberPages(await readDocument(file.ref), opts);
+              setSaved([await saveOutput(out, suffixName(file.name, "numbered"), folderOf(file.ref), "application/pdf")]);
+            }, fail)
+          }
+        >
+          {busy ? t.working : t.numBtn}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ---------- Remove metadata ----------
+
+function Clean({ fail }: { fail(e: unknown): void }) {
+  const t = useT();
+  const [file, setFile] = useState<{ ref: DocRef; name: string } | null>(null);
+  const [saved, setSaved] = useState<Saved[]>([]);
+  const { busy, run } = useBusy();
+  if (!file) return <Pick label={t.choosePdf} multiple={false} onPicked={async (r) => r[0] && setFile({ ref: r[0], name: await resolveName(r[0]) })} />;
+  return (
+    <>
+      <p className="tool-file">
+        <span className="job-name">{file.name}</span>
+      </p>
+      <p className="settings-hint">{t.cleanHint}</p>
+      <div className="convert-actions">
+        <Results saved={saved} />
+        <button
+          className="btn btn-primary"
+          disabled={busy}
+          onClick={() =>
+            run(async () => {
+              const out = await stripMetadata(await readDocument(file.ref));
+              setSaved([await saveOutput(out, suffixName(file.name, "clean"), folderOf(file.ref), "application/pdf")]);
+            }, fail)
+          }
+        >
+          {busy ? t.working : t.cleanBtn}
         </button>
       </div>
     </>
