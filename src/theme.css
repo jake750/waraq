@@ -1252,3 +1252,11 @@ button {
   font-size: var(--fs-base-sm);
   color: var(--text);
 }
+
+/* Touch screens: every icon button gets a full 44px target (the icon itself stays the same size). */
+@media (pointer: coarse) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
