@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { RECENT_MAX } from "../files/recent";
 import { Search, X, FileClock, Lock } from "lucide-react";
 import { useT } from "../i18n";
 import type { RecentItem } from "../files/recent";
@@ -92,6 +93,7 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
         );
       })}
     </ul>
+    {items.length >= RECENT_MAX && <p className="recent-cap">{t.recentCap(RECENT_MAX)}</p>}
     </>
   );
 }

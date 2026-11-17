@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { BookOpen, Bug, Download, Home as HomeIcon, RefreshCw, Repeat2, Settings, ShieldCheck, Wrench, X } from "lucide-react";
+import { BookOpen, Bug, Download, Home as HomeIcon, RefreshCw, FileOutput, Settings, ShieldCheck, Wrench, X } from "lucide-react";
 import { useLang, useT, type Lang } from "../i18n";
 import { BACK_DIALOG, useBack } from "./back";
 import type { ThemePref } from "../prefs";
@@ -189,7 +189,7 @@ export default function Layout(p: Props) {
   );
   const items: { r: Route; label: string; icon: ReactNode }[] = [
     { r: "home", label: t.navHome, icon: <HomeIcon size={20} /> },
-    { r: "convert", label: t.navConvert, icon: <Repeat2 size={20} /> },
+    { r: "convert", label: t.navConvert, icon: <FileOutput size={20} /> },
     { r: "tools", label: t.navTools, icon: <Wrench size={20} /> },
     // The reader tab only exists while a document is open: no dead, disabled tab.
     ...(p.readerAvailable ? [{ r: "reader" as Route, label: t.navReader, icon: <BookOpen size={20} /> }] : []),

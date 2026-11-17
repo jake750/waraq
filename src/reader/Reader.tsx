@@ -15,8 +15,7 @@ import {
   Rows3,
   X,
   ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+  ZoomOut, FileOutput, Share2 } from "lucide-react";
 import { useT } from "../i18n";
 import { useBack } from "../shell/back";
 import { detectRtl } from "../text/arabic";
@@ -54,6 +53,10 @@ type Props = {
   onFind?(): void;
   /** Opens this document in the editor. */
   onEdit?(): void;
+  /** Queues this document for conversion (to Word, images, text…). */
+  onConvert?(): void;
+  /** Hands the file to another app (Android). */
+  onShare?(): void;
   /** Highlight rectangles per 1-based page. */
   highlights?: Map<number, HighlightRect[]>;
   /** Page to jump to when it changes (e.g. current search match). */
@@ -390,7 +393,7 @@ export default function Reader(p: Props) {
             <ZoomIn size={19} />
           </button>
           <button
-            className="icon-btn"
+            className="icon-btn desk-only"
             aria-pressed={fit === "width"}
             onClick={() => setFit("width")}
             title={t.fitWidth}
@@ -448,6 +451,16 @@ export default function Reader(p: Props) {
           >
             <Maximize size={18} />
           </button>
+          {p.onShare && (
+            <button className="icon-btn" onClick={p.onShare} title={t.share} aria-label={t.share}>
+              <Share2 size={18} />
+            </button>
+          )}
+          {p.onConvert && (
+            <button className="icon-btn" onClick={p.onConvert} title={t.convertThis} aria-label={t.convertThis}>
+              <FileOutput size={18} />
+            </button>
+          )}
           {p.onEdit && (
             <button className="btn btn-ghost btn-sm reader-edit" onClick={p.onEdit} title={t.edit} aria-label={t.edit}>
               <PenLine size={17} />

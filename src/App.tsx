@@ -387,6 +387,16 @@ export default function App() {
             onPageChange={onPageChange}
             onClose={onClose}
             onEdit={() => editDocument(open.ref, open.name)}
+            onConvert={async () => {
+              const skipped = await conv.add([open.ref]);
+              if (skipped.length) setToast(skippedText(t, skipped));
+              setRoute("convert");
+            }}
+            onShare={
+              open.ref.kind === "uri"
+                ? () => invoke("android_share", { uri: (open.ref as { uri: string }).uri, mime: "application/pdf" }).catch((e) => setToast(String(e)))
+                : undefined
+            }
           />
         ) : (
           <Home

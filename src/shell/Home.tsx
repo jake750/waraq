@@ -1,4 +1,4 @@
-import { FilePen, FileStack, FileUp, Minimize2, Repeat2 } from "lucide-react";
+import { FilePen, FileStack, FileUp, Minimize2, FileOutput } from "lucide-react";
 import type { ReactNode } from "react";
 import { useT } from "../i18n";
 import { isAndroid } from "../platform";
@@ -15,7 +15,7 @@ type Props = {
 export default function Home({ onOpen, onQuick, dragOver, recent }: Props) {
   const t = useT();
   const quick: [QuickAction, string, ReactNode][] = [
-    ["convert", t.quickConvert, <Repeat2 size={20} />],
+    ["convert", t.quickConvert, <FileOutput size={20} />],
     ["edit", t.quickEdit, <FilePen size={20} />],
     ["merge", t.quickMerge, <FileStack size={20} />],
     ["compress", t.quickCompress, <Minimize2 size={20} />],

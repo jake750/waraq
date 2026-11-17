@@ -1305,3 +1305,9 @@ button {
   margin-inline-end: 5px;
   color: var(--text-3);
 }
+
+.recent-cap {
+  margin: 8px 4px 0;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}

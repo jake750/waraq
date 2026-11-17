@@ -11,11 +11,14 @@ export interface KV {
 const KEY = "recent";
 
 /** Recently opened documents, most recent first, with the page you were on. */
+/** How many files Recent keeps; older ones drop off. */
+export const RECENT_MAX = 20;
+
 export class RecentStore {
   constructor(
     private kv: KV,
     private now: () => number = Date.now,
-    private max = 20,
+    private max = RECENT_MAX,
   ) {}
 
   async list(): Promise<RecentItem[]> {
