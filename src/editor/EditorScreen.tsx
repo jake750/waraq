@@ -52,7 +52,7 @@ const STROKES = [1.5, 3, 6];
 const SIZES = [11, 14, 20, 28];
 const isPhone = () => window.matchMedia?.("(max-width: 719px)").matches ?? false;
 const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 4;
+const ZOOM_MAX = 5; // same as the reader
 const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +z.toFixed(3)));
 /** Each tool keeps its own colour: yellow highlights don't turn the pen or a strike-through yellow. */
 const TOOL_COLORS: Record<Tool, Rgb> = {

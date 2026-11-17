@@ -25,6 +25,16 @@
   --fold-flap: #dcd9d1;
   --fold-shadow: rgba(20, 22, 29, 0.14);
   --page-max: 880px;
+  /* Type scale: use these names, not raw px. */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base-sm: 14px;
+  --fs-md: 15px;
+  --fs-lg: 16px;
+  --fs-xl: 19px;
+  --fs-2xl: 20px;
+  --fs-3xl: 24px;
+  --fs-4xl: 30px;
   --paper: #ffffff;
   --highlight: rgba(255, 196, 0, 0.45);
   --highlight-current: rgba(255, 120, 0, 0.55);
@@ -96,7 +106,7 @@ body,
 
 body {
   font-family: var(--font);
-  font-size: 15px;
+  font-size: var(--fs-md);
   line-height: 1.6;
   background: var(--bg);
   color: var(--text);
@@ -210,7 +220,7 @@ button {
   gap: 10px;
   padding: 4px 10px 22px;
   font-weight: 700;
-  font-size: 18px;
+  font-size: var(--fs-xl);
 }
 
 .brand img {
@@ -278,7 +288,7 @@ button {
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-2);
 }
@@ -298,7 +308,7 @@ button {
 }
 .sheet-head h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-2xl);
 }
 
 .update-box {
@@ -321,7 +331,7 @@ button {
 }
 .update-status {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 .update-status.error {
@@ -334,7 +344,7 @@ button {
   padding: 10px 12px;
   border-radius: var(--r-sm);
   background: var(--surface-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   white-space: pre-line;
 }
 .update-bar {
@@ -381,12 +391,12 @@ button {
   border-radius: var(--r-md);
   background: var(--surface-2);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .settings-hint {
   margin: 0 0 8px;
   color: var(--text-3);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.6;
 }
 .settings-note svg {
@@ -413,7 +423,7 @@ button {
   border-radius: 6px;
   background: transparent;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   transition: background var(--t-fast) var(--ease-out);
 }
 
@@ -463,7 +473,7 @@ button {
     border: 0;
     background: transparent;
     color: var(--text-3);
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
   .tabbar button[aria-current="page"] {
     color: var(--accent-text);
@@ -591,17 +601,11 @@ button {
   margin-bottom: 6px;
 }
 
-.dropzone h1 {
-  margin: 0;
-  font-size: 30px;
-  line-height: 1.25;
-}
-
 .dropzone h1,
 .dropzone-title {
   margin: 0;
-  font-size: 30px;
-  line-height: 1.25;
+  font-size: var(--fs-4xl);
+  line-height: 1.4;
 }
 
 .format-groups {
@@ -620,7 +624,7 @@ button {
   align-items: baseline;
   gap: 8px;
   padding: 2px 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .format-groups strong {
@@ -628,7 +632,7 @@ button {
 }
 .format-groups span {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.02em;
 }
 
@@ -667,7 +671,7 @@ button {
 .btn-lg {
   min-height: 50px;
   padding-inline: 32px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .btn-ghost {
@@ -677,7 +681,7 @@ button {
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text);
   margin: 0 0 12px;
@@ -813,7 +817,7 @@ button {
 .recent-name {
   unicode-bidi: plaintext; /* mixed-script names read right, aligned with the row */
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--fs-md);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -883,7 +887,7 @@ button {
   }
   .dropzone h1,
   .dropzone-title {
-    font-size: 24px;
+    font-size: var(--fs-3xl);
   }
   .page-inner {
     gap: 22px;
@@ -900,7 +904,7 @@ button {
   display: none;
   align-items: center;
   gap: 10px;
-  font-size: 20px;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   margin-bottom: -6px;
 }
@@ -955,7 +959,7 @@ button {
 
 .dialog h2 {
   margin: 4px 0 0;
-  font-size: 19px;
+  font-size: var(--fs-xl);
 }
 
 .dialog p {
@@ -976,7 +980,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 
@@ -1006,7 +1010,7 @@ button {
   border: 0;
   outline: none;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text);
 }
 
@@ -1084,7 +1088,7 @@ button {
   color: var(--text);
 }
 .crash svg { color: var(--danger); }
-.crash h2 { margin: 0; font-size: 20px; }
+.crash h2 { margin: 0; font-size: var(--fs-2xl); }
 .crash p { margin: 0; color: var(--text-2); line-height: 1.6; }
 .crash-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
 
@@ -1119,7 +1123,7 @@ button {
 }
 @media (max-width: 719px) {
   .recent-meta {
-    font-size: 14px;
+    font-size: var(--fs-base-sm);
   }
 }
 
