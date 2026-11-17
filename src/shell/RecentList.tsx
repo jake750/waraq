@@ -61,11 +61,15 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
         return (
           <li key={item.key} className="recent-item">
             <button className="recent-open" onClick={() => onOpen(item)} title={item.key}>
-              <span className="recent-icon fold" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
+              {item.thumb ? (
+                <img className="recent-thumb" src={item.thumb} alt="" aria-hidden="true" />
+              ) : (
+                <span className="recent-icon fold" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              )}
               <span className="recent-text">
                 <span className="recent-name">
                   {item.name}

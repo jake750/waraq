@@ -55,3 +55,14 @@ test("restore puts a removed item back in order", async () => {
   await s.restore(b);
   expect((await s.list()).map((i) => i.key)).toEqual(["c", "b", "a"]);
 });
+
+test("a thumbnail survives reopening and can be cleared", async () => {
+  const s = new RecentStore(memKV());
+  const r = { kind: "path", path: "x" } as const;
+  await s.touch(r, "x");
+  await s.setThumb("x", "data:image/jpeg;base64,AA");
+  await s.touch(r, "x");
+  expect((await s.list())[0].thumb).toBe("data:image/jpeg;base64,AA");
+  await s.setThumb("x", undefined);
+  expect((await s.list())[0].thumb).toBeUndefined();
+});

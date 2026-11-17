@@ -131,6 +131,17 @@ export default function App() {
         openRef.current = { id: seq, ref, key: docKey(ref), name, doc, initialPage };
         setOpen(openRef.current);
         setLocked(null);
+        // Page 1 as a small picture for Recent; a password-protected file keeps the plain icon.
+        if (item) {
+          const key = item.key;
+          if (password) recentStore.setThumb(key, undefined).catch(() => {});
+          else
+            import("./shell/thumb")
+              .then(({ firstPageThumb }) => firstPageThumb(doc))
+              .then((url) => recentStore.setThumb(key, url))
+              .then(refreshRecent)
+              .catch(() => {});
+        }
         setRoute("reader");
         prev?.doc.loadingTask.destroy().catch(() => {});
         // Say up front when there's no text to search or copy (a scan).
