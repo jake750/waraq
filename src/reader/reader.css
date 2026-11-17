@@ -15,6 +15,17 @@
   min-height: 56px;
   background: var(--surface);
   border-bottom: 1px solid var(--stroke);
+  position: relative;
+}
+.reader-progress {
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent-text);
+  opacity: 0.7;
+  transition: width var(--t-med) var(--ease-out);
+  pointer-events: none;
 }
 
 .reader-name {
@@ -633,4 +644,12 @@
 }
 :dir(rtl) .reader-back-chip svg {
   --flip: -1;
+}
+
+/* Phones: the bar sits at the bottom, so the progress line runs along its top edge. */
+@media (max-width: 719px) {
+  .reader-progress {
+    bottom: auto;
+    top: -1px;
+  }
 }

@@ -340,6 +340,8 @@ export default function Reader(p: Props) {
         </button>
       )}
       <header className="reader-bar">
+        {/* How far through the document you are: a hairline along the bar. */}
+        {n > 1 && <span className="reader-progress" style={{ width: `${(current / n) * 100}%` }} aria-hidden />}
         <button className="icon-btn" onClick={p.onClose} title={t.close} aria-label={t.close}>
           <X size={20} />
         </button>
