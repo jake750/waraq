@@ -323,3 +323,13 @@
     flex-basis: 100%;
   }
 }
+
+/* "Use the open file": a long name is cut, never wraps the button to several lines. */
+.pick-current {
+  max-width: 100%;
+}
+.pick-current-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

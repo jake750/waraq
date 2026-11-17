@@ -356,6 +356,7 @@ export default function App() {
             initialTool={toolStart?.tool}
             onToast={setToast}
             onEdit={(ref) => editDocument(ref)}
+            current={open ? { ref: open.ref, name: open.name } : null}
           />
         ) : route === "convert" ? (
           <ConvertScreen

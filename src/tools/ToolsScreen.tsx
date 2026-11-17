@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
   ArrowDown,
@@ -44,7 +44,10 @@ import "./tools.css";
 
 export type Tool = "organize" | "merge" | "split" | "compress" | "numbers" | "clean";
 type Source = { ref: DocRef; name: string; bytes: Uint8Array; doc: PDFDocumentProxy };
-type Props = { onToast(msg: string): void; onEdit(ref: DocRef): void; initialTool?: Tool };
+type Props = { onToast(msg: string): void; onEdit(ref: DocRef): void; initialTool?: Tool; current?: { ref: DocRef; name: string } | null };
+
+/** The document open in the reader, offered by every tool so it needn't be picked again. */
+const CurrentDoc = createContext<{ ref: DocRef; name: string } | null>(null);
 
 
 /** Reads and checks a PDF for the tools (protected/corrupt files fail here, before any work). */
@@ -57,7 +60,7 @@ async function loadSource(ref: DocRef): Promise<Source> {
 
 const save = (bytes: Uint8Array, name: string, src: Source) => saveOutput(bytes, name, folderOf(src.ref), "application/pdf");
 
-export default function ToolsScreen({ onToast, onEdit, initialTool }: Props) {
+export default function ToolsScreen({ onToast, onEdit, initialTool, current = null }: Props) {
   const t = useT();
   const [tool, setTool] = useState<Tool | null>(initialTool ?? null);
   useBack(!!tool, () => setTool(null));
@@ -87,6 +90,7 @@ export default function ToolsScreen({ onToast, onEdit, initialTool }: Props) {
       clean: t.toolClean,
     }[tool];
     return (
+      <CurrentDoc.Provider value={current}>
       <div className="tools">
         <div className="tools-inner">
           <header className="tools-head">
@@ -98,6 +102,7 @@ export default function ToolsScreen({ onToast, onEdit, initialTool }: Props) {
           {body}
         </div>
       </div>
+      </CurrentDoc.Provider>
     );
   }
   const openTool = async (id: Tool | "edit") => {
@@ -192,13 +197,20 @@ export function Results({ saved }: { saved: Saved[] }) {
 }
 
 function Pick({ label, multiple, onPicked }: { label: string; multiple: boolean; onPicked(refs: DocRef[]): void }) {
+  const t = useT();
+  const current = useContext(CurrentDoc);
   return (
     <section className="dropzone">
       <div className="dropzone-icon">
         <FilePlus2 size={26} />
       </div>
-      <button className="btn btn-primary" onClick={async () => onPicked(await pickPdfs(multiple))}>
-        {label}
+      {current && (
+        <button className="btn btn-primary pick-current" onClick={() => onPicked([current.ref])}>
+          <span className="pick-current-name">{t.useOpenFile(current.name)}</span>
+        </button>
+      )}
+      <button className={current ? "btn btn-ghost" : "btn btn-primary"} onClick={async () => onPicked(await pickPdfs(multiple))}>
+        {current ? t.chooseAnother : label}
       </button>
     </section>
   );
@@ -610,7 +622,8 @@ function Numbers({ fail }: { fail(e: unknown): void }) {
     <div className="segmented">
       {items.map(([v, label]) => (
         <button key={String(v)} aria-pressed={opts[key] === v} onClick={() => setOpts({ ...opts, [key]: v })}>
-          {label}
+          {/* The number styles are Latin samples: keep "1 / 12" reading left to right. */}
+          <span dir={key === "format" ? "ltr" : undefined}>{label}</span>
         </button>
       ))}
     </div>
