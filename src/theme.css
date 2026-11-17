@@ -380,11 +380,30 @@ button {
   position: absolute;
   top: -2px;
   inset-inline-end: -3px;
-  width: 9px;
-  height: 9px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background: var(--danger);
   box-shadow: 0 0 0 2px var(--surface);
+  /* A few pulses when it appears, so a new version is noticed; then it stays still. */
+  animation: badge-pulse 1.4s var(--ease-out) 3;
+}
+@keyframes badge-pulse {
+  0% {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 2px color-mix(in srgb, var(--danger) 60%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 12px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge-dot {
+    animation: none;
+  }
+}
+/* With an update waiting, the Settings label is tinted too, not only the dot. */
+.has-update {
+  color: var(--danger) !important;
 }
 
 .settings-note {
@@ -1217,4 +1236,9 @@ button {
   color: var(--text-3);
   font-weight: 400;
   font-family: ui-monospace, monospace;
+}
+/* In the bottom bar the icon sits inside a wide pill: keep the dot on the icon, not on the pill's edge. */
+.tabbar .badge-dot {
+  top: 1px;
+  inset-inline-end: 12px;
 }

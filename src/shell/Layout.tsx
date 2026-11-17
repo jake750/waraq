@@ -236,7 +236,11 @@ export default function Layout(p: Props) {
             {i.label}
           </button>
         ))}
-        <button onClick={() => setSettings(true)} aria-label={hasUpdate ? `${t.settings} — ${t.updBadge}` : undefined}>
+        <button
+          className={hasUpdate ? "has-update" : undefined}
+          onClick={() => setSettings(true)}
+          aria-label={hasUpdate ? `${t.settings} — ${t.updBadge}` : undefined}
+        >
           {settingsIcon}
           {t.settings}
         </button>
