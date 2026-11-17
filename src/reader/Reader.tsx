@@ -20,6 +20,7 @@ import { useT } from "../i18n";
 import { useBack } from "../shell/back";
 import { detectRtl } from "../text/arabic";
 import { pageText, type Match } from "../text/search";
+import { loadDocView, saveDocView } from "../prefs";
 import { fitScale, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber } from "./layout";
 import PageView, { readingOrderSelection, type HighlightRect } from "./PageView";
 import { setFullscreen } from "./fullscreen";
@@ -68,8 +69,10 @@ export default function Reader(p: Props) {
   const [sizes, setSizes] = useState<Size[] | null>(null);
   const [fit, setFit] = useState<"width" | "page" | null>("width");
   const [manualScale, setManualScale] = useState(1);
-  const [view, setView] = useState<ViewMode>("continuous");
-  const [rtl, setRtl] = useState(false);
+  // View mode and direction come back the way this document was last read.
+  const [view, setView] = useState<ViewMode>(() => loadDocView(p.docKey).view ?? "continuous");
+  const [rtl, setRtl] = useState(() => loadDocView(p.docKey).rtl ?? false);
+  useEffect(() => saveDocView(p.docKey, { view, rtl }), [p.docKey, view, rtl]);
   const [night, setNight] = useState(false);
   const [full, setFull] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);

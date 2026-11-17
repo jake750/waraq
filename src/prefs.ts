@@ -52,3 +52,21 @@ export const loadOfficeDeclined = (): boolean => read("waraq.officeDeclined") ==
 export const saveOfficeDeclined = (v: boolean) => write("waraq.officeDeclined", v ? "yes" : "no");
 export const loadSaveFolder = (): string | null => read("waraq.saveFolder") || null;
 export const saveSaveFolder = (dir: string | null) => write("waraq.saveFolder", dir ?? "");
+
+// Reader: the view mode and reading direction each document was last read in (newest 50 documents).
+export type DocView = { view?: "continuous" | "single" | "spread"; rtl?: boolean };
+const DOC_VIEWS = "waraq.docViews";
+const DOC_VIEWS_MAX = 50;
+function docViews(): [string, DocView][] {
+  try {
+    const v = JSON.parse(read(DOC_VIEWS) ?? "[]");
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+export const loadDocView = (key: string): DocView => docViews().find(([k]) => k === key)?.[1] ?? {};
+export function saveDocView(key: string, v: DocView) {
+  const rest = docViews().filter(([k]) => k !== key);
+  write(DOC_VIEWS, JSON.stringify([[key, v], ...rest].slice(0, DOC_VIEWS_MAX)));
+}
