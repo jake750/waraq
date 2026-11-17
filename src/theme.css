@@ -362,6 +362,11 @@ button {
 .spin {
   animation: spin 900ms linear infinite;
 }
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation-duration: 2.4s;
+  }
+}
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -1206,4 +1211,10 @@ button {
   color: var(--text-2);
   background: transparent;
   border-color: transparent;
+}
+
+.update-commit {
+  color: var(--text-3);
+  font-weight: 400;
+  font-family: ui-monospace, monospace;
 }

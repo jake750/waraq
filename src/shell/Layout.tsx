@@ -22,6 +22,10 @@ type Props = {
   children: ReactNode;
 };
 
+// Set by Vite at build time; missing in tests.
+declare const __COMMIT__: string | undefined;
+const COMMIT = typeof __COMMIT__ === "string" ? __COMMIT__ : "";
+
 function UpdateSection({ u }: { u: Updates }) {
   const t = useT();
   const s = u.state;
@@ -44,7 +48,10 @@ function UpdateSection({ u }: { u: Updates }) {
       <span className="field-label">{t.updTitle}</span>
       <div className="update-box">
         <div className="update-head">
-          <span className="update-version">{u.version ? t.updVersion(u.version) : t.appName}</span>
+          <span className="update-version">
+            {u.version ? t.updVersion(u.version) : t.appName}
+            {COMMIT && <small className="update-commit"> · {COMMIT}</small>}
+          </span>
           {s.status === "available" || s.status === "installing" ? (
             <button className="btn btn-primary btn-sm" onClick={u.install} disabled={s.status === "installing"}>
               <Download size={16} />
