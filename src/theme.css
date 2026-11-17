@@ -1260,3 +1260,30 @@ button {
     height: 44px;
   }
 }
+
+/* Wide screens: Home uses two columns, actions on one side and Recent beside them, instead of one
+   narrow centred column with empty space around it. */
+@media (min-width: 1280px) {
+  .home > .page-inner {
+    max-width: 1240px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "brand brand" "drop recent" "quick recent";
+    grid-template-rows: auto auto 1fr;
+    align-items: start;
+    column-gap: 32px;
+  }
+  .home > .page-inner > .home-brand {
+    grid-area: brand;
+  }
+  .home > .page-inner > .dropzone {
+    grid-area: drop;
+  }
+  .home > .page-inner > .quick {
+    grid-area: quick;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home > .page-inner > section:last-child {
+    grid-area: recent;
+  }
+}
