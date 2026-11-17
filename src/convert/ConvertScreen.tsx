@@ -132,7 +132,7 @@ export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Pro
                 </button>
               )}
               {finished && (
-                <button className="btn btn-ghost" onClick={() => api.dispatch({ type: "clearFinished" })}>
+                <button className="btn btn-ghost btn-quiet" onClick={() => api.dispatch({ type: "clearFinished" })}>
                   {t.clearFinished}
                 </button>
               )}

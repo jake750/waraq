@@ -479,6 +479,16 @@ button {
     color: var(--accent-text);
     font-weight: 600;
   }
+  /* The active tab gets a pill behind its icon, not just a colour change. */
+  .tabbar button svg {
+    box-sizing: content-box;
+    padding: 3px 16px;
+    border-radius: 999px;
+    transition: background var(--t-med) var(--ease-out);
+  }
+  .tabbar button[aria-current="page"] svg {
+    background: var(--accent-soft);
+  }
   /* Reading or editing: the document takes the whole screen; its own bar has close/back. */
   .shell.rail .tabbar {
     display: none;
@@ -683,7 +693,7 @@ button {
 .section-title {
   font-size: var(--fs-lg);
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-2);
   margin: 0 0 12px;
 }
 
@@ -1033,8 +1043,10 @@ button {
   }
 }
 
+/* Disabled stays readable: muted colours, not just transparency. */
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.7;
+  filter: saturate(0.4);
   cursor: default;
 }
 
@@ -1150,4 +1162,12 @@ button {
   background: transparent;
   color: var(--text);
   font: inherit;
+}
+
+/* Secondary bar actions (clear finished) stay lighter than the main action. */
+.btn-quiet {
+  font-weight: 500;
+  color: var(--text-2);
+  background: transparent;
+  border-color: transparent;
 }

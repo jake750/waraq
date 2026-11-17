@@ -95,6 +95,11 @@ select:focus-visible {
   animation: rise var(--t-med) var(--ease-out);
 }
 
+/* A failed row reads as failed at a glance, not only by its icon colour. */
+.job-error {
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+}
+
 .job:last-child {
   border-bottom: 0;
 }
