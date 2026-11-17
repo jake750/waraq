@@ -300,7 +300,8 @@
   .reader-bar {
     order: 2;
     gap: 2px;
-    padding-inline: 6px;
+    /* Room between the outer buttons (close, edit) and the screen edge. */
+    padding-inline: 12px;
     padding-bottom: calc(8px + env(safe-area-inset-bottom));
     border-bottom: 0;
     border-top: 1px solid var(--stroke);
@@ -712,4 +713,11 @@ kbd {
   color: var(--text-3);
   font-size: var(--fs-xs);
   line-height: 1.6;
+}
+
+/* Phones zoom by pinching: the zoom buttons and percentage would only crowd the bottom bar. */
+@media (max-width: 719px) {
+  .reader-bar .zoom-ctl {
+    display: none;
+  }
 }

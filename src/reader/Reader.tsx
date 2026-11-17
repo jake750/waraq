@@ -382,11 +382,11 @@ export default function Reader(p: Props) {
           <span>{t.pageOf(n)}</span>
         </div>
         <div className="reader-tools">
-          <button className="icon-btn" onClick={() => zoomBy(1 / ZOOM_STEP)} title={t.zoomOut} aria-label={t.zoomOut}>
+          <button className="icon-btn zoom-ctl" onClick={() => zoomBy(1 / ZOOM_STEP)} title={t.zoomOut} aria-label={t.zoomOut}>
             <ZoomOut size={19} />
           </button>
-          <span className="zoom-value">{Math.round(scale * 100)}%</span>
-          <button className="icon-btn" onClick={() => zoomBy(ZOOM_STEP)} title={t.zoomIn} aria-label={t.zoomIn}>
+          <span className="zoom-value zoom-ctl">{Math.round(scale * 100)}%</span>
+          <button className="icon-btn zoom-ctl" onClick={() => zoomBy(ZOOM_STEP)} title={t.zoomIn} aria-label={t.zoomIn}>
             <ZoomIn size={19} />
           </button>
           <button
