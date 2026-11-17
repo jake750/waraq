@@ -1,4 +1,4 @@
-import { displayName } from "../src/files/docRef";
+import { displayName, suffixName } from "../src/files/docRef";
 
 test("a path keeps its file name", () => {
   expect(displayName({ kind: "path", path: String.raw`C:\كتب\ملف.pdf` }, "Some Title")).toBe("ملف.pdf");
@@ -17,4 +17,10 @@ test("an opaque content URI falls back to the PDF title", () => {
 test("an opaque content URI without a title gets a generic name", () => {
   const uri = "content://com.android.providers.media.documents/document/document%3A1000000070";
   expect(displayName({ kind: "uri", uri }, "")).toBe("Document.pdf");
+});
+
+test("saving an edited copy again does not stack suffixes", () => {
+  expect(suffixName("report.pdf", "edited")).toBe("report (edited).pdf");
+  expect(suffixName("report (edited).pdf", "edited")).toBe("report (edited).pdf");
+  expect(suffixName("report (edited).pdf", "compressed")).toBe("report (edited) (compressed).pdf");
 });

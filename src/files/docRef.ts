@@ -96,5 +96,10 @@ export function folderOf(ref: DocRef): string {
   return i > 0 ? ref.path.slice(0, i) : "";
 }
 
-/** "report.pdf" + "edited" → "report (edited).pdf". */
-export const suffixName = (name: string, suffix: string, ext = "pdf") => `${name.replace(/\.[^./\\]+$/, "")} (${suffix}).${ext}`;
+/** "report.pdf" + "edited" → "report (edited).pdf"; editing that again stays "report (edited).pdf". */
+export const suffixName = (name: string, suffix: string, ext = "pdf") => {
+  let base = name.replace(/\.[^./\\]+$/, "");
+  const tail = ` (${suffix})`;
+  while (base.endsWith(tail)) base = base.slice(0, -tail.length);
+  return `${base}${tail}.${ext}`;
+};

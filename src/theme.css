@@ -877,6 +877,8 @@ button {
 .icon-btn[aria-pressed="true"] {
   background: var(--accent-soft);
   color: var(--accent-text);
+  /* A ring as well as the tint, so an active toggle (fit width) is clear at a glance. */
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent-text) 45%, transparent);
 }
 
 .icon-btn:disabled {
