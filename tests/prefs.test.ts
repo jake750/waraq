@@ -24,3 +24,9 @@ test("a document's view mode is remembered, newest first, without storage it fal
   expect(JSON.parse(store.get("waraq.docViews")!)[0][0]).toBe("a");
   delete (globalThis as any).localStorage;
 });
+
+test("paper choice maps to page size and orientation", async () => {
+  const { paperPage } = await import("../src/prefs");
+  expect(paperPage("A4")).toEqual({ size: "A4", landscape: false });
+  expect(paperPage("Letter-landscape")).toEqual({ size: "Letter", landscape: true });
+});

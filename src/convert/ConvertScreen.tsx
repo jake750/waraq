@@ -7,6 +7,8 @@ import { officeCancel, openOutput, pickFolder, revealOutput, shareOutput } from 
 import type { Job, Saved } from "./queue";
 import { skippedText, type ConvertApi } from "./useConvert";
 import OfficePromptDialog from "./OfficePrompt";
+import { loadPaper, PAPERS, savePaper, type Paper } from "../prefs";
+import { useState } from "react";
 import "./convert.css";
 
 const LABEL: Record<Target, string> = { pdf: "PDF", docx: "DOCX", txt: "TXT", md: "Markdown", html: "HTML", png: "PNG", jpg: "JPG" };
@@ -17,6 +19,7 @@ type Props = { api: ConvertApi; dragOver: boolean; onToast(msg: string): void; o
 
 export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Props) {
   const t = useT();
+  const [paper, setPaper] = useState<Paper>(loadPaper);
   const android = isAndroid();
   const platform = android ? "android" : "desktop";
   const { queue } = api;
@@ -96,6 +99,23 @@ export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Pro
                   </select>
                 </label>
               )}
+              <label className="convert-select">
+                <span>{t.paper}</span>
+                <select
+                  value={paper}
+                  onChange={(e) => {
+                    const v = e.target.value as Paper;
+                    setPaper(v);
+                    savePaper(v);
+                  }}
+                >
+                  {PAPERS.map((p) => (
+                    <option key={p} value={p}>
+                      {t.paperName[p]}
+                    </option>
+                  ))}
+                </select>
+              </label>
               {waitingImages >= 2 && (
                 <button className="btn btn-ghost" onClick={() => api.dispatch({ type: "combineImages" })}>
                   <ImageIcon size={17} />

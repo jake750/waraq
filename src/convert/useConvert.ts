@@ -5,7 +5,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { folderOf, resolveName, type DocRef } from "../files/docRef";
 import type { Strings } from "../i18n";
 import { isAndroid } from "../platform";
-import { loadOfficeDeclined, loadSaveFolder, saveOfficeDeclined, saveSaveFolder } from "../prefs";
+import { loadOfficeDeclined, loadPaper, loadSaveFolder, paperPage, saveOfficeDeclined, saveSaveFolder } from "../prefs";
 import { asConvertError } from "./errors";
 import { engineFor, fmtOf, targetsFor, type Target } from "./formats";
 import { appDeps, officeInstall, officeStatus, type OfficeStatus } from "./native";
@@ -66,8 +66,11 @@ export function useConvert() {
     const mode = saveRef.current;
     const dir = mode.kind === "folder" ? mode.dir : folderOf(job.inputs[0].ref);
     // The engines (mammoth, pdf-lib, docx…) load with the first conversion, not with the app.
-    import("./run")
-      .then(({ runJob }) => runJob(job, appDeps(() => officeReady.current), { dir }, ac.signal, (value) => dispatch({ type: "progress", id: job.id, value })))
+    const paper = paperPage(loadPaper());
+    Promise.all([import("./run"), import("./fromHtml")])
+      .then(([{ runJob }, { DEFAULT_PAGE }]) =>
+        runJob(job, appDeps(() => officeReady.current), { dir, page: { ...DEFAULT_PAGE, ...paper } }, ac.signal, (value) => dispatch({ type: "progress", id: job.id, value })),
+      )
       .then(
         (output) => dispatch({ type: "done", id: job.id, output }),
         (e) => dispatch({ type: "fail", id: job.id, error: asConvertError(e).code }),

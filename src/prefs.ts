@@ -70,3 +70,14 @@ export function saveDocView(key: string, v: DocView) {
   const rest = docViews().filter(([k]) => k !== key);
   write(DOC_VIEWS, JSON.stringify([[key, v], ...rest].slice(0, DOC_VIEWS_MAX)));
 }
+
+// Conversion: the paper new PDFs are laid out on (documents and images). Margins stay the default.
+export type Paper = "A4" | "A4-landscape" | "Letter" | "Letter-landscape";
+export const PAPERS: Paper[] = ["A4", "A4-landscape", "Letter", "Letter-landscape"];
+export function loadPaper(): Paper {
+  const v = read("waraq.paper") as Paper | null;
+  return v && PAPERS.includes(v) ? v : "A4";
+}
+export const savePaper = (p: Paper) => write("waraq.paper", p);
+/** "Letter-landscape" → { size: "Letter", landscape: true }. */
+export const paperPage = (p: Paper) => ({ size: p.startsWith("Letter") ? ("Letter" as const) : ("A4" as const), landscape: p.endsWith("-landscape") });
