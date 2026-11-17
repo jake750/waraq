@@ -1242,3 +1242,13 @@ button {
   top: 1px;
   inset-inline-end: 12px;
 }
+
+/* Settings: each section separated by a hairline, with a clear heading, so the sheet reads as sections. */
+.sheet.settings .pref + .pref {
+  border-top: 1px solid var(--stroke);
+  padding-top: 16px;
+}
+.sheet.settings .field-label {
+  font-size: var(--fs-base-sm);
+  color: var(--text);
+}
