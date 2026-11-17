@@ -69,6 +69,8 @@ export default function SearchPanel({ state, layouts, focusToken, onChange, onPi
           }}
         />
       </div>
+      {/* Say what the default does, so the vowel-blind search isn't a hidden feature. */}
+      {!state.exact && !state.query && <p className="search-tip">{t.searchTip}</p>}
       <label className="check">
         <input type="checkbox" checked={state.exact} onChange={(e) => onChange({ exact: e.target.checked })} />
         {t.searchExact}

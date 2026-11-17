@@ -706,3 +706,10 @@ kbd {
   font: 600 var(--fs-xs) / 1.4 ui-monospace, monospace;
   text-align: center;
 }
+
+.search-tip {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}
