@@ -45,3 +45,13 @@ test("the same Android file under a new uri replaces its old entry and keeps the
   expect(item.lastPage).toBe(4);
   expect((await s.list()).map((i) => i.key)).toEqual(["content://b/9", "report.pdf"]);
 });
+
+test("restore puts a removed item back in order", async () => {
+  let t = 0;
+  const s = new RecentStore(memKV(), () => ++t);
+  for (const p of ["a", "b", "c"]) await s.touch({ kind: "path", path: p }, p);
+  const b = (await s.list()).find((i) => i.key === "b")!;
+  await s.remove("b");
+  await s.restore(b);
+  expect((await s.list()).map((i) => i.key)).toEqual(["c", "b", "a"]);
+});

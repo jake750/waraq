@@ -47,4 +47,12 @@ export class RecentStore {
   async remove(key: string): Promise<void> {
     await this.save((await this.list()).filter((i) => i.key !== key));
   }
+
+  /** Put a removed item back where it was (undo). */
+  async restore(item: RecentItem): Promise<void> {
+    const items = (await this.list()).filter((i) => i.key !== item.key);
+    items.push(item);
+    items.sort((a, b) => b.openedAt - a.openedAt);
+    await this.save(items.slice(0, this.max));
+  }
 }

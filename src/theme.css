@@ -903,6 +903,24 @@ button {
   box-shadow: var(--shadow);
   z-index: 60;
   animation: rise var(--t-med) var(--ease-out);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.toast-action {
+  flex: none;
+  min-height: 36px;
+  padding: 0 10px;
+  margin-block: -6px;
+  margin-inline-end: -8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: color-mix(in srgb, var(--toast-fg) 60%, #8fb0ff);
+  font-weight: 700;
+}
+.toast-action:active {
+  background: color-mix(in srgb, var(--toast-fg) 12%, transparent);
 }
 
 @media (max-width: 719px) {

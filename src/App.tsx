@@ -58,6 +58,8 @@ export default function App() {
   const openRef = useRef<OpenDoc | null>(null);
   const openSeq = useRef(0);
   const [toast, setToast] = useState<string | null>(null);
+  // An optional Undo for the current toast (removing a Recent entry).
+  const [toastUndo, setToastUndo] = useState<(() => void) | null>(null);
   const [locked, setLocked] = useState<{ ref: DocRef; wrong: boolean } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const conv = useConvert();
@@ -92,6 +94,9 @@ export default function App() {
     // Long messages stay longer: about 70 ms per character, between 4 and 10 seconds.
     const id = setTimeout(() => setToast(null), Math.min(10000, Math.max(4000, toast.length * 70)));
     return () => clearTimeout(id);
+  }, [toast]);
+  useEffect(() => {
+    if (!toast) setToastUndo(null);
   }, [toast]);
 
   const openDocument = useCallback(
@@ -372,7 +377,16 @@ export default function App() {
               <RecentList
                 items={recent}
                 onOpen={(item) => openDocument(item.ref)}
-                onRemove={(item) => recentStore.remove(item.key).then(refreshRecent)}
+                onRemove={(item) =>
+                  recentStore.remove(item.key).then(() => {
+                    refreshRecent();
+                    setToast(t.recentRemoved(item.name));
+                    setToastUndo(() => () => {
+                      setToast(null);
+                      recentStore.restore(item).then(refreshRecent);
+                    });
+                  })
+                }
               />
             }
           />
@@ -410,7 +424,12 @@ export default function App() {
       )}
       {toast && (
         <div className="toast" role="status">
-          {toast}
+          <span dir="auto">{toast}</span>
+          {toastUndo && (
+            <button type="button" className="toast-action" onClick={toastUndo}>
+              {t.edUndo}
+            </button>
+          )}
         </div>
       )}
     </LangContext.Provider>
