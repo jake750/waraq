@@ -1,6 +1,6 @@
 [package]
 name = "waraq"
-version = "0.2.16"
+version = "0.2.17"
 description = "Offline document converter, PDF reader and editor"
 authors = ["jake750"]
 license = "MIT"
