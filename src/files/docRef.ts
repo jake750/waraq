@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
-import { fmtOf, nameWithType, sniffFmt } from "../convert/formats";
+import { fmtOf, nameWithType, OPENABLE_EXTS, sniffFmt } from "../convert/formats";
 import { PdfError } from "../pdf/openPdf";
 
 /** Where a document lives: a filesystem path (desktop) or an Android content URI. */
@@ -58,7 +58,6 @@ export async function pickPdf(): Promise<DocRef | null> {
 }
 
 /** Every extension the app can open or convert (see convert/formats.ts). */
-export const OPENABLE_EXTS = ["pdf", "docx", "doc", "odt", "rtf", "txt", "md", "markdown", "html", "htm", "epub", "png", "jpg", "jpeg", "webp"];
 
 /** Picks one or more files the app can open or convert. */
 export async function pickFiles(multiple = true): Promise<DocRef[]> {

@@ -219,7 +219,7 @@ PDF results open in the reader, retry all, scanned-document notice, password tog
 
 ## التقنية (tech)
 
-- [ ] P1 o — حزمة JavaScript واحدة بحجم 2.6 ميغابايت، تبطئ الفتح على الهواتف الضعيفة.
+- [x] P1 o — حزمة JavaScript واحدة بحجم 2.6 ميغابايت، تبطئ الفتح على الهواتف الضعيفة.
 - [x] P1 o — لا تحميل كسول (lazy) للمحرّر والمحوّلات (mammoth، docx، marked).
 - [x] P1 o — لا ErrorBoundary؛ أي خطأ عرض = شاشة بيضاء.
 - [ ] P1 o — على أندرويد يُقرأ الملف كاملًا في الذاكرة (readFile)؛ الملفات الضخمة قد تُسقط التطبيق.
@@ -227,8 +227,8 @@ PDF results open in the reader, retry all, scanned-document notice, password tog
 - [x] P1 o — سباق: printPdf يكتب الناتج دائمًا في out.pdf الثابت؛ «فتحه كـPDF» مع تحويل في الطابور يكتبان على الملف نفسه.
 - [ ] P2 o — resolveName يُستدعى مرارًا لنفس الملف (handleFiles ثم الطابور ثم القارئ)؛ نداءات IPC وقراءات مكرّرة.
 - [ ] P2 o — تحديد النوع موزّع بين الاسم والـMIME والمحتوى في عدة ملفات؛ الأفضل دالة واحدة ترجع ‎{name, fmt}‎.
-- [ ] P2 o — OPENABLE_EXTS في docRef.ts منفصلة عن EXT في formats.ts؛ مصدران لنفس الحقيقة.
-- [ ] P2 o — ‎@cantoo/pdf-lib‎ و‎@fontsource/amiri‎ في devDependencies مع أنهما يُستعملان وقت التشغيل.
+- [x] P2 o — OPENABLE_EXTS في docRef.ts منفصلة عن EXT في formats.ts؛ مصدران لنفس الحقيقة.
+- [x] P2 o — ‎@cantoo/pdf-lib‎ و‎@fontsource/amiri‎ في devDependencies مع أنهما يُستعملان وقت التشغيل.
 - [ ] P2 s — ملفات Google Docs الافتراضية لا تُقرأ (تحتاج openTypedAssetFileDescriptor).
 - [ ] P2 o — لا إلغاء حقيقي لطباعة HTML→PDF في WebView بعد بدئها.
 - [ ] P2 o — 12 موضعًا فيه as never أو as unknown as؛ ثغرات أنواع.
@@ -245,8 +245,8 @@ PDF results open in the reader, retry all, scanned-document notice, password tog
 - [ ] P2 o — التفضيلات في localStorage والباقي في plugin-store؛ تخزينان.
 - [ ] P2 o — App.tsx يدير حالات كثيرة (open, notPdf, locked, edit, toast, route)؛ يستحق reducer أو آلة حالات.
 - [ ] P3 o — handleFiles يرجع أنواعًا مختلفة (openDocument أو setNotPdf)؛ خلط في الإرجاع.
-- [ ] P2 o — openAsPdf يمرّر AbortController جديدًا لا يُلغى أبدًا.
-- [ ] P2 o — openAsPdf لا يبلّغ عن التقدّم (دالة فارغة)؛ لا شريط تقدّم.
+- [x] P2 o — openAsPdf يمرّر AbortController جديدًا لا يُلغى أبدًا.
+- [x] P2 o — openAsPdf لا يبلّغ عن التقدّم (دالة فارغة)؛ لا شريط تقدّم.
 - [ ] P2 o — النتائج تنتقل عبر IPC كمصفوفة بايتات كاملة (read_file)؛ نسخ مضاعف للذاكرة.
 - [ ] P2 o — حدّ البكسلات 6e6 للمس بلا تعامل مع ضغط الذاكرة في الهواتف الضعيفة.
 - [ ] P3 o — نسبة البكسل محدودة بـ2، فالنص أقل حدّة على شاشات 3x.
@@ -258,7 +258,7 @@ PDF results open in the reader, retry all, scanned-document notice, password tog
 - [ ] P2 s — تحقّق من الحفظ في التنزيلات على أندرويد 7–9 (قبل MediaStore.Downloads).
 - [ ] P2 o — takePersistableUriPermission يفشل بصمت للمشاركات؛ ملفات في «الأخيرة» لن تُفتح بعد إعادة التشغيل.
 - [ ] P3 o — الملفات الواردة تُجلب بالاستطلاع مع حدث؛ يكفي الحدث.
-- [ ] P1 o — toError يصنّف الأخطاء بالبحث عن كلمات داخل الرسالة (includes)؛ أي رسالة نظام فيها «unsupported» تصير «التحويل غير متاح».
+- [x] P1 o — toError يصنّف الأخطاء بالبحث عن كلمات داخل الرسالة (includes)؛ أي رسالة نظام فيها «unsupported» تصير «التحويل غير متاح».
 - [ ] P2 o — رموز الأخطاء سلاسل حرة بين Rust وTS بلا تعداد مشترك.
 - [ ] P3 o — حفظ plugin-store تلقائي بعد 300ms؛ إغلاق مفاجئ قد يفقد آخر تغيير.
 - [ ] P3 o — حدّ «الأخيرة» ثابت داخل الكود.
@@ -268,7 +268,7 @@ PDF results open in the reader, retry all, scanned-document notice, password tog
 - [x] P1 o — الجمع العربي خاطئ: skippedFiles وimagesCount وfilesCount تكتب «2 ملفات» و«2 صور» ولا تستعمل arCount.
 - [ ] P2 o — الأرقام تُدرج بلا toLocaleString، فلا أرقام هندية ولا فواصل آلاف.
 - [ ] P2 s — لا ميزانية حجم للحزمة في CI.
-- [ ] P2 o — لا manualChunks لفصل pdf.js عن الواجهة.
+- [x] P2 o — لا manualChunks لفصل pdf.js عن الواجهة.
 - [ ] P3 o — أصول pdf.js (cmaps، fonts) تُنسخ كاملة.
 - [ ] P2 o — حجم APK نحو 20 ميغابايت؛ يمكن تقليصه.
 - [x] P1 o — APK لمعمارية aarch64 فقط؛ أجهزة armv7 وx86 القديمة لا تثبّته.

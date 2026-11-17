@@ -2,16 +2,17 @@ import { FileText } from "lucide-react";
 import { useT } from "../i18n";
 import { BACK_DIALOG, useBack } from "../shell/back";
 
-type Props = { name: string; busy: boolean; canOpen: boolean; onConvert(): void; onOpen(): void; onCancel(): void };
+type Props = { name: string; busy: boolean; progress?: number; canOpen: boolean; onConvert(): void; onOpen(): void; onCancel(): void };
 
 /** A non-PDF was opened: convert it (Convert screen) or read it as a temporary PDF. */
-export default function NotPdfPrompt({ name, busy, canOpen, onConvert, onOpen, onCancel }: Props) {
+export default function NotPdfPrompt({ name, busy, progress, canOpen, onConvert, onOpen, onCancel }: Props) {
   const t = useT();
-  useBack(true, () => !busy && onCancel(), BACK_DIALOG);
+  // Back and Escape cancel, even while preparing (that stops the conversion).
+  useBack(true, onCancel, BACK_DIALOG);
   return (
     <>
       <div className="scrim" onClick={busy ? undefined : onCancel} />
-      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="notpdf-title" onKeyDown={(e) => e.key === "Escape" && !busy && onCancel()}>
+      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="notpdf-title" onKeyDown={(e) => e.key === "Escape" && onCancel()}>
         <div className="dialog-icon">
           <FileText size={22} />
         </div>
@@ -19,10 +20,15 @@ export default function NotPdfPrompt({ name, busy, canOpen, onConvert, onOpen, o
         <p dir="auto" className="clamp" title={name}>
           {t.notPdfBody(name)}
         </p>
-        {busy && <p className="dialog-status">{t.preparing}</p>}
+        {busy && (
+          <p className="dialog-status" role="status">
+            {t.preparing}
+            {progress ? ` ${Math.round(progress * 100)}%` : ""}
+          </p>
+        )}
         {/* Converting is what most people want for a document, so it is the main action. */}
         <div className="dialog-actions stack">
-          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}>
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
             {t.cancel}
           </button>
           {canOpen && (

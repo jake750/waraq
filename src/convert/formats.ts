@@ -25,6 +25,9 @@ const EXT: Record<string, Fmt> = {
   webp: "webp",
 };
 
+/** Every file extension Waraq can open or convert (one list for the file picker and the type check). */
+export const OPENABLE_EXTS = Object.keys(EXT);
+
 export function fmtOf(name: string): Fmt | null {
   const m = /\.([a-z0-9]+)$/i.exec(name.trim());
   return m ? (EXT[m[1].toLowerCase()] ?? null) : null;

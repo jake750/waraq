@@ -9,7 +9,13 @@ import { appDeps, writeNew } from "./native";
 import type { Job, Saved } from "./queue";
 import { runJob } from "./run";
 
-export async function openAsPdf(ref: DocRef, name: string, officeInstalled: boolean): Promise<Saved> {
+export async function openAsPdf(
+  ref: DocRef,
+  name: string,
+  officeInstalled: boolean,
+  signal: AbortSignal = new AbortController().signal,
+  onProgress: (p: number) => void = () => {},
+): Promise<Saved> {
   const fmt = fmtOf(name);
   if (!fmt || !targetsFor(fmt, isAndroid() ? "android" : "desktop").includes("pdf")) throw new ConvertError("unsupported");
   const dir = await invoke<string>("temp_dir");
@@ -18,6 +24,6 @@ export async function openAsPdf(ref: DocRef, name: string, officeInstalled: bool
     ...appDeps(() => officeInstalled),
     save: async (bytes: Uint8Array, n: string) => ({ path: await writeNew(bytes, dir, n), name: n }),
   };
-  const out = await runJob(job, deps, { dir }, new AbortController().signal, () => {});
+  const out = await runJob(job, deps, { dir }, signal, onProgress);
   return { ...out, name: name.replace(/\.[^./\\]+$/, ".pdf") };
 }

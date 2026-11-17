@@ -64,7 +64,8 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false);
   const conv = useConvert();
   const updates = useUpdates();
-  const [notPdf, setNotPdf] = useState<{ ref: DocRef; name: string; busy: boolean } | null>(null);
+  const [notPdf, setNotPdf] = useState<{ ref: DocRef; name: string; busy: boolean; progress?: number } | null>(null);
+  const openAsPdfAbort = useRef<AbortController | null>(null);
   const [edit, setEdit] = useState<{ src: EditSource; from: Route } | null>(null);
   const recentStore = useMemo(() => new RecentStore(appKV()), []);
   const [recent, setRecent] = useState<RecentItem[]>([]);
@@ -257,12 +258,19 @@ export default function App() {
     setNotPdf({ ...notPdf, busy: true });
     try {
       const { openAsPdf } = await import("./convert/openAsPdf");
-      const out = await openAsPdf(notPdf.ref, notPdf.name, !!conv.office?.installed);
+      const ctl = (openAsPdfAbort.current = new AbortController());
+      const out = await openAsPdf(notPdf.ref, notPdf.name, !!conv.office?.installed, ctl.signal, (p) =>
+        setNotPdf((n) => n && { ...n, progress: p }),
+      );
+      if (ctl.signal.aborted) return;
       setNotPdf(null);
       await openDocument({ kind: "path", path: out.path }, undefined, { name: out.name });
     } catch (e) {
       setNotPdf(null);
+      if (openAsPdfAbort.current?.signal.aborted) return;
       setToast(t.convertErrors[asConvertError(e).code]);
+    } finally {
+      openAsPdfAbort.current = null;
     }
   };
 
@@ -406,6 +414,7 @@ export default function App() {
         <NotPdfPrompt
           name={notPdf.name}
           busy={notPdf.busy}
+          progress={notPdf.progress}
           canOpen={(() => {
             const f = fmtOf(notPdf.name);
             return !!f && targetsFor(f, isAndroid() ? "android" : "desktop").includes("pdf");
@@ -419,7 +428,10 @@ export default function App() {
             setRoute("convert");
           }}
           onOpen={onOpenAsPdf}
-          onCancel={() => setNotPdf(null)}
+          onCancel={() => {
+            openAsPdfAbort.current?.abort();
+            setNotPdf(null);
+          }}
         />
       )}
       {toast && (
