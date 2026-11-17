@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Undo2 } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useT } from "../i18n";
 import { useBack } from "../shell/back";
@@ -28,6 +29,10 @@ const isPhone = () => window.matchMedia?.("(max-width: 719px)").matches ?? false
 export default function ReaderScreen(p: Props) {
   const t = useT();
   const { doc } = p;
+  // After a jump from the contents, thumbnails or search: the page to go back to.
+  const [backTo, setBackTo] = useState<number | null>(null);
+  const goRef = useRef<((page: number) => void) | null>(null);
+  const pageRef = useRef(p.initialPage ?? 1);
   const [panelOpen, setPanelOpen] = useState(() => !isPhone());
   // On a phone the panel covers the page: back closes it first.
   useBack(panelOpen && isPhone(), () => setPanelOpen(false));
@@ -131,7 +136,11 @@ export default function ReaderScreen(p: Props) {
         docKey={p.docKey}
         name={p.name}
         initialPage={p.initialPage}
-        onPageChange={p.onPageChange}
+        onPageChange={(page) => {
+          pageRef.current = page;
+          if (page === backTo) setBackTo(null);
+          p.onPageChange(page);
+        }}
         onClose={p.onClose}
         panelOpen={panelOpen}
         onPanelToggle={() => setPanelOpen((o) => !o)}
@@ -140,7 +149,9 @@ export default function ReaderScreen(p: Props) {
         highlights={highlights}
         focus={focus}
         panel={(api) => {
+          goRef.current = api.goTo;
           const pick = (page: number) => {
+            if (Math.abs(page - api.page) > 1) setBackTo(api.page);
             api.goTo(page);
             if (isPhone()) setPanelOpen(false);
           };
@@ -164,6 +175,7 @@ export default function ReaderScreen(p: Props) {
                     focusToken={focusToken}
                     onChange={(patch) => setSearch((s) => ({ ...s, ...patch, current: 0 }))}
                     onPick={(i) => {
+                      setBackTo(pageRef.current);
                       setSearch((s) => ({ ...s, current: i }));
                       if (isPhone()) setPanelOpen(false);
                     }}
@@ -175,6 +187,19 @@ export default function ReaderScreen(p: Props) {
         }}
       />
       {panelOpen && <div className="scrim phone-only" onClick={() => setPanelOpen(false)} />}
+      {backTo !== null && (
+        <button
+          type="button"
+          className="reader-back-chip"
+          onClick={() => {
+            goRef.current?.(backTo);
+            setBackTo(null);
+          }}
+        >
+          <Undo2 size={16} aria-hidden />
+          {t.backToPage(backTo)}
+        </button>
+      )}
     </>
   );
 }

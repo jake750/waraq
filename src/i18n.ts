@@ -201,6 +201,7 @@ const en = {
   // Reader toolbar
   close: "Close",
   pageOf: (total: number) => `of ${total}`,
+  backToPage: (page: number) => `Back to page ${page}`,
   goToPage: "Go to page",
   zoomIn: "Zoom in",
   zoomOut: "Zoom out",
@@ -476,6 +477,7 @@ const ar: typeof en = {
 
   close: "إغلاق",
   pageOf: (total: number) => `من ${total}`,
+  backToPage: (page: number) => `عودة إلى الصفحة ${page}`,
   goToPage: "الذهاب إلى صفحة",
   zoomIn: "تكبير",
   zoomOut: "تصغير",
