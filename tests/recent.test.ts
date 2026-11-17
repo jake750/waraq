@@ -66,3 +66,15 @@ test("a thumbnail survives reopening and can be cleared", async () => {
   await s.setThumb("x", undefined);
   expect((await s.list())[0].thumb).toBeUndefined();
 });
+
+test("a password-protected file is marked locked and keeps no picture", async () => {
+  const s = new RecentStore(memKV());
+  const r = { kind: "path", path: "x" } as const;
+  await s.touch(r, "x");
+  await s.setThumb("x", "data:image/jpeg;base64,AA");
+  await s.setLocked("x");
+  await s.touch(r, "x");
+  const [item] = await s.list();
+  expect(item.locked).toBe(true);
+  expect(item.thumb).toBeUndefined();
+});

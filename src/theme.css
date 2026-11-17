@@ -1299,3 +1299,9 @@ button {
   border-radius: 4px;
   background: #fff;
 }
+
+.recent-lock {
+  vertical-align: -1px;
+  margin-inline-end: 5px;
+  color: var(--text-3);
+}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, X, FileClock } from "lucide-react";
+import { Search, X, FileClock, Lock } from "lucide-react";
 import { useT } from "../i18n";
 import type { RecentItem } from "../files/recent";
 import { ago } from "./time";
@@ -72,6 +72,7 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
               )}
               <span className="recent-text">
                 <span className="recent-name">
+                  {item.locked && <Lock size={13} className="recent-lock" aria-label={t.recentLocked} />}
                   {item.name}
                 </span>
                 <span className="recent-meta">

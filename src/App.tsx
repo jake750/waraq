@@ -134,7 +134,7 @@ export default function App() {
         // Page 1 as a small picture for Recent; a password-protected file keeps the plain icon.
         if (item) {
           const key = item.key;
-          if (password) recentStore.setThumb(key, undefined).catch(() => {});
+          if (password) recentStore.setLocked(key).then(refreshRecent).catch(() => {});
           else
             import("./shell/thumb")
               .then(({ firstPageThumb }) => firstPageThumb(doc))
