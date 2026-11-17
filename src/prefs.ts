@@ -53,8 +53,8 @@ export const saveOfficeDeclined = (v: boolean) => write("waraq.officeDeclined", 
 export const loadSaveFolder = (): string | null => read("waraq.saveFolder") || null;
 export const saveSaveFolder = (dir: string | null) => write("waraq.saveFolder", dir ?? "");
 
-// Reader: the view mode and reading direction each document was last read in (newest 50 documents).
-export type DocView = { view?: "continuous" | "single" | "spread"; rtl?: boolean };
+// Reader: the zoom (a fit mode or a scale), view mode and reading direction each document was last read in (newest 50 documents).
+export type DocView = { view?: "continuous" | "single" | "spread"; rtl?: boolean; fit?: "width" | "page"; zoom?: number };
 const DOC_VIEWS = "waraq.docViews";
 const DOC_VIEWS_MAX = 50;
 function docViews(): [string, DocView][] {

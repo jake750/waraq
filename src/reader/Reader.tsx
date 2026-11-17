@@ -67,12 +67,16 @@ export default function Reader(p: Props) {
 
   const [box, setBox] = useState<Size>({ w: 800, h: 600 });
   const [sizes, setSizes] = useState<Size[] | null>(null);
-  const [fit, setFit] = useState<"width" | "page" | null>("width");
-  const [manualScale, setManualScale] = useState(1);
-  // View mode and direction come back the way this document was last read.
-  const [view, setView] = useState<ViewMode>(() => loadDocView(p.docKey).view ?? "continuous");
-  const [rtl, setRtl] = useState(() => loadDocView(p.docKey).rtl ?? false);
-  useEffect(() => saveDocView(p.docKey, { view, rtl }), [p.docKey, view, rtl]);
+  // Zoom, view mode and direction come back the way this document was last read.
+  const saved = useMemo(() => loadDocView(p.docKey), [p.docKey]);
+  const [fit, setFit] = useState<"width" | "page" | null>(() => (saved.zoom ? null : (saved.fit ?? "width")));
+  const [manualScale, setManualScale] = useState(() => saved.zoom ?? 1);
+  const [view, setView] = useState<ViewMode>(() => saved.view ?? "continuous");
+  const [rtl, setRtl] = useState(() => saved.rtl ?? false);
+  useEffect(
+    () => saveDocView(p.docKey, { view, rtl, ...(fit ? { fit } : { zoom: manualScale }) }),
+    [p.docKey, view, rtl, fit, manualScale],
+  );
   const [night, setNight] = useState(false);
   const [full, setFull] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
