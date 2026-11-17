@@ -653,3 +653,9 @@
     top: -1px;
   }
 }
+
+@media (min-width: 1400px) {
+  .reader-panel {
+    width: 300px;
+  }
+}

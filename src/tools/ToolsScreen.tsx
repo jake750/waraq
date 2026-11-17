@@ -122,7 +122,7 @@ export default function ToolsScreen({ onToast, onEdit, initialTool }: Props) {
             <p>{t.toolsSub}</p>
           </div>
         </header>
-        <button className="tool-feature fold" onClick={() => openTool("edit")}>
+        <button className="tool-feature" onClick={() => openTool("edit")}>
           <span className="tool-icon">
             <FilePen size={24} />
           </span>

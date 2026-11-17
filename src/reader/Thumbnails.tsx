@@ -3,7 +3,9 @@ import { leasePage, type PageLease } from "./pageLease";
 import { memo, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 
-const THUMB_W = 132;
+// Larger thumbnails (and a wider panel, in reader.css) on big screens.
+const WIDE = typeof window !== "undefined" && window.innerWidth >= 1400;
+const THUMB_W = WIDE ? 168 : 132;
 
 type Props = { doc: PDFDocumentProxy; ratio: number; current: number; onPick(page: number): void };
 
