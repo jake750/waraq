@@ -8,6 +8,7 @@ import {
   Maximize,
   Minimize,
   Moon,
+  Coffee,
   PenLine,
   PanelLeft,
   Proportions,
@@ -78,7 +79,10 @@ export default function Reader(p: Props) {
     () => saveDocView(p.docKey, { view, rtl, ...(fit ? { fit } : { zoom: manualScale }) }),
     [p.docKey, view, rtl, fit, manualScale],
   );
-  const [night, setNight] = useState(false);
+  // Page tone: plain, night (inverted) or sepia; the moon button cycles through them.
+  const [tone, setTone] = useState<"day" | "night" | "sepia">("day");
+  const night = tone === "night";
+  const toneLabel = tone === "night" ? t.night : tone === "sepia" ? t.sepia : t.toneDay;
   const [full, setFull] = useState(false);
   const [keysHelp, setKeysHelp] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
@@ -429,12 +433,12 @@ export default function Reader(p: Props) {
           </button>
           <button
             className="icon-btn"
-            aria-pressed={night}
-            onClick={() => setNight(!night)}
-            title={t.night}
-            aria-label={t.night}
+            aria-pressed={tone !== "day"}
+            onClick={() => setTone(tone === "day" ? "night" : tone === "night" ? "sepia" : "day")}
+            title={`${t.pageTone}: ${toneLabel}`}
+            aria-label={`${t.pageTone}: ${toneLabel}`}
           >
-            <Moon size={18} />
+            {tone === "sepia" ? <Coffee size={18} /> : <Moon size={18} />}
           </button>
           <button
             className="icon-btn"
@@ -499,6 +503,7 @@ export default function Reader(p: Props) {
                         pageNumber={pg}
                         scale={scale}
                         night={night}
+                        sepia={tone === "sepia"}
                         width={sizes[pg - 1].w * scale}
                         height={sizes[pg - 1].h * scale}
                         highlights={p.highlights?.get(pg) ?? NO_HIGHLIGHTS}

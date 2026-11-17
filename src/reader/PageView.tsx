@@ -14,6 +14,8 @@ type Props = {
   pageNumber: number;
   scale: number;
   night: boolean;
+  /** Warm paper tone for long reading (ignored at night). */
+  sepia?: boolean;
   /** Rectangles in PDF user space (from pageLayout boxes). */
   highlights: HighlightRect[];
   width: number;
@@ -35,7 +37,7 @@ const MAX_PIXELS = window.matchMedia?.("(pointer: coarse)").matches ? 6e6 : 16e6
  * One page: canvas + selectable text layer + search highlights.
  * Cancels its render and frees the bitmap on unmount, so only mounted pages cost memory.
  */
-export default function PageView({ doc, pageNumber, scale, night, highlights, width, height, onSize, onGoTo }: Props) {
+export default function PageView({ doc, pageNumber, scale, night, sepia, highlights, width, height, onSize, onGoTo }: Props) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const hlRef = useRef<HTMLDivElement>(null);
@@ -150,7 +152,7 @@ export default function PageView({ doc, pageNumber, scale, night, highlights, wi
 
   return (
     <div className="page" style={{ width, height }} data-page={pageNumber}>
-      <div ref={canvasHost} className={night ? "canvas-host night" : "canvas-host"} />
+      <div ref={canvasHost} className={night ? "canvas-host night" : sepia ? "canvas-host sepia" : "canvas-host"} />
       <div ref={hlRef} className="hl-layer" />
       <div ref={textRef} className="textLayer" />
       {vp && links.length > 0 && (

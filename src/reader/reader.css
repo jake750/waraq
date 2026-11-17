@@ -177,6 +177,18 @@
   height: 100%;
 }
 
+/* Sepia: a warm paper tone multiplied over the page (white turns cream, ink stays dark). */
+.canvas-host.sepia {
+  position: relative;
+}
+.canvas-host.sepia::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #f2e3c2;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
 .canvas-host.night canvas {
   /* grayscale first: inverting color text/headings directly (the old hue-rotate(180) trick) turns
      any non-black ink into mismatched cyan/orange/pink noise instead of a clean light tone. */

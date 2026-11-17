@@ -241,6 +241,9 @@ const en = {
   dirLtr: "Left to right",
   dirRtl: "Right to left",
   night: "Night mode",
+  sepia: "Sepia",
+  toneDay: "Normal",
+  pageTone: "Page colour",
   panel: "Side panel",
   loading: "Loading…",
 
@@ -545,6 +548,9 @@ const ar: typeof en = {
   dirLtr: "من اليسار إلى اليمين",
   dirRtl: "من اليمين إلى اليسار",
   night: "الوضع الليلي",
+  sepia: "بنّي دافئ",
+  toneDay: "عادي",
+  pageTone: "لون الصفحة",
   panel: "اللوحة الجانبية",
   loading: "جارٍ التحميل…",
 
