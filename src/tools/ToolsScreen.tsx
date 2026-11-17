@@ -21,6 +21,7 @@ import {
   Share2,
   SquareDashed,
   Trash2,
+  Undo2,
   UserX,
   X,
 } from "lucide-react";
@@ -227,6 +228,18 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
   const t = useT();
   const [sources, setSources] = useState<Source[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  // Every page edit can be undone (last 50 steps).
+  const [past, setPast] = useState<Item[][]>([]);
+  const edit = (next: Item[]) => {
+    setPast((p) => [...p.slice(-49), items]);
+    setItems(next);
+  };
+  const undo = () => {
+    if (!past.length) return;
+    setItems(past[past.length - 1]);
+    setPast(past.slice(0, -1));
+    setSel(new Set());
+  };
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<Saved[]>([]);
   const { busy, run } = useBusy();
@@ -281,19 +294,22 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
       <div className="organize-bar" role="toolbar">
         <span className="organize-count">{sel.size ? t.selectedCount(sel.size) : t.pagesTotal(items.length)}</span>
         <span className="organize-tools">
+          <button className="icon-btn" title={t.edUndo} aria-label={t.edUndo} disabled={!past.length} onClick={undo}>
+            <Undo2 size={18} />
+          </button>
           <button className="icon-btn" title={sel.size === items.length ? t.selectNone : t.selectAll} aria-label={t.selectAll} onClick={() => setSel(sel.size === items.length ? new Set() : new Set(items.map((i) => i.key)))}>
             <CheckSquare size={18} />
           </button>
-          <button className="icon-btn" title={t.rotateLeft} aria-label={t.rotateLeft} disabled={!sel.size} onClick={() => setItems(rotateSel(items, sel, 270))}>
+          <button className="icon-btn" title={t.rotateLeft} aria-label={t.rotateLeft} disabled={!sel.size} onClick={() => edit(rotateSel(items, sel, 270))}>
             <RotateCcw size={18} />
           </button>
-          <button className="icon-btn" title={t.rotateRight} aria-label={t.rotateRight} disabled={!sel.size} onClick={() => setItems(rotateSel(items, sel, 90))}>
+          <button className="icon-btn" title={t.rotateRight} aria-label={t.rotateRight} disabled={!sel.size} onClick={() => edit(rotateSel(items, sel, 90))}>
             <RotateCw size={18} />
           </button>
-          <button className="icon-btn" title={t.moveEarlier} aria-label={t.moveEarlier} disabled={!sel.size} onClick={() => setItems(moveSel(items, sel, -1))}>
+          <button className="icon-btn" title={t.moveEarlier} aria-label={t.moveEarlier} disabled={!sel.size} onClick={() => edit(moveSel(items, sel, -1))}>
             <ArrowLeft size={18} className="flip-rtl" />
           </button>
-          <button className="icon-btn" title={t.moveLater} aria-label={t.moveLater} disabled={!sel.size} onClick={() => setItems(moveSel(items, sel, 1))}>
+          <button className="icon-btn" title={t.moveLater} aria-label={t.moveLater} disabled={!sel.size} onClick={() => edit(moveSel(items, sel, 1))}>
             <ArrowRight size={18} className="flip-rtl" />
           </button>
           <button
@@ -302,13 +318,13 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
             aria-label={t.deletePages}
             disabled={!sel.size || sel.size === items.length}
             onClick={() => {
-              setItems(deleteSel(items, sel));
+              edit(deleteSel(items, sel));
               setSel(new Set());
             }}
           >
             <Trash2 size={18} />
           </button>
-          <button className="icon-btn" title={t.insertBlank} aria-label={t.insertBlank} onClick={async () => setItems(insertAfter(items, sel, [{ key: `p${keySeq++}`, spec: { blank: await blankSize() } }]))}>
+          <button className="icon-btn" title={t.insertBlank} aria-label={t.insertBlank} onClick={async () => edit(insertAfter(items, sel, [{ key: `p${keySeq++}`, spec: { blank: await blankSize() } }]))}>
             <SquareDashed size={18} />
           </button>
           <button
@@ -318,7 +334,7 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
             disabled={busy}
             onClick={async () => {
               const [ref] = await pickPdfs(false);
-              if (ref) run(async () => setItems(insertAfter(items, sel, await addSource(ref))), fail);
+              if (ref) run(async () => edit(insertAfter(items, sel, await addSource(ref))), fail);
             }}
           >
             <FilePlus2 size={18} />
@@ -341,7 +357,7 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
                 const next = [...items];
                 const [moved] = next.splice(from, 1);
                 next.splice(i, 0, moved);
-                setItems(next);
+                edit(next);
               }}
             >
               <button className="page-tile" aria-pressed={sel.has(it.key)} onClick={() => toggle(it.key)}>
