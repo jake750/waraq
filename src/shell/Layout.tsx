@@ -111,6 +111,11 @@ function Prefs({ theme, onTheme, updates, office, onGetOffice }: Pick<Props, "th
   ];
   return (
     <>
+      {/* The privacy promise comes first: it is what the app is about. */}
+      <p className="settings-note">
+        <ShieldCheck size={18} />
+        <span>{t.settingsPrivacy}</span>
+      </p>
       <div className="pref">
         <span className="field-label">{t.language}</span>
         <div className="segmented">
@@ -150,10 +155,6 @@ function Prefs({ theme, onTheme, updates, office, onGetOffice }: Pick<Props, "th
           {t.reportButton}
         </button>
       </div>
-      <p className="settings-note">
-        <ShieldCheck size={18} />
-        <span>{t.settingsPrivacy}</span>
-      </p>
     </>
   );
 }

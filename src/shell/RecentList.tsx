@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, FileClock } from "lucide-react";
 import { useT } from "../i18n";
 import type { RecentItem } from "../files/recent";
 import { ago } from "./time";
@@ -28,7 +28,10 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
   if (items.length === 0)
     return (
       <ul className="recent-list">
-        <li className="recent-empty">{t.recentEmpty}</li>
+        <li className="recent-empty">
+          <FileClock size={28} aria-hidden />
+          {t.recentEmpty}
+        </li>
       </ul>
     );
   const now = Date.now();

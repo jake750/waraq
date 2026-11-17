@@ -747,6 +747,22 @@ button {
   text-align: center;
   color: var(--text-3);
 }
+.recent-empty svg {
+  display: block;
+  margin: 0 auto 10px;
+  color: var(--text-3);
+  opacity: 0.7;
+}
+
+/* Each quick action keeps its own hue, so convert, edit, merge and compress read apart. */
+.quick-icon[data-kind="convert"] { --hue: #2f6fd6; }
+.quick-icon[data-kind="edit"] { --hue: #b5651d; }
+.quick-icon[data-kind="merge"] { --hue: #2e8b57; }
+.quick-icon[data-kind="compress"] { --hue: #8a4fc1; }
+.quick-icon[data-kind] {
+  background: color-mix(in srgb, var(--hue) 14%, var(--surface));
+  color: color-mix(in srgb, var(--hue) 80%, var(--text));
+}
 
 .recent-item {
   display: flex;

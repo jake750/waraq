@@ -42,7 +42,7 @@ export default function Home({ onOpen, onQuick, dragOver, recent }: Props) {
         <nav className="quick" aria-label={t.quickTitle}>
           {quick.map(([a, label, icon]) => (
             <button key={a} className="quick-item" onClick={() => onQuick(a)}>
-              <span className="quick-icon">{icon}</span>
+              <span className="quick-icon" data-kind={a}>{icon}</span>
               <span>{label}</span>
             </button>
           ))}
