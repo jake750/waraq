@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
+  CalendarDays,
   Circle,
   ClipboardList,
   Highlighter,
@@ -67,6 +68,7 @@ const TOOL_COLORS: Record<Tool, Rgb> = {
   arrow: COLORS.red,
   text: COLORS.black,
   note: COLORS.yellow,
+  date: COLORS.black,
 };
 const STROKED: Mark["kind"][] = ["ink", "rect", "ellipse", "line", "arrow"];
 const sameColor = (a: Rgb, b: Rgb) => a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
@@ -361,11 +363,12 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     ["arrow", <MoveUpRight size={18} />, t.edArrow],
     ["text", <Type size={18} />, t.edText],
     ["note", <StickyNote size={18} />, t.edNote],
+    ["date", <CalendarDays size={18} />, t.edDate],
   ];
   // Controls follow what they would change: the tool in hand, or the selected mark.
   const showColors = tool !== "select" || !!selColor;
   const showStroke = sel ? STROKED.includes(sel.kind) : STROKED.includes(tool as Mark["kind"]);
-  const showSize = sel ? sel.kind === "text" : tool === "text";
+  const showSize = sel ? sel.kind === "text" : tool === "text" || tool === "date";
   const curColor = selColor ?? color;
   const curStroke = sel && "width" in sel && sel.kind !== "text" ? sel.width : stroke;
   const curSize = sel?.kind === "text" ? sel.size : textSize;

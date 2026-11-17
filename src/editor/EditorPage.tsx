@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import { todayLabel } from "./date";
 import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from "pdfjs-dist";
 import PageView from "../reader/PageView";
 import { useT } from "../i18n";
@@ -6,7 +7,7 @@ import type { PageLayout } from "../text/search";
 import { css, newId, type Mark, type Pt, type Rect, type Rgb } from "./marks";
 import { hasText, markBounds, moveMark, scalePaths, selectText, simplify, spanRect, svgStroke } from "./geometry";
 
-export type Tool = "select" | "highlight" | "underline" | "strike" | "ink" | "rect" | "ellipse" | "line" | "arrow" | "text" | "note";
+export type Tool = "select" | "highlight" | "underline" | "strike" | "ink" | "rect" | "ellipse" | "line" | "arrow" | "text" | "note" | "date";
 export const TEXT_TOOLS: Tool[] = ["highlight", "underline", "strike"];
 const SHAPES: Tool[] = ["rect", "ellipse", "line", "arrow"];
 
@@ -181,18 +182,20 @@ export default function EditorPage(p: Props) {
       return;
     }
     // The new box takes focus; stop the browser's own mousedown from taking it back to the page.
-    if (p.tool === "text" || p.tool === "note") e.preventDefault();
-    if (p.tool === "text") {
+    if (p.tool === "text" || p.tool === "note" || p.tool === "date") e.preventDefault();
+    // "date" places today's date as an ordinary text box (editable later with Select).
+    if (p.tool === "text" || p.tool === "date") {
+      const date = p.tool === "date";
       const id = newId();
       // Kept inside the page; in an Arabic UI the tap marks the box's right edge (where writing starts).
       const r = host.current!.getBoundingClientRect();
       const [cx, cy] = [e.clientX - r.left, e.clientY - r.top];
-      const px = Math.min(240 * p.scale, w - 16);
+      const px = Math.min((date ? 96 : 240) * p.scale, w - 16);
       const rtlUi = document.documentElement.dir === "rtl";
       const left = Math.max(8, Math.min(rtlUi ? cx - px : cx, w - 8 - px));
       const start = vp.convertToPdfPoint(left, cy) as Pt;
-      p.onAdd({ id, page: p.index, kind: "text", at: start, width: px / p.scale, text: "", size: p.textSize, color: p.color, align: "start" });
-      p.onEdit(id);
+      p.onAdd({ id, page: p.index, kind: "text", at: start, width: px / p.scale, text: date ? todayLabel() : "", size: p.textSize, color: p.color, align: "start" });
+      if (!date) p.onEdit(id);
       return;
     }
     if (p.tool === "note") {
