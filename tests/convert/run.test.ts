@@ -116,3 +116,20 @@ test("a cancelled job stops with cancelled and saves nothing", async () => {
   await expect(run(job("office/sample.md", "md", "txt"), d, ac.signal)).rejects.toMatchObject({ code: "cancelled" });
   expect(saved).toEqual([]);
 });
+
+test("creep moves progress forward but never past its ceiling, and stops", async () => {
+  const { creep } = await import("../../src/convert/run");
+  vi.useFakeTimers();
+  const seen: number[] = [];
+  const stop = creep((p) => seen.push(p), 0.4, 0.95);
+  vi.advanceTimersByTime(60_000);
+  stop();
+  const n = seen.length;
+  vi.advanceTimersByTime(5_000);
+  vi.useRealTimers();
+  expect(seen.length).toBe(n);
+  expect(seen[0]).toBeGreaterThan(0.4);
+  expect(seen.every((p, i) => i === 0 || p > seen[i - 1])).toBe(true);
+  expect(seen[n - 1]).toBeLessThan(0.95);
+  expect(seen[n - 1]).toBeGreaterThan(0.9);
+});

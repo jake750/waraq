@@ -120,22 +120,38 @@ export async function runJob(
     onProgress(0.4);
     check();
     const docTitle = title || job.inputs[0].name.replace(/\.[^./\\]+$/, "");
-    switch (job.target) {
-      case "txt":
-        return await save(utf8(htmlToText(body)));
-      case "md":
-        return await save(utf8(htmlToMarkdown(body)));
-      case "html":
-        return await save(utf8(htmlDocument(docTitle, body, page)));
-      case "docx":
-        return await save(await htmlToDocx(docTitle, body));
-      case "pdf":
-        return await save(await deps.printPdf(htmlDocument(docTitle, body, page), page, signal));
-      default:
-        throw new ConvertError("unsupported");
+    // The last step (printing, building the docx) reports nothing, so the bar creeps on instead of stalling.
+    const stop = creep(onProgress, 0.4, 0.95);
+    try {
+      switch (job.target) {
+        case "txt":
+          return await save(utf8(htmlToText(body)));
+        case "md":
+          return await save(utf8(htmlToMarkdown(body)));
+        case "html":
+          return await save(utf8(htmlDocument(docTitle, body, page)));
+        case "docx":
+          return await save(await htmlToDocx(docTitle, body));
+        case "pdf":
+          return await save(await deps.printPdf(htmlDocument(docTitle, body, page), page, signal));
+        default:
+          throw new ConvertError("unsupported");
+      }
+    } finally {
+      stop();
     }
   } catch (e) {
     if (signal.aborted || (e as Error)?.name === "AbortError") throw new ConvertError("cancelled");
     throw asConvertError(e);
   }
+}
+
+/** Moves progress from `from` toward `to` (never reaching it), closing 7% of the gap every tick. Returns a stop function. */
+export function creep(onProgress: (p: number) => void, from: number, to: number, everyMs = 250): () => void {
+  let p = from;
+  const id = setInterval(() => {
+    p += (to - p) * 0.07;
+    onProgress(p);
+  }, everyMs);
+  return () => clearInterval(id);
 }

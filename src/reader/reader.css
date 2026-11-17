@@ -104,10 +104,34 @@
   touch-action: pan-x pan-y;
 }
 
+/* While the document opens: a calm page-shaped placeholder instead of a line of text. */
 .reader-loading {
-  padding: 48px;
-  text-align: center;
-  color: var(--text-3);
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.page-skeleton {
+  width: min(600px, 100%);
+  aspect-ratio: 1 / 1.414;
+  border-radius: 4px;
+  background: linear-gradient(100deg, var(--paper) 40%, color-mix(in srgb, var(--paper) 88%, var(--text-3)) 50%, var(--paper) 60%) 0 0 / 300% 100%;
+  box-shadow: var(--shadow);
+  opacity: 0.85;
+  animation: skeleton 1.6s ease-in-out infinite;
+}
+@keyframes skeleton {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-skeleton {
+    animation: none;
+  }
 }
 
 .pages {

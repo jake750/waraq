@@ -455,7 +455,11 @@ export default function Reader(p: Props) {
           // Arrow keys belong to page navigation; the scroller itself still scrolls with wheel/touch.
           tabIndex={-1}
         >
-          {!sizes && <div className="reader-loading">{t.loading}</div>}
+          {!sizes && (
+            <div className="reader-loading" role="status" aria-label={t.loading}>
+              <div className="page-skeleton" />
+            </div>
+          )}
           {sizes && (
             <div
               ref={pagesEl}
