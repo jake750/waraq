@@ -373,7 +373,10 @@ export default function App() {
           <ConvertScreen
             api={conv}
             dragOver={dragOver}
-            onToast={setToast}
+            onToast={(m, undo) => {
+              setToast(m);
+              setToastUndo(undo ? () => undo : null);
+            }}
             // A PDF result opens in Waraq's own reader.
             onOpenPdf={(out) => openDocument(out.uri ? { kind: "uri", uri: out.uri } : { kind: "path", path: out.path }, undefined, { name: out.name })}
           />

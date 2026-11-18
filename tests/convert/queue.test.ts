@@ -1,4 +1,4 @@
-import { emptyQueue, nextJob, reduce, type Action, type Queue } from "../../src/convert/queue";
+import { emptyQueue, finished, nextJob, reduce, type Action, type Queue } from "../../src/convert/queue";
 
 const ref = (name: string) => ({ name, ref: { kind: "path" as const, path: `C:/d/${name}` } });
 const run = (q: Queue, ...actions: Action[]) => actions.reduce(reduce, q);
@@ -106,4 +106,14 @@ test("android gets only built-in targets", () => {
     ["a.doc", "pdf"],
     ["b.odt", "pdf"],
   ]);
+});
+
+test("restore brings cleared jobs back in their old order", () => {
+  let q = run(emptyQueue, add("a.docx", "b.docx", "c.docx"));
+  q = run(q, { type: "run" }, { type: "start", id: q.jobs[1].id }, { type: "fail", id: q.jobs[1].id, error: "bad-input" });
+  const gone = q.jobs.filter(finished);
+  q = reduce(q, { type: "clearFinished" });
+  expect(q.jobs.length).toBe(2);
+  q = reduce(q, { type: "restore", jobs: gone });
+  expect(q.jobs.map((j) => j.name)).toEqual(["a.docx", "b.docx", "c.docx"]);
 });

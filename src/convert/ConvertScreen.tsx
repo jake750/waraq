@@ -4,7 +4,7 @@ import { isAndroid } from "../platform";
 import { pickFiles } from "../files/docRef";
 import { TARGET_MIME as MIME, targetsFor, type Target } from "./formats";
 import { officeCancel, openOutput, pickFolder, revealOutput, shareOutput } from "./native";
-import type { Job, Saved } from "./queue";
+import { finished as isFinished, type Job, type Saved } from "./queue";
 import { skippedText, type ConvertApi } from "./useConvert";
 import OfficePromptDialog from "./OfficePrompt";
 import { loadPaper, PAPERS, savePaper, type Paper } from "../prefs";
@@ -15,7 +15,7 @@ const LABEL: Record<Target, string> = { pdf: "PDF", docx: "DOCX", txt: "TXT", md
 const ALL_TARGETS: Target[] = ["pdf", "docx", "txt", "md", "html", "png", "jpg"];
 const IMAGE = ["png", "jpg", "webp"];
 
-type Props = { api: ConvertApi; dragOver: boolean; onToast(msg: string): void; onOpenPdf(output: Saved): void };
+type Props = { api: ConvertApi; dragOver: boolean; onToast(msg: string, undo?: () => void): void; onOpenPdf(output: Saved): void };
 
 export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Props) {
   const t = useT();
@@ -27,7 +27,7 @@ export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Pro
   const busy = queue.running || queue.jobs.some((j) => j.state === "running");
   const waitingImages = waiting.filter((j) => IMAGE.includes(j.fmt) && j.inputs.length === 1).length;
   const allTargets = ALL_TARGETS.filter((tg) => waiting.some((j) => targetsFor(j.fmt, platform).includes(tg)));
-  const finished = queue.jobs.some((j) => j.state === "done" || j.state === "error" || j.state === "cancelled");
+  const finished = queue.jobs.some(isFinished);
   const failed = queue.jobs.filter((j) => j.state === "error");
 
   const addFiles = async () => {
@@ -152,7 +152,11 @@ export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Pro
                 </button>
               )}
               {finished && (
-                <button className="btn btn-ghost btn-quiet" onClick={() => api.dispatch({ type: "clearFinished" })}>
+                <button className="btn btn-ghost btn-quiet" onClick={() => {
+                    const gone = queue.jobs.filter(isFinished);
+                    api.dispatch({ type: "clearFinished" });
+                    onToast(t.clearedFinished(gone.length), () => api.dispatch({ type: "restore", jobs: gone }));
+                  }}>
                   {t.clearFinished}
                 </button>
               )}

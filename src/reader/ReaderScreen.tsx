@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import InfoPanel from "./InfoPanel";
 import { Undo2 } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useT } from "../i18n";
@@ -11,7 +12,7 @@ import SearchPanel, { type SearchState } from "./SearchPanel";
 import Thumbnails from "./Thumbnails";
 import type { HighlightRect } from "./PageView";
 
-type Tab = "thumbs" | "outline" | "search";
+type Tab = "thumbs" | "outline" | "search" | "info";
 
 type Props = {
   doc: PDFDocumentProxy;
@@ -129,6 +130,7 @@ export default function ReaderScreen(p: Props) {
     ["thumbs", t.tabThumbs],
     ["outline", t.tabOutline],
     ["search", t.tabSearch],
+    ["info", t.tabInfo],
   ];
 
   return (
@@ -172,6 +174,7 @@ export default function ReaderScreen(p: Props) {
               <div className="panel-body">
                 {tab === "thumbs" && <Thumbnails doc={doc} ratio={ratio} current={api.page} onPick={pick} />}
                 {tab === "outline" && <OutlinePanel doc={doc} current={api.page} onPick={pick} />}
+                {tab === "info" && <InfoPanel doc={doc} name={p.name} />}
                 {tab === "search" && (
                   <SearchPanel
                     state={search}

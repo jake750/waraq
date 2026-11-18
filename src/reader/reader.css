@@ -721,3 +721,24 @@ kbd {
     display: none;
   }
 }
+
+/* Reader panel → Info: label above value, one row each. */
+.doc-info {
+  margin: 0;
+  padding: 4px 14px 14px;
+  display: grid;
+  gap: 0;
+}
+.doc-info > div {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--stroke);
+}
+.doc-info dt {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.doc-info dd {
+  margin: 2px 0 0;
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}

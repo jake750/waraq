@@ -39,12 +39,13 @@ export type Action =
   | { type: "retry"; id: number }
   | { type: "remove"; id: number }
   | { type: "clearFinished" }
+  | { type: "restore"; jobs: Job[] }
   | { type: "combineImages" };
 
 export const emptyQueue: Queue = { jobs: [], nextId: 1, running: false };
 
 const IMAGE: Fmt[] = ["png", "jpg", "webp"];
-const finished = (j: Job) => j.state === "done" || j.state === "error" || j.state === "cancelled";
+export const finished = (j: Job) => j.state === "done" || j.state === "error" || j.state === "cancelled";
 
 export function nextJob(q: Queue): Job | undefined {
   if (!q.running || q.jobs.some((j) => j.state === "running")) return undefined;
@@ -110,6 +111,11 @@ export function reduce(q: Queue, a: Action): Queue {
       return settle({ ...q, jobs: q.jobs.filter((j) => j.id !== a.id || j.state === "running") });
     case "clearFinished":
       return { ...q, jobs: q.jobs.filter((j) => !finished(j)) };
+    case "restore": {
+      // Undo of "Clear finished": the cleared jobs come back in their old places.
+      const have = new Set(q.jobs.map((j) => j.id));
+      return { ...q, jobs: [...q.jobs, ...a.jobs.filter((j) => !have.has(j.id))].sort((x, y) => x.id - y.id) };
+    }
     case "combineImages": {
       const imgs = q.jobs.filter((j) => j.state === "queued" && IMAGE.includes(j.fmt));
       if (imgs.length < 2) return q;
