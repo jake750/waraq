@@ -189,10 +189,9 @@
   mix-blend-mode: multiply;
   pointer-events: none;
 }
-.canvas-host.night canvas {
-  /* grayscale first: inverting color text/headings directly (the old hue-rotate(180) trick) turns
-     any non-black ink into mismatched cyan/orange/pink noise instead of a clean light tone. */
-  filter: grayscale(1) invert(0.92);
+/* Night pages are recoloured on the canvas itself (night.ts), so pictures keep their colours. */
+.page:has(.canvas-host.night) {
+  background: #121212;
 }
 
 /* pdf.js text layer (subset of pdf_viewer.css) */

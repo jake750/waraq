@@ -50,6 +50,29 @@ export function fitScale(mode: "width" | "page", page: { w: number; h: number },
 }
 
 /**
+ * Scale of each row (1-based page numbers per row). When fitting, every row fits on its own, so a
+ * landscape page among portrait ones fills the width too; `box` is the room left after padding.
+ */
+export function rowScales(
+  rows: number[][],
+  sizes: { w: number; h: number }[],
+  fit: "width" | "page" | null,
+  manual: number,
+  box: { w: number; h: number },
+  gap: number,
+  perRow = 1,
+): number[] {
+  return rows.map((r) => {
+    if (!fit) return manual;
+    // A lone page in spread view (the cover) keeps half the width, like its neighbours.
+    const w = r.reduce((s, pg) => s + sizes[pg - 1].w, 0) * (perRow / r.length);
+    const h = Math.max(...r.map((pg) => sizes[pg - 1].h));
+    const avail = { w: Math.max(100, box.w - (perRow - 1) * gap), h: Math.max(100, box.h) };
+    return fitScale(fit, { w, h }, avail);
+  });
+}
+
+/**
  * Canvas bitmap size for a page shown at `cssW`×`cssH`: the device ratio, lowered when the
  * bitmap would exceed `maxPixels` (big zoom on a phone otherwise blanks the page or crashes).
  */

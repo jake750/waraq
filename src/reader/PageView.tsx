@@ -5,6 +5,7 @@ import { buildPageText, type GlyphItem } from "../text/search";
 import { detectRtl } from "../text/arabic";
 import { leasePage, type PageLease } from "./pageLease";
 import { canvasPixels } from "./layout";
+import { applyNight } from "./night";
 import { openLink, pageLinks, type PageLink } from "./links";
 
 export type HighlightRect = { x: number; y: number; w: number; h: number; current: boolean };
@@ -90,6 +91,7 @@ export default function PageView({ doc, pageNumber, scale, night, sepia, highlig
         canvas,
         viewport,
         transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined,
+        recordImages: night,
       });
       try {
         await task.promise;
@@ -97,6 +99,10 @@ export default function PageView({ doc, pageNumber, scale, night, sepia, highlig
         return; // cancelled
       }
       if (cancelled) return;
+      if (night) {
+        const coords = task.imageCoordinates ?? (page as unknown as { imageCoordinates?: ArrayLike<number> }).imageCoordinates;
+        applyNight(canvas, coords);
+      }
       for (const c of host.querySelectorAll("canvas")) c.width = c.height = 0;
       host.replaceChildren(canvas);
       attached = true;
@@ -128,7 +134,7 @@ export default function PageView({ doc, pageNumber, scale, night, sepia, highlig
       if (!attached) canvas.width = canvas.height = 0;
       textDiv.replaceChildren();
     };
-  }, [doc, pageNumber, scale]);
+  }, [doc, pageNumber, scale, night]);
 
   // Search highlights as positioned boxes over the page.
   useEffect(() => {

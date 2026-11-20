@@ -22,7 +22,7 @@ import { detectRtl } from "../text/arabic";
 import { pageText, type Match } from "../text/search";
 import { loadDocView, saveDocView } from "../prefs";
 import ShortcutsDialog from "./ShortcutsDialog";
-import { fitScale, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber } from "./layout";
+import { rowScales, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber } from "./layout";
 import PageView, { readingOrderSelection, type HighlightRect } from "./PageView";
 import { setFullscreen } from "./fullscreen";
 import "./reader.css";
@@ -129,22 +129,23 @@ export default function Reader(p: Props) {
     return Array.from({ length: n }, (_, i) => [i + 1]);
   }, [view, n]);
 
-  const scale = useMemo(() => {
-    if (!sizes) return 1;
-    if (!fit) return manualScale;
-    const first = sizes[0];
-    const perRow = view === "spread" ? 2 : 1;
-    const avail = { w: Math.max(100, box.w - PAD * 2 - (perRow - 1) * GAP), h: Math.max(100, box.h - PAD * 2) };
-    return fitScale(fit, { w: first.w * perRow, h: first.h }, avail);
-  }, [sizes, fit, manualScale, box, view]);
+  // Each row fits on its own, so a wide page among narrow ones still fills the width.
+  const scales = useMemo(
+    () =>
+      sizes
+        ? rowScales(rows, sizes, fit, manualScale, { w: box.w - PAD * 2, h: box.h - PAD * 2 }, GAP, view === "spread" ? 2 : 1)
+        : rows.map(() => 1),
+    [rows, sizes, fit, manualScale, box, view],
+  );
 
   const rowHeights = useMemo(
-    () => (sizes ? rows.map((r) => Math.max(...r.map((pg) => sizes[pg - 1].h * scale))) : []),
-    [rows, sizes, scale],
+    () => (sizes ? rows.map((r, i) => Math.max(...r.map((pg) => sizes[pg - 1].h * scales[i]))) : []),
+    [rows, sizes, scales],
   );
   const tops = useMemo(() => pageOffsets(rowHeights, GAP), [rowHeights]);
   const total = rowHeights.length ? tops[tops.length - 1] + rowHeights[rowHeights.length - 1] : 0;
   const rowOf = useCallback((page: number) => rows.findIndex((r) => r.includes(page)), [rows]);
+  const scale = scales[Math.max(0, rowOf(current))] ?? 1;
 
   const goTo = useCallback(
     (page: number) => {
@@ -173,7 +174,7 @@ export default function Reader(p: Props) {
   useEffect(() => {
     if (placed.current) goTo(anchor.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scale, view]);
+  }, [fit, manualScale, box.w, box.h, view]);
 
   useEffect(() => {
     if (p.focus) goTo(p.focus.page + 1);
@@ -286,7 +287,8 @@ export default function Reader(p: Props) {
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
-      zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
+      // A touchpad pinch sends many small deltas, a mouse wheel few big ones.
+      zoomBy(Math.min(1.1, Math.max(1 / 1.1, Math.exp(-e.deltaY * 0.01))));
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -514,11 +516,11 @@ export default function Reader(p: Props) {
                         key={pg}
                         doc={doc}
                         pageNumber={pg}
-                        scale={scale}
+                        scale={scales[r]}
                         night={night}
                         sepia={tone === "sepia"}
-                        width={sizes[pg - 1].w * scale}
-                        height={sizes[pg - 1].h * scale}
+                        width={sizes[pg - 1].w * scales[r]}
+                        height={sizes[pg - 1].h * scales[r]}
                         highlights={p.highlights?.get(pg) ?? NO_HIGHLIGHTS}
                         onSize={onPageSize}
                         onGoTo={goTo}

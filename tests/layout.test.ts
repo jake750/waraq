@@ -1,4 +1,4 @@
-import { fitScale, pageOffsets, spreadGroups, visiblePages } from "../src/reader/layout";
+import { fitScale, rowScales, pageOffsets, spreadGroups, visiblePages } from "../src/reader/layout";
 
 test("offsets", () => expect(pageOffsets([100, 100, 100], 10)).toEqual([0, 110, 220]));
 
@@ -21,4 +21,19 @@ test("spreads", () => {
 test("fit", () => {
   expect(fitScale("width", { w: 600, h: 800 }, { w: 1200, h: 800 })).toBe(2);
   expect(fitScale("page", { w: 600, h: 800 }, { w: 1200, h: 800 })).toBe(1);
+});
+
+describe("rowScales", () => {
+  const sizes = [{ w: 600, h: 800 }, { w: 1000, h: 700 }, { w: 600, h: 800 }];
+  it("fits each page's own width, so a wide page fills the width too", () => {
+    expect(rowScales([[1], [2], [3]], sizes, "width", 1, { w: 1200, h: 900 }, 10)).toEqual([2, 1.2, 2]);
+  });
+  it("uses the manual zoom for every row when not fitting", () => {
+    expect(rowScales([[1], [2]], sizes, null, 1.5, { w: 1200, h: 900 }, 10)).toEqual([1.5, 1.5]);
+  });
+  it("keeps a lone cover in spread view at half the width", () => {
+    const [cover, pair] = rowScales([[1], [2, 3]], [sizes[0], sizes[0], sizes[0]], "width", 1, { w: 1210, h: 900 }, 10, 2);
+    expect(cover).toBe(1);
+    expect(pair).toBe(1);
+  });
 });
