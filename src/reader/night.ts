@@ -12,11 +12,13 @@ const SQUEEZE = Uint8ClampedArray.from({ length: 256 }, (_, v) => PAPER + (v * (
  * HSL lightness, then the result is squeezed into PAPER..255. Runs of identical pixels (paper,
  * solid fills) reuse the last result, so a text page costs little more than one pass of reads.
  */
-export function nightPixels(data: Uint8ClampedArray): void {
+export function nightPixels(data: Uint8ClampedArray, width = 0, solid = 0): void {
   const words = new Uint32Array(data.buffer, data.byteOffset, data.length >> 2);
+  const keep = width > 0 && solid > 0 ? darkAreas(data, width, solid) : null;
   let last = -1;
   let lastOut = 0;
   for (let j = 0; j < words.length; j++) {
+    if (keep && keep[j]) continue;
     const p = words[j];
     if (p === last) {
       words[j] = lastOut;
@@ -37,12 +39,65 @@ export function nightPixels(data: Uint8ClampedArray): void {
   }
 }
 
+/** A channel maximum below this counts as dark (fills, frames, bars). */
+const DARK = 96;
+
+/**
+ * Pixels that already read as dark mode: dark areas thicker than `2 * r` px in both directions
+ * (frames, bars, dark boxes), plus the light text inside them. Flipping those would put large
+ * bright areas on a night page, so they keep their colours. Thin dark ink (text) is not included.
+ * Morphological opening (drops thin ink) then closing (fills the text holes), with box filters.
+ */
+export function darkAreas(data: Uint8ClampedArray, w: number, r: number): Uint8Array {
+  const h = Math.floor(data.length / 4 / w);
+  const a = new Uint8Array(w * h);
+  for (let j = 0, i = 0; j < a.length; j++, i += 4) a[j] = data[i] < DARK && data[i + 1] < DARK && data[i + 2] < DARK ? 1 : 0;
+  const b = new Uint8Array(w * h);
+  const pass = (rad: number, erode: boolean) => {
+    boxPass(a, b, w, h, rad, erode, true);
+    boxPass(b, a, w, h, rad, erode, false);
+  };
+  pass(r, true);
+  pass(2 * r, false);
+  pass(r, true);
+  return a;
+}
+
+/**
+ * One 1D box min (erode) or max (dilate) of radius `r` over rows or columns of a 0/1 mask.
+ * Erosion only counts pixels inside the canvas, so areas touching the edge survive.
+ */
+function boxPass(src: Uint8Array, dst: Uint8Array, w: number, h: number, r: number, erode: boolean, rows: boolean): void {
+  const len = rows ? w : h;
+  const lines = rows ? h : w;
+  const step = rows ? 1 : w;
+  const sum = new Int32Array(len + 1);
+  for (let l = 0; l < lines; l++) {
+    const base = rows ? l * w : l;
+    for (let k = 0; k < len; k++) sum[k + 1] = sum[k] + src[base + k * step];
+    for (let k = 0; k < len; k++) {
+      const lo = k - r < 0 ? 0 : k - r;
+      const hi = k + r + 1 > len ? len : k + r + 1;
+      const n = sum[hi] - sum[lo];
+      dst[base + k * step] = erode ? (n === hi - lo ? 1 : 0) : n > 0 ? 1 : 0;
+    }
+  }
+}
+
+/** Half the thickness (in canvas px) a dark area needs to stay dark: 5pt at the given px per point. */
+export const solidRadius = (pxPerPt: number) => Math.max(1, Math.round(5 * pxPerPt));
+
 /**
  * Applies night mode to a drawn page canvas. `images` is pdf.js's `imageCoordinates`: per image three
  * corners (x0,y0 x1,y1 x2,y2, as fractions of the canvas) of the parallelogram it covers; those
  * areas are copied back from the original so photos and figures stay exactly as they were.
  */
-export async function applyNight(canvas: HTMLCanvasElement, images: ArrayLike<number> | null | undefined, cancelled?: () => boolean): Promise<void> {
+export async function applyNight(
+  canvas: HTMLCanvasElement,
+  images: ArrayLike<number> | null | undefined,
+  cancelled?: () => boolean,
+  solid = 0,
+): Promise<void> {
   const ctx = canvas.getContext("2d");
   if (!ctx || canvas.width === 0 || canvas.height === 0) return;
   const { width: w, height: h } = canvas;
@@ -61,7 +116,7 @@ export async function applyNight(canvas: HTMLCanvasElement, images: ArrayLike<nu
     original.height = box.h;
     original.getContext("2d")!.drawImage(canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
   }
-  const data = await nightOffThread(ctx.getImageData(0, 0, w, h).data);
+  const data = await nightOffThread(ctx.getImageData(0, 0, w, h).data, w, solid);
   if (cancelled?.()) {
     if (original) original.width = original.height = 0;
     return;
@@ -123,16 +178,16 @@ function nightWorker(): Worker | null {
 }
 
 /** nightPixels in a worker (the buffer is moved there and back, not copied); inline if workers fail. */
-export async function nightOffThread(data: Uint8ClampedArray<ArrayBuffer>): Promise<Uint8ClampedArray<ArrayBuffer>> {
+export async function nightOffThread(data: Uint8ClampedArray<ArrayBuffer>, width = 0, solid = 0): Promise<Uint8ClampedArray<ArrayBuffer>> {
   const w = typeof Worker === "undefined" ? null : nightWorker();
   if (!w) {
-    nightPixels(data);
+    nightPixels(data, width, solid);
     return data;
   }
   const id = nextId++;
   const buf = await new Promise<ArrayBuffer>((resolve) => {
     waiting.set(id, resolve);
-    w.postMessage({ id, buf: data.buffer }, [data.buffer]);
+    w.postMessage({ id, buf: data.buffer, width, solid }, [data.buffer]);
   });
   return new Uint8ClampedArray(buf);
 }

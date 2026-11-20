@@ -416,6 +416,10 @@
   transition: outline-color var(--t-fast) var(--ease-out);
 }
 
+.thumb-canvas.night {
+  background: #121212;
+}
+
 .thumb-canvas canvas {
   display: block;
   width: 100%;

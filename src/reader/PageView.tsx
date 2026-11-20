@@ -5,7 +5,7 @@ import { buildPageText, type GlyphItem } from "../text/search";
 import { detectRtl } from "../text/arabic";
 import { leasePage, type PageLease } from "./pageLease";
 import { canvasPixels } from "./layout";
-import { applyNight } from "./night";
+import { applyNight, solidRadius } from "./night";
 import { openLink, pageLinks, type PageLink } from "./links";
 
 export type HighlightRect = { x: number; y: number; w: number; h: number; current: boolean };
@@ -115,7 +115,7 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
       if (cancelled) return;
       if (night) {
         const coords = task.imageCoordinates ?? (page as unknown as { imageCoordinates?: ArrayLike<number> }).imageCoordinates;
-        await applyNight(canvas, coords, () => cancelled);
+        await applyNight(canvas, coords, () => cancelled, solidRadius(scale * ratio));
         if (cancelled) return;
       }
       for (const c of host.querySelectorAll("canvas")) c.width = c.height = 0;

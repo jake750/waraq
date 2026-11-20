@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nightOffThread, nightPixels, quadsBox } from "../../src/reader/night";
+import { darkAreas, nightOffThread, nightPixels, quadsBox } from "../../src/reader/night";
 
 const px = (...rgb: number[]) => {
   const d = new Uint8ClampedArray([...rgb, 255]);
@@ -48,5 +48,34 @@ describe("nightOffThread", () => {
   it("falls back to the main thread where there are no workers", async () => {
     const out = await nightOffThread(new Uint8ClampedArray([0, 0, 0, 255]));
     expect([...out]).toEqual([255, 255, 255, 255]);
+  });
+});
+
+describe("darkAreas", () => {
+  // 30x30 white page with a 10px dark frame, a 1px dark "text" line and a white dot inside the frame.
+  const W = 30;
+  const at = (x: number, y: number) => y * W + x;
+  const page = () => {
+    const d = new Uint8ClampedArray(W * W * 4).fill(255);
+    const set = (x: number, y: number, v: number) => d.set([v, v, v], at(x, y) * 4);
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) if (x < 10 || y < 10 || x >= 20 || y >= 20) set(x, y, 38);
+    for (let x = 11; x < 19; x++) set(x, 15, 0); // thin ink
+    set(5, 5, 255); // light text inside the frame
+    return d;
+  };
+  it("keeps thick dark areas and the light text inside them, but not thin ink", () => {
+    const keep = darkAreas(page(), W, 2);
+    expect(keep[at(0, 0)]).toBe(1);
+    expect(keep[at(5, 5)]).toBe(1);
+    expect(keep[at(15, 15)]).toBe(0);
+    expect(keep[at(15, 12)]).toBe(0);
+  });
+  it("nightPixels leaves those areas as they were and flips the rest", () => {
+    const d = page();
+    nightPixels(d, W, 2);
+    expect([...d.slice(0, 3)]).toEqual([38, 38, 38]);
+    expect(d[at(5, 5) * 4]).toBe(255);
+    expect(d[at(15, 15) * 4]).toBe(255); // ink turns white
+    expect(d[at(15, 12) * 4]).toBe(18); // paper turns dark
   });
 });

@@ -172,7 +172,7 @@ export default function ReaderScreen(p: Props) {
                 ))}
               </div>
               <div className="panel-body">
-                {tab === "thumbs" && <Thumbnails doc={doc} ratio={ratio} current={api.page} onPick={pick} />}
+                {tab === "thumbs" && <Thumbnails doc={doc} ratio={ratio} current={api.page} night={api.night} onPick={pick} />}
                 {tab === "outline" && <OutlinePanel doc={doc} current={api.page} onPick={pick} />}
                 {tab === "info" && <InfoPanel doc={doc} name={p.name} />}
                 {tab === "search" && (

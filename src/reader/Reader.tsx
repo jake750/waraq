@@ -47,7 +47,7 @@ type Props = {
   onPageChange(page: number): void;
   onClose(): void;
   /** Side panel content (thumbnails, outline, search); receives the reader API. */
-  panel?: (api: ReaderApi & { page: number; rtl: boolean }) => ReactNode;
+  panel?: (api: ReaderApi & { page: number; rtl: boolean; night: boolean }) => ReactNode;
   panelOpen?: boolean;
   onPanelToggle?(): void;
   onFind?(): void;
@@ -347,7 +347,7 @@ export default function Reader(p: Props) {
     ["spread", <BookOpen size={18} />, t.viewSpread],
   ];
 
-  const api = { goTo, page: current, rtl };
+  const api = { goTo, page: current, rtl, night };
 
   return (
     <div className={full ? "reader full" : "reader"}>

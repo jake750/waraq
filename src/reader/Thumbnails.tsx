@@ -1,5 +1,6 @@
 import { pageCanvas } from "../pdf/pageCanvas";
 import { leasePage, type PageLease } from "./pageLease";
+import { applyNight, solidRadius } from "./night";
 import { memo, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 
@@ -7,10 +8,10 @@ import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 const WIDE = typeof window !== "undefined" && window.innerWidth >= 1400;
 const THUMB_W = WIDE ? 168 : 132;
 
-type Props = { doc: PDFDocumentProxy; ratio: number; current: number; onPick(page: number): void };
+type Props = { doc: PDFDocumentProxy; ratio: number; current: number; night?: boolean; onPick(page: number): void };
 
 /** Page thumbnails; each renders only while near the visible part of the list. */
-export default function Thumbnails({ doc, ratio, current, onPick }: Props) {
+export default function Thumbnails({ doc, ratio, current, night = false, onPick }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     listRef.current
@@ -20,7 +21,7 @@ export default function Thumbnails({ doc, ratio, current, onPick }: Props) {
   return (
     <div className="thumbs" ref={listRef}>
       {Array.from({ length: doc.numPages }, (_, i) => (
-        <Thumb key={i} doc={doc} page={i + 1} height={THUMB_W * ratio} active={current === i + 1} onPick={onPick} />
+        <Thumb key={i} doc={doc} page={i + 1} height={THUMB_W * ratio} active={current === i + 1} night={night} onPick={onPick} />
       ))}
     </div>
   );
@@ -31,12 +32,14 @@ const Thumb = memo(function Thumb({
   page,
   height,
   active,
+  night,
   onPick,
 }: {
   doc: PDFDocumentProxy;
   page: number;
   height: number;
   active: boolean;
+  night: boolean;
   onPick(page: number): void;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
@@ -66,8 +69,16 @@ const Thumb = memo(function Thumb({
       const viewport = pg.getViewport({ scale: (THUMB_W / base.width) * ratio });
       canvas.width = Math.floor(viewport.width);
       canvas.height = Math.floor(viewport.height);
-      task = pg.render({ canvas, viewport });
+      const scale = (THUMB_W / base.width) * ratio;
+      // Hidden until the night pass is done, so a white page doesn't flash first.
+      if (night) canvas.style.visibility = "hidden";
+      task = pg.render({ canvas, viewport, recordImages: night });
       await task.promise;
+      if (night && !cancelled) {
+        const coords = task.imageCoordinates ?? (pg as unknown as { imageCoordinates?: ArrayLike<number> }).imageCoordinates;
+        await applyNight(canvas, coords, () => cancelled, solidRadius(scale));
+      }
+      canvas.style.visibility = "";
     })().catch(() => {});
     return () => {
       cancelled = true;
@@ -76,7 +87,7 @@ const Thumb = memo(function Thumb({
       canvas.width = canvas.height = 0;
       canvas.remove();
     };
-  }, [near, doc, page]);
+  }, [near, doc, page, night]);
 
   return (
     <button
@@ -86,7 +97,7 @@ const Thumb = memo(function Thumb({
       aria-current={active ? "page" : undefined}
       onClick={() => onPick(page)}
     >
-      <div ref={host} className="thumb-canvas" style={{ width: THUMB_W, height }} />
+      <div ref={host} className={night ? "thumb-canvas night" : "thumb-canvas"} style={{ width: THUMB_W, height }} />
       <span>{page}</span>
     </button>
   );
