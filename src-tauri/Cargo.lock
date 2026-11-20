@@ -4730,7 +4730,7 @@ dependencies = [
 
 [[package]]
 name = "waraq"
-version = "0.2.33"
+version = "0.2.34"
 dependencies = [
  "serde",
  "serde_json",
