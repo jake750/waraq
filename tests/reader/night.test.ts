@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nightPixels, quadsBox } from "../../src/reader/night";
+import { nightOffThread, nightPixels, quadsBox } from "../../src/reader/night";
 
 const px = (...rgb: number[]) => {
   const d = new Uint8ClampedArray([...rgb, 255]);
@@ -41,5 +41,12 @@ describe("quadsBox", () => {
     expect(quadsBox([[-5, -5, 200, -5, 200, 200, -5, 200]], 100, 80)).toEqual({ x: 0, y: 0, w: 100, h: 80 });
     expect(quadsBox([[150, 150, 160, 150, 160, 160, 150, 160]], 100, 100)).toBeNull();
     expect(quadsBox([], 100, 100)).toBeNull();
+  });
+});
+
+describe("nightOffThread", () => {
+  it("falls back to the main thread where there are no workers", async () => {
+    const out = await nightOffThread(new Uint8ClampedArray([0, 0, 0, 255]));
+    expect([...out]).toEqual([255, 255, 255, 255]);
   });
 });

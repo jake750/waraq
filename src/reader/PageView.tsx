@@ -115,7 +115,8 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
       if (cancelled) return;
       if (night) {
         const coords = task.imageCoordinates ?? (page as unknown as { imageCoordinates?: ArrayLike<number> }).imageCoordinates;
-        applyNight(canvas, coords);
+        await applyNight(canvas, coords, () => cancelled);
+        if (cancelled) return;
       }
       for (const c of host.querySelectorAll("canvas")) c.width = c.height = 0;
       host.replaceChildren(canvas);

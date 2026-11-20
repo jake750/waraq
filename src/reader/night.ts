@@ -42,7 +42,7 @@ export function nightPixels(data: Uint8ClampedArray): void {
  * corners (x0,y0 x1,y1 x2,y2, as fractions of the canvas) of the parallelogram it covers; those
  * areas are copied back from the original so photos and figures stay exactly as they were.
  */
-export function applyNight(canvas: HTMLCanvasElement, images: ArrayLike<number> | null | undefined): void {
+export async function applyNight(canvas: HTMLCanvasElement, images: ArrayLike<number> | null | undefined, cancelled?: () => boolean): Promise<void> {
   const ctx = canvas.getContext("2d");
   if (!ctx || canvas.width === 0 || canvas.height === 0) return;
   const { width: w, height: h } = canvas;
@@ -61,9 +61,12 @@ export function applyNight(canvas: HTMLCanvasElement, images: ArrayLike<number> 
     original.height = box.h;
     original.getContext("2d")!.drawImage(canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
   }
-  const img = ctx.getImageData(0, 0, w, h);
-  nightPixels(img.data);
-  ctx.putImageData(img, 0, 0);
+  const data = await nightOffThread(ctx.getImageData(0, 0, w, h).data);
+  if (cancelled?.()) {
+    if (original) original.width = original.height = 0;
+    return;
+  }
+  ctx.putImageData(new ImageData(data, w, h), 0, 0);
   if (!original || !box) return;
   for (const q of quads) {
     ctx.save();
@@ -94,4 +97,42 @@ export function quadsBox(quads: number[][], w: number, h: number): { x: number; 
   const bw = Math.min(w, Math.ceil(x1)) - x;
   const bh = Math.min(h, Math.ceil(y1)) - y;
   return bw > 0 && bh > 0 ? { x, y, w: bw, h: bh } : null;
+}
+
+// ---- Off the main thread ---------------------------------------------------
+
+let worker: Worker | null | undefined;
+let nextId = 0;
+const waiting = new Map<number, (buf: ArrayBuffer) => void>();
+
+function nightWorker(): Worker | null {
+  if (worker !== undefined) return worker;
+  try {
+    worker = new Worker(new URL("./nightWorker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = (e: MessageEvent<{ id: number; buf: ArrayBuffer }>) => {
+      waiting.get(e.data.id)?.(e.data.buf);
+      waiting.delete(e.data.id);
+    };
+    worker.onerror = () => {
+      worker = null; // fall back to the main thread from now on
+    };
+  } catch {
+    worker = null;
+  }
+  return worker;
+}
+
+/** nightPixels in a worker (the buffer is moved there and back, not copied); inline if workers fail. */
+export async function nightOffThread(data: Uint8ClampedArray<ArrayBuffer>): Promise<Uint8ClampedArray<ArrayBuffer>> {
+  const w = typeof Worker === "undefined" ? null : nightWorker();
+  if (!w) {
+    nightPixels(data);
+    return data;
+  }
+  const id = nextId++;
+  const buf = await new Promise<ArrayBuffer>((resolve) => {
+    waiting.set(id, resolve);
+    w.postMessage({ id, buf: data.buffer }, [data.buffer]);
+  });
+  return new Uint8ClampedArray(buf);
 }
