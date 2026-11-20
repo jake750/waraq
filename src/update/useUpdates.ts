@@ -6,6 +6,8 @@ import { shouldAutoCheck } from "./updates";
 export type UpdateState =
   | { status: "idle" | "checking" | "latest" | "error" | "unavailable" }
   | { status: "available"; found: Found }
+  /** Android: the APK is downloaded but Waraq may not install apps yet (the setting was opened). */
+  | { status: "permission"; found: Found }
   | { status: "installing"; found: Found; progress: number | null };
 
 export type Updates = {
@@ -15,6 +17,9 @@ export type Updates = {
   setAuto(on: boolean): void;
   check(): void;
   install(): void;
+  /** The launch prompt is showing (an automatic check found a new version). */
+  prompt: boolean;
+  dismiss(): void;
 };
 
 /** Update state for the whole app: a daily automatic check at launch, and the Settings actions. */
@@ -23,6 +28,7 @@ export function useUpdates(): Updates {
   const [version, setVersion] = useState<string | null>(null);
   const [auto, setAutoState] = useState(loadAutoUpdate);
   const busy = useRef(false);
+  const [prompt, setPrompt] = useState(false);
 
   const run = useCallback(async (quiet: boolean) => {
     if (busy.current) return;
@@ -32,6 +38,7 @@ export function useUpdates(): Updates {
       const found = await checkForUpdate();
       saveLastUpdateCheck(Date.now());
       setState(found ? { status: "available", found } : { status: quiet ? "idle" : "latest" });
+      if (found && quiet) setPrompt(true);
     } catch (e) {
       // An automatic check fails silently (offline is normal); a manual one says so.
       if (!quiet) setState({ status: e instanceof Error && e.message === "unavailable" ? "unavailable" : "error" });
@@ -50,7 +57,7 @@ export function useUpdates(): Updates {
   }, [run]);
 
   const install = () => {
-    if (state.status !== "available") return;
+    if (state.status !== "available" && state.status !== "permission") return;
     const found = state.found;
     setState({ status: "installing", found, progress: null });
     found
@@ -59,7 +66,7 @@ export function useUpdates(): Updates {
       )
       // Android only opens the release page: back to "available" so the button stays.
       .then(() => setState({ status: "available", found }))
-      .catch(() => setState({ status: "error" }));
+      .catch((e) => setState(e instanceof Error && e.message === "permission" ? { status: "permission", found } : { status: "error" }));
   };
 
   return {
@@ -72,5 +79,7 @@ export function useUpdates(): Updates {
     },
     check: () => run(false),
     install,
+    prompt,
+    dismiss: () => setPrompt(false),
   };
 }

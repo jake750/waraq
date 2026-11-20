@@ -5,8 +5,8 @@
 **Waraq (ورق)**: document converter, PDF reader and PDF editor for Windows/macOS (Tauri desktop) and Android.
 Arabic-first UI (RTL) with a full English translation (`src/i18n.ts`). Desktop conversions use a per-user
 LibreOffice install; Android uses built-in engines only. Network use is limited to that optional LibreOffice
-download (SHA-256 pinned) and update checks against this repo's GitHub releases (`latest.json`, at most once a
-day, can be turned off in Settings). The app never overwrites an opened file: every operation writes a new one
+download (SHA-256 pinned) and update checks against this repo's GitHub releases (`latest.json`, at launch, at most once an
+hour, can be turned off in Settings). The app never overwrites an opened file: every operation writes a new one
 (e.g. `"name (edited).pdf"`; Android writes to `Download/Waraq`).
 
 Talk to the user in Arabic; code, comments and commit messages are English. **No PRs (user's choice,
@@ -48,8 +48,9 @@ dark mode; Rust changes pass `cargo test`; and nothing writes over an opened fil
 - **Updater key:** `bundle.createUpdaterArtifacts` is on, so builds need `TAURI_SIGNING_PRIVATE_KEY`
   (`~/.tauri/waraq.key`) and `_PASSWORD`, which are also repo secrets. The public key lives in
   `plugins.updater.pubkey`. Desktop updates itself through `tauri-plugin-updater` (`src/update/`).
-- **Android updates:** Android can't self-update a sideloaded APK, so `update.rs`'s `latest_release` reads the
-  same `latest.json` and the app opens the release page. The `android` job in `release.yml` attaches the
+- **Android updates:** `update.rs`'s `latest_release` reads the same `latest.json`; `android_download_update`
+  downloads the release APK into the app cache and `installApk` (WaraqPlugin.kt) opens the system installer
+  (it opens the "install unknown apps" setting once). `UpdatePrompt` (`Layout.tsx`) offers updates at launch. The `android` job in `release.yml` attaches the
   APK; by hand: `gh release upload vX.Y.Z Waraq_X.Y.Z_android.apk --clobber`.
 - **Android signing:** the keystore is `~/.android/waraq-release.keystore` (alias `waraq`), outside the repo.
   `build.gradle.kts` signs release builds only when `src-tauri/gen/android/app/keystore.properties` exists.

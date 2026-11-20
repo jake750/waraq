@@ -41,6 +41,8 @@ function UpdateSection({ u }: { u: Updates }) {
             ? t.updUnavailable
             : s.status === "available"
               ? t.updAvailable(s.found.version)
+              : s.status === "permission"
+                ? t.updPermission
               : s.status === "installing"
                 ? t.updInstalling(s.progress)
                 : null;
@@ -53,7 +55,7 @@ function UpdateSection({ u }: { u: Updates }) {
             {u.version ? t.updVersion(u.version) : t.appName}
             {COMMIT && <small className="update-commit"> · {COMMIT}</small>}
           </span>
-          {s.status === "available" || s.status === "installing" ? (
+          {s.status === "available" || s.status === "installing" || s.status === "permission" ? (
             <button className="btn btn-primary btn-sm" onClick={u.install} disabled={s.status === "installing"}>
               <Download size={16} />
               {isAndroid() ? t.updDownload : t.updInstall}
@@ -84,6 +86,49 @@ function UpdateSection({ u }: { u: Updates }) {
           <input type="checkbox" checked={u.auto} onChange={(e) => u.setAuto(e.target.checked)} />
           {t.updAuto}
         </label>
+      </div>
+    </div>
+  );
+}
+
+/** Shown when the check at launch finds a new version: update right here, or later from Settings. */
+function UpdatePrompt({ u }: { u: Updates }) {
+  const t = useT();
+  const s = u.state;
+  if (!u.prompt || (s.status !== "available" && s.status !== "installing" && s.status !== "permission")) return null;
+  const installing = s.status === "installing";
+  const pct = installing ? s.progress : null;
+  return (
+    <div className="update-prompt" role="dialog" aria-labelledby="update-prompt-title">
+      <div className="update-prompt-head">
+        <span className="update-prompt-icon" aria-hidden="true">
+          <Download size={18} />
+        </span>
+        <div>
+          <strong id="update-prompt-title">{t.updPromptTitle(s.found.version)}</strong>
+          <p role="status">
+            {installing
+              ? pct === 100 && isAndroid()
+                ? t.updOpening
+                : t.updInstalling(pct)
+              : s.status === "permission"
+                ? t.updPermission
+                : t.updPromptBody}
+          </p>
+        </div>
+      </div>
+      {installing && (
+        <div className="update-bar" role="progressbar" aria-valuenow={pct ?? undefined} aria-valuemin={0} aria-valuemax={100}>
+          <span style={{ width: `${pct ?? 0}%` }} />
+        </div>
+      )}
+      <div className="update-prompt-actions">
+        <button className="btn btn-ghost btn-sm" onClick={u.dismiss} disabled={installing && !isAndroid()}>
+          {t.updLater}
+        </button>
+        <button className="btn btn-primary btn-sm" onClick={u.install} disabled={installing}>
+          {t.updNow}
+        </button>
       </div>
     </div>
   );
@@ -213,7 +258,7 @@ export default function Layout(p: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [settings]);
-  const hasUpdate = p.updates.state.status === "available";
+  const hasUpdate = p.updates.state.status === "available" || p.updates.state.status === "permission";
   const settingsIcon = (
     <span className="badge-wrap">
       <Settings size={20} />
@@ -299,6 +344,7 @@ export default function Layout(p: Props) {
             </button>
           ))}
       </nav>
+      {!settings && <UpdatePrompt u={p.updates} />}
       {settings && (
         <>
           <div className="scrim" onClick={() => setSettings(false)} />

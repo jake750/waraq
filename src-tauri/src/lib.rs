@@ -61,8 +61,11 @@ pub fn run() {
             mobile::android_incoming,
             mobile::android_persist,
             mobile::android_immersive,
+            mobile::android_install_apk,
             #[cfg(target_os = "android")]
             update::latest_release,
+            #[cfg(target_os = "android")]
+            update::android_download_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Waraq");

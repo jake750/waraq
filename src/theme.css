@@ -347,6 +347,55 @@ button {
   font-size: var(--fs-sm);
   white-space: pre-line;
 }
+.update-prompt {
+  position: fixed;
+  inset-inline-end: 20px;
+  bottom: 20px;
+  width: min(360px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  z-index: 55;
+  animation: rise var(--t-med) var(--ease-out);
+}
+.update-prompt-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.update-prompt-head p {
+  margin: 4px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.55;
+}
+.update-prompt-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-text);
+}
+.update-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (max-width: 719px) {
+  .update-prompt {
+    inset-inline: 16px;
+    width: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+}
 .update-bar {
   height: 6px;
   border-radius: 3px;

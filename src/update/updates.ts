@@ -1,7 +1,10 @@
 // Pure update logic (Node-testable): version comparison and the automatic-check schedule.
 
-/** At most one automatic check a day; "Check now" in Settings is never throttled. */
-export const AUTO_CHECK_EVERY = 24 * 60 * 60 * 1000;
+/**
+ * The automatic check runs when the app opens, at most once an hour (opening several files in a
+ * row doesn't ask GitHub each time); "Check now" in Settings is never throttled.
+ */
+export const AUTO_CHECK_EVERY = 60 * 60 * 1000;
 
 type Parsed = { nums: number[]; pre: string | null };
 

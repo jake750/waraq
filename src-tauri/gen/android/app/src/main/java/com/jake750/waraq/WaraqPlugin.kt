@@ -10,6 +10,7 @@ import android.print.PdfPrinter
 import android.print.PrintAttributes
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.content.FileProvider
@@ -147,6 +148,27 @@ class WaraqPlugin(private val activity: Activity) : Plugin(activity) {
     }
     activity.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
     invoke.resolve()
+  }
+
+  /** Opens the system installer on a downloaded update (the same signing key is required to install over this app). */
+  @Command
+  fun installApk(invoke: Invoke) {
+    val path = invoke.getArgs().getString("path") ?: return invoke.reject("missing path")
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !activity.packageManager.canRequestPackageInstalls()) {
+      activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + activity.packageName)))
+      return invoke.reject("permission")
+    }
+    try {
+      val uri = FileProvider.getUriForFile(activity, activity.packageName + ".fileprovider", File(path))
+      activity.startActivity(
+        Intent(Intent.ACTION_VIEW)
+          .setDataAndType(uri, "application/vnd.android.package-archive")
+          .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+      )
+      invoke.resolve()
+    } catch (e: Exception) {
+      invoke.reject("install", e)
+    }
   }
 
   /** Opens a saved output in another app (a PDF reader, Word, …). */

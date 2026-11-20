@@ -63,6 +63,14 @@ pub async fn android_save_to_downloads(app: tauri::AppHandle, path: String, name
     call(&app, "saveToDownloads", serde_json::json!({ "path": path, "name": name, "mime": mime })).await
 }
 
+/// Hands a downloaded APK to the system installer. Fails with "permission" (after opening the
+/// "install unknown apps" setting) until the user allows Waraq to install updates.
+#[tauri::command]
+pub async fn android_install_apk(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let _: Value = call(&app, "installApk", serde_json::json!({ "path": path })).await?;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn android_share(app: tauri::AppHandle, uri: String, mime: String) -> Result<(), String> {
     let _: Value = call(&app, "share", serde_json::json!({ "uri": uri, "mime": mime })).await?;
