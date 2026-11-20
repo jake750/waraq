@@ -11,7 +11,6 @@ import type { Tool } from "./tools/ToolsScreen";
 import type { EditSource } from "./editor/EditorScreen";
 import { pickPdfs } from "./tools/pickPdfs";
 import ErrorBoundary from "./shell/ErrorBoundary";
-import { loadPdf } from "./tools/pages";
 import NotPdfPrompt from "./convert/NotPdfPrompt";
 import { skippedText, useConvert } from "./convert/useConvert";
 import { fmtOf, targetsFor } from "./convert/formats";
@@ -300,7 +299,7 @@ export default function App() {
   const editDocument = async (ref: DocRef, name?: string) => {
     try {
       const bytes = await readDocument(ref);
-      await loadPdf(bytes);
+      await (await import("./tools/pages")).loadPdf(bytes);
       setEdit({ src: { ref, name: name ?? (await resolveName(ref)), bytes }, from: route === "editor" ? "tools" : route });
       setRoute("editor");
     } catch (e) {

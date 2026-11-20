@@ -1,5 +1,5 @@
 import { pageCanvas } from "../pdf/pageCanvas";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { TextLayer, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import { buildPageText, type GlyphItem } from "../text/search";
 import { detectRtl } from "../text/arabic";
@@ -38,7 +38,12 @@ const MAX_PIXELS = window.matchMedia?.("(pointer: coarse)").matches ? 6e6 : 16e6
  * One page: canvas + selectable text layer + search highlights.
  * Cancels its render and frees the bitmap on unmount, so only mounted pages cost memory.
  */
-export default function PageView({ doc, pageNumber, scale, night, sepia, highlights, width, height, onSize, onGoTo }: Props) {
+export default memo(PageView);
+
+/** While zoom keeps changing (wheel, touchpad pinch, ± held), wait this long before re-rendering. */
+const ZOOM_SETTLE_MS = 160;
+
+function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, width, height, onSize, onGoTo }: Props) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const hlRef = useRef<HTMLDivElement>(null);
@@ -48,6 +53,15 @@ export default function PageView({ doc, pageNumber, scale, night, sepia, highlig
   sizeCb.current = onSize;
   /** The page the canvas on screen shows (it stays up, stretched, while a new zoom renders). */
   const showing = useRef<{ doc: PDFDocumentProxy; page: number } | null>(null);
+  // The scale actually rendered: a drawn page stays stretched until zooming stops, so each wheel
+  // tick doesn't start a full render (and night pass) of every visible page.
+  const [scale, setScale] = useState(wanted);
+  useEffect(() => {
+    if (wanted === scale) return;
+    if (!showing.current) return setScale(wanted);
+    const id = setTimeout(() => setScale(wanted), ZOOM_SETTLE_MS);
+    return () => clearTimeout(id);
+  }, [wanted, scale]);
 
   // Frees whatever bitmap is still on screen when the page goes away.
   useEffect(() => {

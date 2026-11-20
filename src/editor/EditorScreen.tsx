@@ -157,11 +157,14 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     let d: PDFDocumentProxy | undefined;
     (async () => {
       d = await openPdf(src.bytes.slice());
-      const s: { w: number; h: number }[] = [];
-      for (let i = 1; i <= d.numPages; i++) {
-        const v = (await d.getPage(i)).getViewport({ scale: 1 });
-        s.push({ w: v.width, h: v.height });
-      }
+      // All pages asked at once: the worker answers in one stream instead of one round trip per page.
+      const doc = d;
+      const s = await Promise.all(
+        Array.from({ length: doc.numPages }, async (_, i) => {
+          const v = (await doc.getPage(i + 1)).getViewport({ scale: 1 });
+          return { w: v.width, h: v.height };
+        }),
+      );
       if (!alive) return;
       setDoc(d);
       setSizes(s);

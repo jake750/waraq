@@ -181,9 +181,12 @@ export default function Reader(p: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.focus]);
 
+  // Scrolling re-renders the reader only when the set of mounted rows changes, not every frame.
+  const shownKey = useRef("");
   const onScroll = () => {
     const el = scroller.current!;
-    setScrollTop(el.scrollTop);
+    const key = visiblePages(Math.max(0, el.scrollTop - PAD), box.h, rowHeights, GAP, 2).join();
+    if (key !== shownKey.current) setScrollTop(el.scrollTop);
     if (view === "single") return;
     const probe = el.scrollTop + el.clientHeight * 0.35 - PAD;
     let r = 0;
@@ -330,6 +333,7 @@ export default function Reader(p: Props) {
       : sizes
         ? visiblePages(Math.max(0, scrollTop - PAD), box.h, rowHeights, GAP, 2)
         : [];
+  shownKey.current = shownRows.join();
 
   const submitPage = () => {
     const v = parsePageNumber(pageInput);
