@@ -1,18 +1,28 @@
 import { useEffect, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useT } from "../i18n";
-import { flattenOutline, type OutlineItem } from "./outline";
+import { flattenOutline, headingOutline, type OutlineItem } from "./outline";
 
 type Props = { doc: PDFDocumentProxy; current: number; onPick(page: number): void };
 
 export default function OutlinePanel({ doc, current, onPick }: Props) {
   const t = useT();
   const [items, setItems] = useState<OutlineItem[] | null>(null);
+  /** True when the list was built from the document's headings (it has no outline of its own). */
+  const [built, setBuilt] = useState(false);
   useEffect(() => {
     let alive = true;
+    setItems(null);
+    setBuilt(false);
     flattenOutline(doc)
-      .then((x) => alive && setItems(x))
-      .catch(() => alive && setItems([]));
+      .catch(() => [])
+      .then(async (x) => {
+        if (x.length || !alive) return x;
+        const h = await headingOutline(doc).catch(() => []);
+        if (alive) setBuilt(h.length > 0);
+        return h;
+      })
+      .then((x) => alive && setItems(x));
     return () => {
       alive = false;
     };
@@ -28,6 +38,8 @@ export default function OutlinePanel({ doc, current, onPick }: Props) {
   });
 
   return (
+    <>
+    {built && <p className="panel-note">{t.outlineBuilt}</p>}
     <ul className="outline">
       {items.map((it, i) => (
         <li key={i}>
@@ -43,5 +55,6 @@ export default function OutlinePanel({ doc, current, onPick }: Props) {
         </li>
       ))}
     </ul>
+    </>
   );
 }
