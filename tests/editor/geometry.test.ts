@@ -1,4 +1,4 @@
-import { charIndexAt, selectText, moveMark, fitBox, resizeBox, simplify, smoothCurve, svgStroke, scalePaths, hasText, markBounds, spanRect, duplicateMark, resizeTextBox, snapBox, constrainAngle, squareCorner } from "../../src/editor/geometry";
+import { charIndexAt, selectText, moveMark, fitBox, resizeBox, simplify, smoothCurve, svgStroke, scalePaths, hasText, markBounds, spanRect, duplicateMark, resizeTextBox, snapBox, constrainAngle, squareCorner, erases } from "../../src/editor/geometry";
 import type { PageLayout } from "../../src/text/search";
 import type { Mark, Pt } from "../../src/editor/marks";
 
@@ -166,4 +166,16 @@ test("constrainAngle and squareCorner", () => {
   expect(d[0]).toBeCloseTo(d[1]);
   expect(squareCorner([0, 0], [10, -4])).toEqual([10, -10]);
   expect(squareCorner([5, 5], [5, 9])).toEqual([9, 9]);
+});
+
+test("the eraser touches a drawn mark's lines, not empty space inside it", () => {
+  const box: Mark = { id: "r", page: 0, kind: "rect", a: [0, 0], b: [100, 100], color: [0, 0, 0], width: 2 };
+  expect(erases(box, [50, 2], 3)).toBe(true);
+  expect(erases(box, [50, 50], 3)).toBe(false);
+  const ink: Mark = { id: "i", page: 0, kind: "ink", paths: [[[0, 0], [10, 10]], [[50, 50]]], color: [0, 0, 0], width: 12 };
+  expect(erases(ink, [5, 9], 2)).toBe(true); // within half the stroke width
+  expect(erases(ink, [51, 51], 2)).toBe(true); // a dot
+  expect(erases(ink, [30, 0], 2)).toBe(false);
+  const note: Mark = { id: "n", page: 0, kind: "note", at: [0, 0], text: "", color: [1, 1, 0] };
+  expect(erases(note, [0, 0], 5)).toBe(false);
 });

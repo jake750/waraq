@@ -261,3 +261,38 @@ export function squareCorner(a: Pt, b: Pt): Pt {
   const s = Math.max(Math.abs(dx), Math.abs(dy));
   return [a[0] + (Math.sign(dx) || 1) * s, a[1] + (Math.sign(dy) || 1) * s];
 }
+
+/** Distance from `p` to the segment a–b. */
+function segDist(p: Pt, a: Pt, b: Pt): number {
+  const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)) : 0;
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+/** The lines a drawn mark is made of, as polylines (an ellipse as a 32-sided polygon). */
+function strokesOf(m: Mark): Pt[][] {
+  switch (m.kind) {
+    case "ink":
+      return m.paths;
+    case "line":
+    case "arrow":
+      return [[m.a, m.b]];
+    case "rect": {
+      const r = spanRect(m.a, m.b);
+      return [[[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h], [r.x, r.y]]];
+    }
+    case "ellipse": {
+      const r = spanRect(m.a, m.b);
+      return [Array.from({ length: 33 }, (_, i): Pt => [r.x + r.w / 2 + (r.w / 2) * Math.cos((i / 32) * 2 * Math.PI), r.y + r.h / 2 + (r.h / 2) * Math.sin((i / 32) * 2 * Math.PI)])];
+    }
+    default:
+      return [];
+  }
+}
+
+/** True when the eraser at `p` (radius `tol`, page points) touches a drawn mark's line. */
+export function erases(m: Mark, p: Pt, tol: number): boolean {
+  const reach = tol + ("width" in m && m.kind !== "text" ? m.width / 2 : 0);
+  return strokesOf(m).some((s) => (s.length === 1 ? Math.hypot(p[0] - s[0][0], p[1] - s[0][1]) <= reach : s.some((q, i) => i > 0 && segDist(p, s[i - 1], q) <= reach)));
+}

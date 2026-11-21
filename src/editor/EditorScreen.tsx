@@ -1,7 +1,15 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   BringToFront,
+  Brush,
+  Eraser,
+  Layers,
+  PaintBucket,
+  Stamp,
   CalendarDays,
   Copy,
   Circle,
@@ -39,14 +47,17 @@ import { asConvertError } from "../convert/errors";
 import type { Saved } from "../convert/queue";
 import { Results } from "../tools/ToolsScreen";
 import { emptyHistory, historyReduce } from "./history";
-import { COLORS, css, newId, type Mark, type Rgb } from "./marks";
+import { COLORS, css, hexOf, newId, rgbOf, type Mark, type Rgb } from "./marks";
 import { duplicateMark, fitBox, moveMark } from "./geometry";
 import { listFields, fillFields, type Field, type FieldValue } from "./forms";
 import { writeMarks } from "./write";
 import { editorFonts } from "./fonts";
-import EditorPage, { TEXT_TOOLS, type Tool } from "./EditorPage";
+import EditorPage, { TEXT_TOOLS, markerWidth, type Tool } from "./EditorPage";
 import SignaturePad, { type Signature as Sig } from "./SignaturePad";
 import FormsPanel from "./FormsPanel";
+import MarksPanel from "./MarksPanel";
+import { STAMPS, STAMP_COLORS, renderStamp } from "./stamps";
+import { todayLabel } from "./date";
 import "./editor.css";
 
 export type EditSource = { ref: DocRef; name: string; bytes: Uint8Array };
@@ -66,6 +77,8 @@ const TOOL_COLORS: Record<Tool, Rgb> = {
   underline: COLORS.blue,
   strike: COLORS.red,
   ink: COLORS.blue,
+  marker: COLORS.yellow,
+  eraser: COLORS.black,
   rect: COLORS.red,
   ellipse: COLORS.red,
   line: COLORS.red,
@@ -75,6 +88,14 @@ const TOOL_COLORS: Record<Tool, Rgb> = {
   date: COLORS.black,
 };
 const STROKED: Mark["kind"][] = ["ink", "rect", "ellipse", "line", "arrow"];
+const FILLED: Mark["kind"][] = ["rect", "ellipse"];
+const FILLS = [0, 0.25, 1];
+const OPACITIES = [1, 0.6, 0.3];
+const ALIGNS = ["start", "center", "end"] as const;
+type Align = (typeof ALIGNS)[number];
+const next = <T,>(list: readonly T[], v: T) => list[(list.indexOf(v) + 1) % list.length];
+/** A see-through ink stroke is the highlighter pen's: its thickness buttons stand for wider strokes. */
+const isMarker = (m: Mark | null) => m?.kind === "ink" && (m.opacity ?? 1) < 1 && m.width >= 8;
 const sameColor = (a: Rgb, b: Rgb) => a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
 
 /** Image bytes as PNG or JPEG (other formats are redrawn to PNG), with their pixel size. */
@@ -112,6 +133,13 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const [fields, setFields] = useState<Field[]>([]);
   const [values, setValues] = useState<Record<string, FieldValue>>({});
   const [formsOpen, setFormsOpen] = useState(false);
+  const [marksOpen, setMarksOpen] = useState(false);
+  const [stampMenu, setStampMenu] = useState<{ x: number; y: number } | null>(null);
+  // How new shapes, lines and drawings look; the style buttons change these and the selected mark.
+  const [fill, setFill] = useState(0);
+  const [dash, setDash] = useState(false);
+  const [opacity, setOpacity] = useState(1);
+  const [align, setAlign] = useState<Align>("start");
   const [signing, setSigning] = useState(false);
   const [saveAsk, setSaveAsk] = useState(false);
   const [flatten, setFlatten] = useState(false);
@@ -283,7 +311,25 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
 
   const chooseStroke = (w: number) => {
     setStroke(w);
-    if (sel && STROKED.includes(sel.kind)) dispatch({ type: "update", id: sel.id, patch: { width: w } as Partial<Mark> });
+    if (sel && STROKED.includes(sel.kind)) dispatch({ type: "update", id: sel.id, patch: { width: isMarker(sel) ? markerWidth(w) : w } as Partial<Mark> });
+  };
+
+  /** Fill, dashes, opacity and text alignment: for the next marks, and the selected one. */
+  const chooseLook = (patch: { fill?: number; dash?: boolean; opacity?: number; align?: Align }) => {
+    if (patch.fill !== undefined) setFill(patch.fill);
+    if (patch.dash !== undefined) setDash(patch.dash);
+    if (patch.opacity !== undefined) setOpacity(patch.opacity);
+    if (patch.align !== undefined) setAlign(patch.align);
+    if (sel) dispatch({ type: "update", id: sel.id, patch: patch as Partial<Mark> });
+  };
+
+  /** A new mark from the page, dressed in the current look. */
+  const addMark = (m: Mark) => {
+    let out: Mark = m;
+    if (m.kind === "rect" || m.kind === "ellipse") out = { ...m, fill, dash, opacity };
+    else if (m.kind === "line" || m.kind === "arrow" || (m.kind === "ink" && m.opacity === undefined)) out = { ...m, dash, opacity };
+    else if (m.kind === "text") out = { ...m, align };
+    dispatch({ type: "add", mark: out });
   };
 
   const chooseSize = (n: number) => {
@@ -318,6 +364,8 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   // Android back: close what's open on top, otherwise leave (asking first if there are changes).
   useBack(true, leave);
   useBack(formsOpen, () => setFormsOpen(false), BACK_DIALOG);
+  useBack(marksOpen, () => setMarksOpen(false), BACK_DIALOG);
+  useBack(!!stampMenu, () => setStampMenu(null), BACK_DIALOG);
   useBack(saveAsk, () => !busy && setSaveAsk(false), BACK_DIALOG);
   useBack(leaveAsk, () => setLeaveAsk(false), BACK_DIALOG);
 
@@ -394,6 +442,8 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     ["underline", <Underline size={18} />, t.edUnderline],
     ["strike", <Strikethrough size={18} />, t.edStrike],
     ["ink", <Pencil size={18} />, t.edPen],
+    ["marker", <Brush size={18} />, t.edMarker],
+    ["eraser", <Eraser size={18} />, t.edEraser],
     ["rect", <Square size={18} />, t.edRect],
     ["ellipse", <Circle size={18} />, t.edEllipse],
     ["line", <Minus size={18} />, t.edLine],
@@ -409,6 +459,33 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const curColor = selColor ?? color;
   const curStroke = sel && "width" in sel && sel.kind !== "text" ? sel.width : stroke;
   const curSize = sel?.kind === "text" ? sel.size : textSize;
+  const lookKind = sel ? sel.kind : tool === "marker" || tool === "eraser" || tool === "select" ? null : (tool as Mark["kind"]);
+  const showFill = !!lookKind && FILLED.includes(lookKind);
+  const showLook = !!lookKind && STROKED.includes(lookKind) && !isMarker(sel);
+  const showAlign = sel ? sel.kind === "text" : tool === "text" || tool === "date";
+  const curFill = sel && (sel.kind === "rect" || sel.kind === "ellipse") ? (sel.fill ?? 0) : fill;
+  const curDash = sel && "dash" in sel ? !!sel.dash : sel ? false : dash;
+  const curOpacity = sel && STROKED.includes(sel.kind) ? ((sel as { opacity?: number }).opacity ?? 1) : opacity;
+  const curAlign: Align = sel?.kind === "text" ? sel.align : align;
+  const rtl = document.documentElement.dir === "rtl";
+  const AlignIcon = curAlign === "center" ? AlignCenter : (curAlign === "start") !== rtl ? AlignLeft : AlignRight;
+
+  const scrollToPage = (page: number) => {
+    const el = scroller.current;
+    if (!el) return;
+    let y = 0;
+    for (let k = 0; k < page; k++) y += sizes[k].h * scale + GAP;
+    el.scrollTo({ top: y, behavior: "smooth" });
+  };
+
+  const addStamp = async (k: (typeof STAMPS)[number]) => {
+    setStampMenu(null);
+    try {
+      await place(await renderStamp(t.edStamps[k], todayLabel(), STAMP_COLORS[k]), [220, 90]);
+    } catch {
+      onToast(t.convertErrors["bad-input"]);
+    }
+  };
   const byPage = useMemo(() => {
     const m = new Map<number, Mark[]>();
     for (const k of marks) m.set(k.page, [...(m.get(k.page) ?? []), k]);
@@ -478,8 +555,29 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
           <button className="icon-btn" onClick={() => dispatch({ type: "redo" })} disabled={!hist.future.length} title={t.edRedo} aria-label={t.edRedo}>
             <Redo2 size={18} className="flip-rtl" />
           </button>
+          <button
+            className="icon-btn"
+            aria-pressed={marksOpen}
+            onClick={() => {
+              setFormsOpen(false);
+              setMarksOpen(!marksOpen);
+            }}
+            title={t.edMarks}
+            aria-label={t.edMarks}
+          >
+            <Layers size={18} />
+          </button>
           {fields.length > 0 && (
-            <button className="icon-btn" aria-pressed={formsOpen} onClick={() => setFormsOpen(!formsOpen)} title={t.edForms} aria-label={t.edForms}>
+            <button
+              className="icon-btn"
+              aria-pressed={formsOpen}
+              onClick={() => {
+                setMarksOpen(false);
+                setFormsOpen(!formsOpen);
+              }}
+              title={t.edForms}
+              aria-label={t.edForms}
+            >
               <ClipboardList size={18} />
             </button>
           )}
@@ -503,7 +601,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
 
       <div className="ed-strip" role="toolbar" aria-label={t.edTools}>
         {/* Grouped by job: select · mark up text · draw · insert. */}
-        {[tools.slice(0, 1), tools.slice(1, 4), tools.slice(4, 9), tools.slice(9)].map((group, gi) => (
+        {[tools.slice(0, 1), tools.slice(1, 4), tools.slice(4, 11), tools.slice(11)].map((group, gi) => (
           <Fragment key={gi}>
             {gi > 0 && <span className="ed-sep" />}
             <div className="ed-group">
@@ -519,6 +617,19 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
                   </button>
                   <button className="icon-btn" onClick={() => setSigning(true)} title={t.edSign} aria-label={t.edSign}>
                     <Signature size={18} />
+                  </button>
+                  <button
+                    className="icon-btn"
+                    aria-haspopup="menu"
+                    aria-expanded={!!stampMenu}
+                    onClick={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setStampMenu(stampMenu ? null : { x: Math.max(8, Math.min(r.left, window.innerWidth - 200)), y: r.bottom + 6 });
+                    }}
+                    title={t.edStamp}
+                    aria-label={t.edStamp}
+                  >
+                    <Stamp size={18} />
                   </button>
                 </>
               )}
@@ -541,6 +652,9 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
                   title={t.edColors[name as keyof typeof t.edColors]}
                 />
               ))}
+              <label className="ed-swatch custom" title={t.edCustomColor}>
+                <input type="color" aria-label={t.edCustomColor} value={hexOf(curColor)} onChange={(e) => chooseColor(rgbOf(e.target.value))} />
+              </label>
             </div>
           </>
         )}
@@ -553,6 +667,38 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
                   <span style={{ height: Math.max(2, s * 1.2), background: css(curColor) }} />
                 </button>
               ))}
+            </div>
+          </>
+        )}
+        {(showFill || showLook || showAlign) && (
+          <>
+            <span className="ed-sep" />
+            <div className="ed-group">
+              {showFill && (
+                <button className="icon-btn" aria-pressed={curFill > 0} onClick={() => chooseLook({ fill: next(FILLS, curFill) })} title={t.edFill(curFill)} aria-label={t.edFill(curFill)}>
+                  <PaintBucket size={18} style={{ opacity: curFill ? 1 : 0.55 }} />
+                </button>
+              )}
+              {showLook && (
+                <>
+                  <button className="icon-btn ed-dash" aria-pressed={curDash} onClick={() => chooseLook({ dash: !curDash })} title={t.edDash} aria-label={t.edDash}>
+                    <span />
+                  </button>
+                  <button
+                    className="icon-btn ed-look"
+                    onClick={() => chooseLook({ opacity: next(OPACITIES, curOpacity) })}
+                    title={t.edOpacity(Math.round(curOpacity * 100))}
+                    aria-label={t.edOpacity(Math.round(curOpacity * 100))}
+                  >
+                    {Math.round(curOpacity * 100)}%
+                  </button>
+                </>
+              )}
+              {showAlign && (
+                <button className="icon-btn" onClick={() => chooseLook({ align: next(ALIGNS, curAlign) })} title={t.edAlign[curAlign]} aria-label={t.edAlign[curAlign]}>
+                  <AlignIcon size={18} />
+                </button>
+              )}
             </div>
           </>
         )}
@@ -598,9 +744,10 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
                 selected={selected}
                 editing={editing}
                 layout={layout}
-                onAdd={(m) => dispatch({ type: "add", mark: m })}
+                onAdd={addMark}
                 onUpdate={(id, patch) => dispatch({ type: "update", id, patch })}
                 onRemove={(id) => dispatch({ type: "remove", id })}
+                onRemoveMany={(ids) => dispatch({ type: "removeMany", ids })}
                 onSelect={select}
                 selBar={selBar}
                 onEdit={setEditing}
@@ -610,6 +757,22 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
             ))}
           {!doc && <div className="ed-loading">{t.preparing}</div>}
         </div>
+        {marksOpen && (
+          <MarksPanel
+            marks={marks}
+            selected={selected}
+            onPick={(m) => {
+              scrollToPage(m.page);
+              select(m.id);
+              if (isPhone()) setMarksOpen(false);
+            }}
+            onDelete={(id) => {
+              dispatch({ type: "remove", id });
+              if (id === selected) setSelected(null);
+            }}
+            onClose={() => setMarksOpen(false)}
+          />
+        )}
         {formsOpen && fields.length > 0 && (
           <FormsPanel
             fields={fields}
@@ -645,6 +808,19 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
           }
         }}
       />
+
+      {stampMenu && (
+        <>
+          <div className="ed-menu-scrim" onClick={() => setStampMenu(null)} />
+          <div className="ed-stamp-menu" role="menu" aria-label={t.edStamp} style={{ left: stampMenu.x, top: stampMenu.y }}>
+            {STAMPS.map((k) => (
+              <button key={k} role="menuitem" style={{ color: STAMP_COLORS[k] }} onClick={() => addStamp(k)}>
+                {t.edStamps[k]}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {signing && (
         <SignaturePad

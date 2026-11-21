@@ -6,6 +6,8 @@ export type HistoryAction =
   | { type: "add"; mark: Mark }
   | { type: "update"; id: string; patch: Partial<Mark> }
   | { type: "remove"; id: string }
+  /** Several marks gone in one step (the eraser's sweep, a multiple selection). */
+  | { type: "removeMany"; ids: string[] }
   /** Moves a mark to the top (drawn last) or the bottom of its page's stack. */
   | { type: "reorder"; id: string; to: "front" | "back" }
   | { type: "undo" }
@@ -27,6 +29,10 @@ export function historyReduce(h: History, a: HistoryAction): History {
       );
     case "remove":
       return h.present.some((m) => m.id === a.id) ? commit(h, h.present.filter((m) => m.id !== a.id)) : h;
+    case "removeMany": {
+      const next = h.present.filter((m) => !a.ids.includes(m.id));
+      return next.length === h.present.length ? h : commit(h, next);
+    }
     case "reorder": {
       const m = h.present.find((x) => x.id === a.id);
       if (!m) return h;

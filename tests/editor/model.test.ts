@@ -77,3 +77,23 @@ test("reorder moves a mark to the front or back, undoably; a no-op leaves histor
   expect(h.present.map((m) => m.id)).toEqual(["a", "b"]);
   expect(historyReduce(h, { type: "undo" }).present.map((m) => m.id)).toEqual(["b", "a"]);
 });
+
+test("removeMany drops several marks in one undoable step", () => {
+  let h = historyReduce(emptyHistory, { type: "add", mark: ink("a") });
+  h = historyReduce(h, { type: "add", mark: ink("b") });
+  h = historyReduce(h, { type: "add", mark: ink("c") });
+  h = historyReduce(h, { type: "removeMany", ids: ["a", "c"] });
+  expect(h.present.map((m) => m.id)).toEqual(["b"]);
+  expect(historyReduce(h, { type: "removeMany", ids: ["x"] })).toBe(h);
+  expect(historyReduce(h, { type: "undo" }).present.map((m) => m.id)).toEqual(["a", "b", "c"]);
+});
+
+test("hexOf and rgbOf round-trip; markExcerpt shortens", async () => {
+  const { hexOf, rgbOf } = await import("../../src/editor/marks");
+  expect(hexOf([1, 0.5, 0])).toBe("#ff8000");
+  expect(hexOf(rgbOf("#1f4fd1"))).toBe("#1f4fd1");
+  expect(rgbOf("nope")).toEqual([0, 0, 0]);
+  const { markExcerpt } = await import("../../src/editor/MarksPanel");
+  expect(markExcerpt({ id: "n", page: 0, kind: "note", at: [0, 0], text: "a\n  b", color: [1, 1, 0] })).toBe("a b");
+  expect(markExcerpt({ id: "n", page: 0, kind: "note", at: [0, 0], text: "x".repeat(100), color: [1, 1, 0] }, 10)).toBe("xxxxxxxxx…");
+});

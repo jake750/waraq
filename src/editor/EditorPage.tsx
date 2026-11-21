@@ -5,13 +5,17 @@ import PageView from "../reader/PageView";
 import { useT } from "../i18n";
 import type { PageLayout } from "../text/search";
 import { css, newId, type Mark, type Pt, type Rect, type Rgb } from "./marks";
-import { constrainAngle, hasText, markBounds, moveMark, resizeTextBox, scalePaths, snapBox, squareCorner, selectText, simplify, spanRect, svgStroke } from "./geometry";
+import { constrainAngle, erases, hasText, markBounds, moveMark, resizeTextBox, scalePaths, snapBox, squareCorner, selectText, simplify, spanRect, svgStroke } from "./geometry";
 
-export type Tool = "select" | "highlight" | "underline" | "strike" | "ink" | "rect" | "ellipse" | "line" | "arrow" | "text" | "note" | "date";
+export type Tool = "select" | "highlight" | "underline" | "strike" | "ink" | "marker" | "eraser" | "rect" | "ellipse" | "line" | "arrow" | "text" | "note" | "date";
 export const TEXT_TOOLS: Tool[] = ["highlight", "underline", "strike"];
 const SHAPES: Tool[] = ["rect", "ellipse", "line", "arrow"];
 /** Tools that write over marks (a pen stroke or highlight across one); every other tool picks a mark up when pressed on it. */
-const PASS_THROUGH: Tool[] = ["ink", ...TEXT_TOOLS];
+const PASS_THROUGH: Tool[] = ["ink", "marker", "eraser", ...TEXT_TOOLS];
+const FREEHAND: Tool[] = ["ink", "marker"];
+/** The highlighter pen: a wide, see-through ink stroke. */
+export const MARKER_OPACITY = 0.4;
+export const markerWidth = (stroke: number) => Math.max(8, stroke * 4);
 
 type Props = {
   doc: PDFDocumentProxy;
@@ -30,6 +34,7 @@ type Props = {
   onAdd(m: Mark): void;
   onUpdate(id: string, patch: Partial<Mark>): void;
   onRemove(id: string): void;
+  onRemoveMany(ids: string[]): void;
   onSelect(id: string | null): void;
   onEdit(id: string | null): void;
   /** Form answers typed in the panel, shown over their fields until saved. */
@@ -43,6 +48,8 @@ type Draft =
   | { kind: "sel"; rects: Rect[]; text: string }
   | { kind: "ink"; pts: Pt[] }
   | { kind: "shape"; a: Pt; b: Pt }
+  /** Marks the eraser has swept over, hidden until the pointer is let go. */
+  | { kind: "erase"; ids: string[] }
   /** A mark being moved or reshaped, as it will be when the pointer is let go. */
   | { kind: "live"; id: string; mark: Mark; gx?: number | null; gy?: number | null };
 
@@ -212,7 +219,8 @@ export default function EditorPage(p: Props) {
     }
     e.currentTarget.setPointerCapture(e.pointerId);
     gesture.current = { start: at, screen: [e.clientX, e.clientY], pts: [at] };
-    if (p.tool === "ink") setDraft({ kind: "ink", pts: [at] });
+    if (FREEHAND.includes(p.tool)) setDraft({ kind: "ink", pts: [at] });
+    if (p.tool === "eraser") erase(at, []);
     if (TEXT_TOOLS.includes(p.tool)) {
       const g = gesture.current;
       g.ready = p
@@ -233,7 +241,8 @@ export default function EditorPage(p: Props) {
     const at = toPdf(e);
     g.last = at;
     if (TEXT_TOOLS.includes(p.tool)) setDraft(markup(g, at));
-    else if (p.tool === "ink") {
+    else if (p.tool === "eraser") erase(at, draft?.kind === "erase" ? draft.ids : []);
+    else if (FREEHAND.includes(p.tool)) {
       // Every sample the pointer took since the last frame, not just the last one: smooth, fast strokes.
       const evs = e.nativeEvent.getCoalescedEvents?.() ?? [];
       if (evs.length) for (const ev of evs) g.pts!.push(toPdf(ev));
@@ -244,6 +253,12 @@ export default function EditorPage(p: Props) {
       const b = !e.shiftKey ? at : p.tool === "line" || p.tool === "arrow" ? constrainAngle(g.start, at) : squareCorner(g.start, at);
       setDraft({ kind: "shape", a: g.start, b });
     }
+  };
+
+  /** Adds the drawn marks under the eraser at `at` to those already swept. */
+  const erase = (at: Pt, ids: string[]) => {
+    const hit = p.marks.filter((m) => !ids.includes(m.id) && erases(m, at, 8 / p.scale)).map((m) => m.id);
+    setDraft({ kind: "erase", ids: [...ids, ...hit] });
   };
 
   /** What a text tool marks between the gesture's start and `at`: the text, or on a scan the dragged area. */
@@ -268,13 +283,18 @@ export default function EditorPage(p: Props) {
       d = markup(g, g.last);
     }
     if (!d) return;
+    if (d.kind === "erase") {
+      if (d.ids.length) p.onRemoveMany(d.ids);
+      return;
+    }
     const base = { id: newId(), page: p.index };
     if (d.kind === "sel" && d.rects.length && TEXT_TOOLS.includes(p.tool))
       p.onAdd({ ...base, kind: p.tool as "highlight", rects: d.rects, text: d.text, color: p.color });
     else if (d.kind === "ink" && d.pts.length) {
       // Drop samples that add nothing (under half a screen pixel off the curve): smaller files, same look.
       const pts = simplify(d.pts, 0.5 / p.scale);
-      p.onAdd({ ...base, kind: "ink", paths: [pts], color: p.color, width: p.stroke });
+      if (p.tool === "marker") p.onAdd({ ...base, kind: "ink", paths: [pts], color: p.color, width: markerWidth(p.stroke), opacity: MARKER_OPACITY });
+      else p.onAdd({ ...base, kind: "ink", paths: [pts], color: p.color, width: p.stroke });
     }
     else if (d.kind === "shape" && Math.hypot(d.a[0] - d.b[0], d.a[1] - d.b[1]) > 3) {
       p.onAdd({ ...base, kind: p.tool as "rect", a: d.a, b: d.b, color: p.color, width: p.stroke });
@@ -411,6 +431,8 @@ export default function EditorPage(p: Props) {
       onDoubleClick: () => (m.kind === "note" ? p.onEdit(m.id) : undefined),
     };
     const c = css((m as { color?: Rgb }).color ?? [0, 0, 0]);
+    const look = m as { opacity?: number; dash?: boolean; width?: number };
+    const dash = look.dash && look.width ? `${sw(look.width * 3)} ${sw(look.width * 2)}` : undefined;
     let body: React.ReactNode = null;
     let box: Rect | null = null;
     switch (m.kind) {
@@ -436,7 +458,7 @@ export default function EditorPage(p: Props) {
         body = (
           <>
             <path d={d} className="hit" />
-            <path d={d} fill="none" stroke={c} strokeWidth={sw(m.width)} strokeLinecap="round" strokeLinejoin="round" />
+            <path d={d} fill="none" stroke={c} strokeWidth={sw(m.width)} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} opacity={m.opacity} />
           </>
         );
         box = screenBox(m.paths.flat());
@@ -454,7 +476,12 @@ export default function EditorPage(p: Props) {
         body = (
           <>
             <g className="hit">{shape}</g>
-            <g fill="none" stroke={c} strokeWidth={sw(m.width)}>
+            {!!m.fill && (
+              <g fill={c} fillOpacity={m.fill * (m.opacity ?? 1)} stroke="none">
+                {shape}
+              </g>
+            )}
+            <g fill="none" stroke={c} strokeWidth={sw(m.width)} strokeDasharray={dash} opacity={m.opacity}>
               {shape}
             </g>
           </>
@@ -469,11 +496,15 @@ export default function EditorPage(p: Props) {
         // Same size as in the saved PDF (write.ts arrowHead), in page points.
         const len = Math.max(8, m.width * 4) * p.scale;
         const head = (k: number) => [b[0] - len * Math.cos(ang + k), b[1] - len * Math.sin(ang + k)];
-        const d = `M${a.join(" ")} L${b.join(" ")}` + (m.kind === "arrow" ? ` M${head(0.45).join(" ")} L${b.join(" ")} L${head(-0.45).join(" ")}` : "");
+        const d = `M${a.join(" ")} L${b.join(" ")}`;
+        const tip = m.kind === "arrow" ? `M${head(0.45).join(" ")} L${b.join(" ")} L${head(-0.45).join(" ")}` : "";
         body = (
           <>
-            <path d={d} className="hit" />
-            <path d={d} fill="none" stroke={c} strokeWidth={sw(m.width)} strokeLinecap="round" strokeLinejoin="round" />
+            <path d={d + tip} className="hit" />
+            <g fill="none" stroke={c} strokeWidth={sw(m.width)} strokeLinecap="round" strokeLinejoin="round" opacity={m.opacity}>
+              <path d={d} strokeDasharray={dash} />
+              {tip && <path d={tip} />}
+            </g>
           </>
         );
         box = screenBox([m.a, m.b]);
@@ -529,14 +560,22 @@ export default function EditorPage(p: Props) {
           }}
         >
           <svg width={w} height={h}>
-            {p.marks.map(drawMark)}
+            {(draft?.kind === "erase" ? p.marks.filter((m) => !draft.ids.includes(m.id)) : p.marks).map(drawMark)}
             {draft?.kind === "sel" &&
               draft.rects.map((r, i) => {
                 const s = screenBox(rectPts(r));
                 return <rect key={i} x={s.x} y={s.y} width={s.w} height={s.h} fill={css(p.color, 0.35)} />;
               })}
             {draft?.kind === "ink" && (
-              <path d={svgStroke(draft.pts, toView)} fill="none" stroke={css(p.color)} strokeWidth={sw(p.stroke)} strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d={svgStroke(draft.pts, toView)}
+                fill="none"
+                stroke={css(p.color)}
+                strokeWidth={sw(p.tool === "marker" ? markerWidth(p.stroke) : p.stroke)}
+                opacity={p.tool === "marker" ? MARKER_OPACITY : undefined}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             )}
             {draft?.kind === "live" && draft.gx != null && <line className="guide" x1={draft.gx} x2={draft.gx} y1={0} y2={h} />}
             {draft?.kind === "live" && draft.gy != null && <line className="guide" x1={0} x2={w} y1={draft.gy} y2={draft.gy} />}
@@ -546,7 +585,7 @@ export default function EditorPage(p: Props) {
           {texts.map((raw) => {
             const m = shown(raw);
             const [x, y] = toView(m.at);
-            const style = { left: x, top: y, width: m.width * p.scale, fontSize: m.size * p.scale, color: css(m.color) };
+            const style = { left: x, top: y, width: m.width * p.scale, fontSize: m.size * p.scale, color: css(m.color), textAlign: m.align };
             if (p.editing === m.id)
               return (
                 <TextEditor

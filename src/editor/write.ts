@@ -67,6 +67,23 @@ function arrowHead(a: Pt, b: Pt, width: number): string {
   return `${f(l[0])} ${f(l[1])} m ${f(b[0])} ${f(b[1])} l ${f(r[0])} ${f(r[1])} l S`;
 }
 
+type Drawn = Extract<Mark, { kind: "ink" | "rect" | "ellipse" | "line" | "arrow" }>;
+
+/** Stroke style and transparency shared by drawn marks: content prefix, resources and annotation entries. */
+export function lookOf(m: Drawn): { pre: string; gs?: Record<string, unknown>; entries: Record<string, unknown> } {
+  const o = m.opacity ?? 1;
+  const dash = m.dash ? [m.width * 3, m.width * 2] : null;
+  const pre = (o < 1 ? "/GS0 gs " : "") + (dash ? `[${dash.map(f).join(" ")}] 0 d ` : "");
+  return {
+    pre,
+    gs: o < 1 ? { GS0: { CA: o, ca: o } } : undefined,
+    entries: {
+      ...(o < 1 ? { CA: o } : {}),
+      BS: { W: m.width, ...(dash ? { S: PDFName.of("D"), D: dash } : {}) },
+    },
+  };
+}
+
 /** Appearance and annotation entries for one mark (everything but text boxes). */
 function describe(m: Exclude<Mark, { kind: "text" }>): { subtype: string; ap: Ap; entries: Record<string, unknown> } {
   switch (m.kind) {
@@ -94,7 +111,9 @@ function describe(m: Exclude<Mark, { kind: "text" }>): { subtype: string; ap: Ap
     }
     case "ink": {
       const pts = m.paths.flat();
+      const look = lookOf(m);
       const content =
+        look.pre +
         `${col(m.color)} RG ${f(m.width)} w 1 J 1 j ` +
         m.paths
           .map((p) => {
@@ -106,27 +125,44 @@ function describe(m: Exclude<Mark, { kind: "text" }>): { subtype: string; ap: Ap
             return `${f(start[0])} ${f(start[1])} m ${body} S`;
           })
           .join(" ");
-      return { subtype: "Ink", ap: { bbox: bounds(pts, m.width), content }, entries: { InkList: m.paths.map((p) => p.flat()), BS: { W: m.width } } };
+      return {
+        subtype: "Ink",
+        ap: { bbox: bounds(pts, m.width), content, resources: look.gs && { ExtGState: look.gs } },
+        entries: { InkList: m.paths.map((p) => p.flat()), ...look.entries },
+      };
     }
     case "rect":
     case "ellipse": {
       const [x0, y0, x1, y1] = [Math.min(m.a[0], m.b[0]), Math.min(m.a[1], m.b[1]), Math.max(m.a[0], m.b[0]), Math.max(m.a[1], m.b[1])];
       const path = m.kind === "rect" ? `${f(x0)} ${f(y0)} ${f(x1 - x0)} ${f(y1 - y0)} re` : ellipsePath(x0, y0, x1, y1);
+      const look = lookOf(m);
+      const o = m.opacity ?? 1;
+      const fill = Math.max(0, Math.min(1, m.fill ?? 0));
+      // The inside is painted first (with its own transparency), then the outline over it.
+      const inside = fill ? `q /GSF gs ${col(m.color)} rg ${path} f Q ` : "";
+      const gs = { ...(look.gs ?? {}), ...(fill ? { GSF: { ca: fill * o } } : {}) };
       return {
         subtype: m.kind === "rect" ? "Square" : "Circle",
-        ap: { bbox: [x0 - m.width, y0 - m.width, x1 + m.width, y1 + m.width], content: `${col(m.color)} RG ${f(m.width)} w ${path} S` },
-        entries: { BS: { W: m.width } },
+        ap: {
+          bbox: [x0 - m.width, y0 - m.width, x1 + m.width, y1 + m.width],
+          content: inside + look.pre + `${col(m.color)} RG ${f(m.width)} w ${path} S`,
+          resources: Object.keys(gs).length ? { ExtGState: gs } : undefined,
+        },
+        entries: { ...look.entries, ...(fill ? { IC: [...m.color] } : {}) },
       };
     }
     case "line":
     case "arrow": {
+      const look = lookOf(m);
       const content =
+        look.pre +
         `${col(m.color)} RG ${f(m.width)} w 1 J 1 j ${f(m.a[0])} ${f(m.a[1])} m ${f(m.b[0])} ${f(m.b[1])} l S` +
-        (m.kind === "arrow" ? " " + arrowHead(m.a, m.b, m.width) : "");
+        // The arrow head is always solid, even on a dashed line.
+        (m.kind === "arrow" ? " [] 0 d " + arrowHead(m.a, m.b, m.width) : "");
       return {
         subtype: "Line",
-        ap: { bbox: bounds([m.a, m.b], Math.max(10, m.width * 5)), content },
-        entries: { L: [...m.a, ...m.b], BS: { W: m.width }, LE: [PDFName.of("None"), PDFName.of(m.kind === "arrow" ? "OpenArrow" : "None")] },
+        ap: { bbox: bounds([m.a, m.b], Math.max(10, m.width * 5)), content, resources: look.gs && { ExtGState: look.gs } },
+        entries: { L: [...m.a, ...m.b], ...look.entries, LE: [PDFName.of("None"), PDFName.of(m.kind === "arrow" ? "OpenArrow" : "None")] },
       };
     }
     case "note": {

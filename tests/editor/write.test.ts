@@ -104,3 +104,19 @@ test("pen strokes are saved as the same smooth curve the editor shows", async ()
   expect(content).toMatch(/^.*10 10 m .* c .* 130 70 c S/);
   expect(content).not.toMatch(/ l S/);
 });
+
+test("fill, dashes and opacity reach the appearance and the annotation", async () => {
+  const box: Mark = { ...base, id: "r", kind: "rect", a: [100, 100], b: [200, 150], width: 2, fill: 0.25, dash: true, opacity: 0.6 };
+  const out = await writeMarks(await blank(), [box], fonts, { flatten: false });
+  const page = (await PDFDocument.load(out)).getPage(0);
+  const annot = page.node.lookupMaybe(PDFName.of("Annots"), PDFArray)!.lookup(0, PDFDict);
+  const ap = annot.lookup(PDFName.of("AP"), PDFDict).lookup(PDFName.of("N")) as PDFRawStream;
+  const content = new TextDecoder().decode(ap.getContents());
+  expect(content).toMatch(/^q \/GSF gs .* re f Q \/GS0 gs \[6 4\] 0 d .* re S$/);
+  const s = annot.toString();
+  expect(s).toMatch(/\/IC \[/);
+  expect(s).toMatch(/\/CA 0.6/);
+  expect(s).toMatch(/\/S \/D/);
+  const gs = String(ap.dict.lookup(PDFName.of("Resources"), PDFDict));
+  expect(gs).toMatch(/\/GSF <<\s*\/ca 0.15\s*>>/);
+});
