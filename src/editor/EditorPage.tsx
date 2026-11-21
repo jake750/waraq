@@ -5,7 +5,7 @@ import PageView from "../reader/PageView";
 import { useT } from "../i18n";
 import type { PageLayout } from "../text/search";
 import { css, newId, type Mark, type Pt, type Rect, type Rgb } from "./marks";
-import { constrainAngle, erases, hasText, markBounds, moveMark, resizeTextBox, scalePaths, snapBox, squareCorner, selectText, simplify, spanRect, svgStroke } from "./geometry";
+import { constrainAngle, erases, hasText, marksIn, markBounds, moveMark, resizeTextBox, scalePaths, snapBox, squareCorner, selectText, simplify, spanRect, svgStroke } from "./geometry";
 
 export type Tool = "select" | "highlight" | "underline" | "strike" | "ink" | "marker" | "eraser" | "rect" | "ellipse" | "line" | "arrow" | "text" | "note" | "date";
 export const TEXT_TOOLS: Tool[] = ["highlight", "underline", "strike"];
@@ -36,6 +36,10 @@ type Props = {
   onRemove(id: string): void;
   onRemoveMany(ids: string[]): void;
   onSelect(id: string | null): void;
+  /** Several marks selected together (all on this page); empty when one or none is. */
+  group: string[];
+  onGroup(ids: string[]): void;
+  onMoveMany(ids: string[], dx: number, dy: number): void;
   onEdit(id: string | null): void;
   /** Form answers typed in the panel, shown over their fields until saved. */
   answers?: { name: string; rect: Rect; text: string }[];
@@ -48,6 +52,10 @@ type Draft =
   | { kind: "sel"; rects: Rect[]; text: string }
   | { kind: "ink"; pts: Pt[] }
   | { kind: "shape"; a: Pt; b: Pt }
+  /** A selected group being dragged, by this much (page points). */
+  | { kind: "group"; dx: number; dy: number }
+  /** The selection rectangle being dragged on empty paper (mouse and pen). */
+  | { kind: "marquee"; a: Pt; b: Pt }
   /** Marks the eraser has swept over, hidden until the pointer is let go. */
   | { kind: "erase"; ids: string[] }
   /** A mark being moved or reshaped, as it will be when the pointer is let go. */
@@ -190,6 +198,12 @@ export default function EditorPage(p: Props) {
     const at = toPdf(e);
     if (p.tool === "select") {
       p.onSelect(null);
+      // A mouse or pen drag on empty paper draws a selection rectangle (a finger scrolls instead).
+      if (e.pointerType !== "touch") {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        gesture.current = { start: at, screen: [e.clientX, e.clientY] };
+        setDraft({ kind: "marquee", a: at, b: at });
+      }
       return;
     }
     // The new box takes focus; stop the browser's own mousedown from taking it back to the page.
@@ -240,7 +254,8 @@ export default function EditorPage(p: Props) {
     if (!g || !vp) return;
     const at = toPdf(e);
     g.last = at;
-    if (TEXT_TOOLS.includes(p.tool)) setDraft(markup(g, at));
+    if (draft?.kind === "marquee") setDraft({ kind: "marquee", a: g.start, b: at });
+    else if (TEXT_TOOLS.includes(p.tool)) setDraft(markup(g, at));
     else if (p.tool === "eraser") erase(at, draft?.kind === "erase" ? draft.ids : []);
     else if (FREEHAND.includes(p.tool)) {
       // Every sample the pointer took since the last frame, not just the last one: smooth, fast strokes.
@@ -283,6 +298,14 @@ export default function EditorPage(p: Props) {
       d = markup(g, g.last);
     }
     if (!d) return;
+    if (d.kind === "marquee") {
+      const r = spanRect(d.a, d.b);
+      if (r.w * p.scale < 4 && r.h * p.scale < 4) return; // a click, not a drag
+      const ids = marksIn(p.marks, r);
+      if (ids.length > 1) p.onGroup(ids);
+      else if (ids.length) p.onSelect(ids[0]);
+      return;
+    }
     if (d.kind === "erase") {
       if (d.ids.length) p.onRemoveMany(d.ids);
       return;
@@ -333,12 +356,48 @@ export default function EditorPage(p: Props) {
     e.stopPropagation();
     e.preventDefault();
     if (p.editing) p.onEdit(null);
-    const wasSelected = p.selected === m.id;
-    p.onSelect(m.id);
     const el = e.currentTarget as Element;
-    el.setPointerCapture(e.pointerId);
     const start = toPdf(e);
     const [sx, sy] = [e.clientX, e.clientY];
+    // Shift (or Ctrl/Cmd) adds a mark to the selection, or takes it out.
+    if (!h && (e.shiftKey || e.ctrlKey || e.metaKey)) {
+      const cur = p.group.length ? p.group : p.selected && p.marks.some((x) => x.id === p.selected) ? [p.selected] : [];
+      const next = cur.includes(m.id) ? cur.filter((x) => x !== m.id) : [...cur, m.id];
+      if (next.length > 1) p.onGroup(next);
+      else p.onSelect(next[0] ?? null);
+      return;
+    }
+    // Dragging one of a selected group moves them all; a tap on one selects just it.
+    if (!h && p.group.includes(m.id)) {
+      el.setPointerCapture(e.pointerId);
+      let moved: { dx: number; dy: number } | null = null;
+      const onMove = (ev: PointerEvent) => {
+        if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 3) return;
+        let [cx, cy] = [ev.clientX, ev.clientY];
+        if (ev.shiftKey) {
+          if (Math.abs(cx - sx) > Math.abs(cy - sy)) cy = sy;
+          else cx = sx;
+        }
+        const at = toPdf({ clientX: cx, clientY: cy });
+        moved = { dx: at[0] - start[0], dy: at[1] - start[1] };
+        setDraft({ kind: "group", ...moved });
+      };
+      const onUp = () => {
+        el.removeEventListener("pointermove", onMove as EventListener);
+        el.removeEventListener("pointerup", onUp);
+        el.removeEventListener("pointercancel", onUp);
+        setDraft(null);
+        if (moved) p.onMoveMany(p.group, moved.dx, moved.dy);
+        else p.onSelect(m.id);
+      };
+      el.addEventListener("pointermove", onMove as EventListener);
+      el.addEventListener("pointerup", onUp);
+      el.addEventListener("pointercancel", onUp);
+      return;
+    }
+    const wasSelected = p.selected === m.id;
+    p.onSelect(m.id);
+    el.setPointerCapture(e.pointerId);
     // What a moved mark lines up with: the page's edges and middle, and the other marks' edges and centres.
     const xs = [0, w / 2, w];
     const ys = [0, (p.size.h * p.scale) / 2, p.size.h * p.scale];
@@ -385,7 +444,13 @@ export default function EditorPage(p: Props) {
   };
 
   // A mark as currently shown (live while dragging).
-  const shown = <M extends Mark>(m: M): M => (draft?.kind === "live" && draft.id === m.id ? (draft.mark as M) : m);
+  const shown = <M extends Mark>(m: M): M =>
+    draft?.kind === "live" && draft.id === m.id
+      ? (draft.mark as M)
+      : draft?.kind === "group" && p.group.includes(m.id)
+        ? (moveMark(m, draft.dx, draft.dy) as M)
+        : m;
+  const inGroup = (id: string) => p.group.includes(id);
 
   /** Handles of a selected mark, in screen space. */
   const handles = (raw: Mark, m: Mark) => {
@@ -423,7 +488,7 @@ export default function EditorPage(p: Props) {
 
   const drawMark = (raw: Mark) => {
     const m = shown(raw);
-    const sel = p.selected === m.id;
+    const sel = p.selected === m.id || inGroup(m.id);
     const common = {
       "data-id": m.id,
       className: `mark${selectable ? " grab" : ""}${sel ? " selected" : ""}`,
@@ -536,12 +601,22 @@ export default function EditorPage(p: Props) {
       <g key={m.id} {...common}>
         {body}
         {sel && box && <rect className="sel-box" x={box.x - 4} y={box.y - 4} width={box.w + 8} height={box.h + 8} />}
-        {sel && m.id !== "draft" && handles(raw, m)}
+        {sel && m.id !== "draft" && !p.group.length && handles(raw, m)}
       </g>
     );
   };
 
   const selMark = p.marks.find((m) => m.id === p.selected) ?? null;
+  // The box around a selected group on this page (the floating bar goes above it).
+  const groupMarks = p.group.length ? p.marks.filter((m) => inGroup(m.id)) : [];
+  const groupBox: Rect | null = groupMarks.length
+    ? (() => {
+        const bs = groupMarks.map(viewBox);
+        const x = Math.min(...bs.map((b) => b.x));
+        const y = Math.min(...bs.map((b) => b.y));
+        return { x, y, w: Math.max(...bs.map((b) => b.x + b.w)) - x, h: Math.max(...bs.map((b) => b.y + b.h)) - y };
+      })()
+    : null;
   const texts = p.marks.filter((m): m is Extract<Mark, { kind: "text" }> => m.kind === "text");
   const note = p.marks.find((m): m is Extract<Mark, { kind: "note" }> => m.kind === "note" && m.id === p.editing);
 
@@ -579,6 +654,11 @@ export default function EditorPage(p: Props) {
             )}
             {draft?.kind === "live" && draft.gx != null && <line className="guide" x1={draft.gx} x2={draft.gx} y1={0} y2={h} />}
             {draft?.kind === "live" && draft.gy != null && <line className="guide" x1={0} x2={w} y1={draft.gy} y2={draft.gy} />}
+            {draft?.kind === "marquee" &&
+              (() => {
+                const s = screenBox([draft.a, draft.b]);
+                return <rect className="marquee" x={s.x} y={s.y} width={s.w} height={s.h} />;
+              })()}
             {draft?.kind === "shape" &&
               drawMark({ id: "draft", page: p.index, kind: p.tool as "rect", a: draft.a, b: draft.b, color: p.color, width: p.stroke })}
           </svg>
@@ -599,7 +679,8 @@ export default function EditorPage(p: Props) {
                   }}
                 />
               );
-            const sel = p.selected === m.id;
+            const sel = p.selected === m.id || inGroup(m.id);
+            const single = p.selected === m.id;
             return (
               <div
                 key={m.id}
@@ -610,7 +691,7 @@ export default function EditorPage(p: Props) {
                 onDoubleClick={() => p.onEdit(m.id)}
               >
                 {m.text}
-                {sel && (
+                {single && (
                   <>
                     <span className="handle side start" onPointerDown={(e) => grab(e, raw, { side: -1 })} />
                     <span className="handle side end" onPointerDown={(e) => grab(e, raw, { side: 1 })} />
@@ -637,6 +718,7 @@ export default function EditorPage(p: Props) {
             );
           })}
           {selMark && p.selBar && draft?.kind !== "live" && p.editing !== selMark.id && <SelBar box={viewBox(selMark)} pageW={w}>{p.selBar}</SelBar>}
+          {groupBox && p.selBar && draft?.kind !== "group" && <SelBar box={groupBox} pageW={w}>{p.selBar}</SelBar>}
           {note && <NoteEditor at={toView(note.at)} pageW={w} value={note.text} onDone={(text) => {
             p.onEdit(null);
             if (!text.trim() && !note.text) p.onRemove(note.id);

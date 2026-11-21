@@ -1,4 +1,4 @@
-import { charIndexAt, selectText, moveMark, fitBox, resizeBox, simplify, smoothCurve, svgStroke, scalePaths, hasText, markBounds, spanRect, duplicateMark, resizeTextBox, snapBox, constrainAngle, squareCorner, erases } from "../../src/editor/geometry";
+import { charIndexAt, selectText, moveMark, fitBox, resizeBox, simplify, smoothCurve, svgStroke, scalePaths, hasText, markBounds, spanRect, duplicateMark, resizeTextBox, snapBox, constrainAngle, squareCorner, erases, marksIn, markArea } from "../../src/editor/geometry";
 import type { PageLayout } from "../../src/text/search";
 import type { Mark, Pt } from "../../src/editor/marks";
 
@@ -178,4 +178,16 @@ test("the eraser touches a drawn mark's lines, not empty space inside it", () =>
   expect(erases(ink, [30, 0], 2)).toBe(false);
   const note: Mark = { id: "n", page: 0, kind: "note", at: [0, 0], text: "", color: [1, 1, 0] };
   expect(erases(note, [0, 0], 5)).toBe(false);
+});
+
+test("a selection rectangle catches the marks it overlaps, text boxes and notes by their area", () => {
+  const ms: Mark[] = [
+    { id: "r", page: 0, kind: "rect", a: [0, 0], b: [10, 10], color: [0, 0, 0], width: 1 },
+    { id: "t", page: 0, kind: "text", at: [100, 100], width: 50, text: "a\nb", size: 10, color: [0, 0, 0], align: "start" },
+    { id: "n", page: 0, kind: "note", at: [200, 200], text: "", color: [1, 1, 0] },
+  ];
+  expect(markArea(ms[1])).toEqual({ x: 100, y: 71, w: 50, h: 29 });
+  expect(marksIn(ms, { x: 5, y: 5, w: 90, h: 70 })).toEqual(["r"]);
+  expect(marksIn(ms, { x: 120, y: 80, w: 90, h: 110 })).toEqual(["t", "n"]);
+  expect(marksIn(ms, { x: 300, y: 300, w: 5, h: 5 })).toEqual([]);
 });

@@ -4,6 +4,7 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  BoxSelect,
   BringToFront,
   Brush,
   Eraser,
@@ -51,6 +52,7 @@ import { COLORS, css, hexOf, newId, rgbOf, type Mark, type Rgb } from "./marks";
 import { duplicateMark, fitBox, moveMark } from "./geometry";
 import { listFields, fillFields, type Field, type FieldValue } from "./forms";
 import { writeMarks } from "./write";
+import { importAnnots } from "./annots";
 import { editorFonts } from "./fonts";
 import EditorPage, { TEXT_TOOLS, markerWidth, type Tool } from "./EditorPage";
 import SignaturePad, { type Signature as Sig } from "./SignaturePad";
@@ -87,6 +89,8 @@ const TOOL_COLORS: Record<Tool, Rgb> = {
   note: COLORS.yellow,
   date: COLORS.black,
 };
+/** No form answers yet: one shared object, so "nothing changed" compares equal. */
+const NO_VALUES: Record<string, FieldValue> = {};
 const STROKED: Mark["kind"][] = ["ink", "rect", "ellipse", "line", "arrow"];
 const FILLED: Mark["kind"][] = ["rect", "ellipse"];
 const FILLS = [0, 0.25, 1];
@@ -131,7 +135,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [fields, setFields] = useState<Field[]>([]);
-  const [values, setValues] = useState<Record<string, FieldValue>>({});
+  const [values, setValues] = useState<Record<string, FieldValue>>(NO_VALUES);
   const [formsOpen, setFormsOpen] = useState(false);
   const [marksOpen, setMarksOpen] = useState(false);
   const [stampMenu, setStampMenu] = useState<{ x: number; y: number } | null>(null);
@@ -145,7 +149,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const [flatten, setFlatten] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<Saved | null>(null);
-  const [cleanAt, setCleanAt] = useState<{ marks: Mark[]; values: Record<string, FieldValue> }>({ marks: emptyHistory.present, values: {} });
+  const [cleanAt, setCleanAt] = useState<{ marks: Mark[]; values: Record<string, FieldValue> }>({ marks: emptyHistory.present, values: NO_VALUES });
   const [leaveAsk, setLeaveAsk] = useState(false);
   // Unsaved work from an earlier session, offered once on open. `undefined` = not looked up yet.
   const [draft, setDraft] = useState<Draft | null | undefined>(undefined);
@@ -156,6 +160,8 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const layouts = useRef(new Map<number, Promise<PageLayout>>());
   const fileInput = useRef<HTMLInputElement>(null);
+  /** The file as the editor shows it: the original minus the annotations that became marks. */
+  const base = useRef(src.bytes);
   const marks = hist.present;
   const dirty = marks !== cleanAt.marks || values !== cleanAt.values;
 
@@ -188,7 +194,9 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     let alive = true;
     let d: PDFDocumentProxy | undefined;
     (async () => {
-      d = await openPdf(src.bytes.slice());
+      // Annotations already in the file become marks; the editor shows and saves the file without them.
+      const imp = await importAnnots(src.bytes);
+      d = await openPdf(imp.bytes.slice());
       // All pages asked at once: the worker answers in one stream instead of one round trip per page.
       const doc = d;
       const s = await Promise.all(
@@ -198,6 +206,11 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
         }),
       );
       if (!alive) return;
+      base.current = imp.bytes;
+      if (imp.marks.length) {
+        dispatch({ type: "reset", marks: imp.marks });
+        setCleanAt((c) => ({ marks: imp.marks, values: c.values }));
+      }
       setDoc(d);
       setSizes(s);
       const f = await listFields(src.bytes).catch(() => []);
@@ -294,15 +307,34 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const pickTool = (k: Tool) => {
     setEditing(null);
     setSelected(null);
+    setGroupIds([]);
     setTool(k);
   };
 
   // The selected mark: the colour, thickness and size controls change it.
   const sel = marks.find((x) => x.id === selected) ?? null;
+  // Several marks selected together (on one page); `selected` is then empty.
+  const [group, setGroupIds] = useState<string[]>([]);
+  const groupMarks = useMemo(() => marks.filter((m) => group.includes(m.id)), [marks, group]);
+  const setGroup = (ids: string[]) => {
+    setSelected(null);
+    setEditing(null);
+    setGroupIds(ids);
+    if (ids.length) setTool("select");
+  };
+  /** Patches for every grouped mark the change applies to, as one undo step. */
+  const groupUpdate = (fn: (m: Mark) => Partial<Mark> | null) => {
+    const patches = groupMarks.flatMap((m) => {
+      const patch = fn(m);
+      return patch ? [{ id: m.id, patch }] : [];
+    });
+    dispatch({ type: "updateMany", patches });
+  };
   const selColor = sel && "color" in sel ? sel.color : null;
 
   const chooseColor = (c: Rgb) => {
-    if (sel && "color" in sel) {
+    if (groupMarks.length) groupUpdate((m) => ("color" in m ? ({ color: c } as Partial<Mark>) : null));
+    else if (sel && "color" in sel) {
       dispatch({ type: "update", id: sel.id, patch: { color: c } as Partial<Mark> });
       // The next mark of that kind starts in the same colour.
       if (sel.kind in TOOL_COLORS) setColors((old) => ({ ...old, [sel.kind]: c }));
@@ -311,7 +343,8 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
 
   const chooseStroke = (w: number) => {
     setStroke(w);
-    if (sel && STROKED.includes(sel.kind)) dispatch({ type: "update", id: sel.id, patch: { width: isMarker(sel) ? markerWidth(w) : w } as Partial<Mark> });
+    if (groupMarks.length) groupUpdate((m) => (STROKED.includes(m.kind) ? ({ width: isMarker(m) ? markerWidth(w) : w } as Partial<Mark>) : null));
+    else if (sel && STROKED.includes(sel.kind)) dispatch({ type: "update", id: sel.id, patch: { width: isMarker(sel) ? markerWidth(w) : w } as Partial<Mark> });
   };
 
   /** Fill, dashes, opacity and text alignment: for the next marks, and the selected one. */
@@ -338,13 +371,19 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   };
 
   const remove = useCallback(() => {
+    if (group.length) {
+      dispatch({ type: "removeMany", ids: group });
+      setGroupIds([]);
+      return;
+    }
     if (!selected) return;
     dispatch({ type: "remove", id: selected });
     setSelected(null);
-  }, [selected]);
+  }, [selected, group]);
 
   // Picking a mark (or placing one) hands over to Select, so it can be moved and resized at once.
   const select = (id: string | null) => {
+    setGroupIds([]);
     setSelected(id);
     if (id) setTool("select");
   };
@@ -356,6 +395,19 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     const id = newId();
     dispatch({ type: "add", mark: duplicateMark(m, id, page) });
     select(id);
+  };
+  const duplicateGroup = () => {
+    const copies = groupMarks.map((m) => duplicateMark(m, newId()));
+    dispatch({ type: "addMany", marks: copies });
+    setGroup(copies.map((m) => m.id));
+  };
+  const moveMany = (ids: string[], dx: number, dy: number) =>
+    dispatch({ type: "updateMany", patches: marks.filter((m) => ids.includes(m.id)).map((m) => ({ id: m.id, patch: moveMark(m, dx, dy) })) });
+  /** Everything on one page selected together (how a phone selects several marks). */
+  const selectPage = (page: number) => {
+    const ids = marks.filter((m) => m.page === page).map((m) => m.id);
+    if (ids.length > 1) setGroup(ids);
+    else select(ids[0] ?? null);
   };
   const editSelected = () => sel && (sel.kind === "text" || sel.kind === "note") && setEditing(sel.id);
 
@@ -371,12 +423,14 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
 
   // Arrow keys nudge the selected mark (one point, ten with Shift).
   const nudge = (dx: number, dy: number) => {
-    if (sel) dispatch({ type: "update", id: sel.id, patch: moveMark(sel, dx, dy) });
+    if (groupMarks.length) moveMany(group, dx, dy);
+    else if (sel) dispatch({ type: "update", id: sel.id, patch: moveMark(sel, dx, dy) });
   };
 
   // Keyboard: undo/redo, delete, escape, nudge.
-  const keys = useRef({ remove, leave, editing, nudge, hasSel: !!sel, sel, duplicate, editSelected, page: (): number => 0 });
-  keys.current = { remove, leave, editing, nudge, hasSel: !!sel, sel, duplicate, editSelected, page: () => currentPage() };
+  const keyState = () => ({ remove, leave, editing, nudge, hasSel: !!sel || group.length > 0, sel, grouped: group.length > 0, duplicate, duplicateGroup, editSelected, selectPage, page: () => currentPage() });
+  const keys = useRef(keyState());
+  keys.current = keyState();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -388,9 +442,13 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
       } else if (mod && e.key.toLowerCase() === "y") {
         e.preventDefault();
         dispatch({ type: "redo" });
+      } else if (mod && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        keys.current.selectPage(keys.current.page());
       } else if (mod && e.key.toLowerCase() === "d") {
         e.preventDefault();
-        keys.current.duplicate(keys.current.sel);
+        if (keys.current.grouped) keys.current.duplicateGroup();
+        else keys.current.duplicate(keys.current.sel);
       } else if (mod && e.key.toLowerCase() === "c" && keys.current.sel) {
         clip.current = keys.current.sel;
       } else if (mod && e.key.toLowerCase() === "v" && clip.current) {
@@ -403,7 +461,10 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
         e.preventDefault();
         keys.current.editSelected();
       } else if (e.key === "Delete" || e.key === "Backspace") keys.current.remove();
-      else if (e.key === "Escape") setSelected(null);
+      else if (e.key === "Escape") {
+        setSelected(null);
+        setGroupIds([]);
+      }
       else if (keys.current.hasSel && e.key.startsWith("Arrow")) {
         e.preventDefault();
         const d = e.shiftKey ? 10 : 1;
@@ -420,7 +481,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     setBusy(true);
     try {
       const fonts = await editorFonts();
-      let out = src.bytes;
+      let out = base.current;
       const changed = Object.keys(values).length > 0;
       if (changed || (flatten && fields.length)) out = await fillFields(out, values, fonts, { flatten });
       out = await writeMarks(out, marks, fonts, { flatten });
@@ -453,7 +514,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     ["date", <CalendarDays size={18} />, t.edDate],
   ];
   // Controls follow what they would change: the tool in hand, or the selected mark.
-  const showColors = tool !== "select" || !!selColor;
+  const showColors = tool !== "select" || !!selColor || groupMarks.some((m) => "color" in m);
   const showStroke = sel ? STROKED.includes(sel.kind) : STROKED.includes(tool as Mark["kind"]);
   const showSize = sel ? sel.kind === "text" : tool === "text" || tool === "date";
   const curColor = selColor ?? color;
@@ -511,7 +572,17 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     setFocusField({ name });
   };
 
-  const selBar = sel ? (
+  const selBar = groupMarks.length ? (
+    <div className="ed-group">
+      <span className="ed-count">{t.edSelected(groupMarks.length)}</span>
+      <button className="icon-btn" onClick={duplicateGroup} title={t.edDuplicate} aria-label={t.edDuplicate}>
+        <Copy size={18} />
+      </button>
+      <button className="icon-btn danger" onClick={remove} title={t.edDelete} aria-label={t.edDelete}>
+        <Trash2 size={18} />
+      </button>
+    </div>
+  ) : sel ? (
   <div className="ed-group">
     {(sel.kind === "text" || sel.kind === "note") && (
       <button className="icon-btn" onClick={editSelected} title={t.edEditText} aria-label={t.edEditText}>
@@ -527,6 +598,11 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     <button className="icon-btn" onClick={() => dispatch({ type: "reorder", id: sel.id, to: "back" })} title={t.edBack} aria-label={t.edBack}>
       <SendToBack size={18} />
     </button>
+    {marks.some((m) => m.page === sel.page && m.id !== sel.id) && (
+      <button className="icon-btn" onClick={() => selectPage(sel.page)} title={t.edSelectPage} aria-label={t.edSelectPage}>
+        <BoxSelect size={18} />
+      </button>
+    )}
     <button className="icon-btn danger" onClick={remove} title={t.edDelete} aria-label={t.edDelete}>
       <Trash2 size={18} />
     </button>
@@ -742,6 +818,9 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
                 stroke={stroke}
                 textSize={textSize}
                 selected={selected}
+                group={group}
+                onGroup={setGroup}
+                onMoveMany={moveMany}
                 editing={editing}
                 layout={layout}
                 onAdd={addMark}

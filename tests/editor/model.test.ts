@@ -97,3 +97,12 @@ test("hexOf and rgbOf round-trip; markExcerpt shortens", async () => {
   expect(markExcerpt({ id: "n", page: 0, kind: "note", at: [0, 0], text: "a\n  b", color: [1, 1, 0] })).toBe("a b");
   expect(markExcerpt({ id: "n", page: 0, kind: "note", at: [0, 0], text: "x".repeat(100), color: [1, 1, 0] }, 10)).toBe("xxxxxxxxx…");
 });
+
+test("addMany and updateMany are single undo steps", () => {
+  let h = historyReduce(emptyHistory, { type: "addMany", marks: [ink("a"), ink("b")] });
+  expect(h.past.length).toBe(1);
+  h = historyReduce(h, { type: "updateMany", patches: [{ id: "a", patch: { width: 7 } }, { id: "b", patch: { width: 8 } }] });
+  expect(h.present.map((m) => (m as Extract<Mark, { kind: "ink" }>).width)).toEqual([7, 8]);
+  expect(historyReduce(h, { type: "undo" }).present.map((m) => (m as Extract<Mark, { kind: "ink" }>).width)).toEqual([2, 2]);
+  expect(historyReduce(h, { type: "addMany", marks: [] })).toBe(h);
+});

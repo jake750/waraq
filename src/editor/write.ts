@@ -24,6 +24,7 @@ import {
 import { loadPdf } from "../tools/pages";
 import { paragraphRtl, visualRuns } from "./bidi";
 import { smoothCurve } from "./geometry";
+import { FILL_KEY } from "./annots";
 import type { Mark, Pt, Rect, Rgb } from "./marks";
 
 export type EditorFonts = { arabic: Uint8Array; latin: Uint8Array };
@@ -148,7 +149,8 @@ function describe(m: Exclude<Mark, { kind: "text" }>): { subtype: string; ap: Ap
           content: inside + look.pre + `${col(m.color)} RG ${f(m.width)} w ${path} S`,
           resources: Object.keys(gs).length ? { ExtGState: gs } : undefined,
         },
-        entries: { ...look.entries, ...(fill ? { IC: [...m.color] } : {}) },
+        // RD: the box inside the Rect (the border's room), so the shape reads back at its own size.
+        entries: { ...look.entries, RD: [m.width, m.width, m.width, m.width], ...(fill ? { IC: [...m.color], [FILL_KEY]: fill } : {}) },
       };
     }
     case "line":

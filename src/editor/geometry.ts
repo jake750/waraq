@@ -296,3 +296,23 @@ export function erases(m: Mark, p: Pt, tol: number): boolean {
   const reach = tol + ("width" in m && m.kind !== "text" ? m.width / 2 : 0);
   return strokesOf(m).some((s) => (s.length === 1 ? Math.hypot(p[0] - s[0][0], p[1] - s[0][1]) <= reach : s.some((q, i) => i > 0 && segDist(p, s[i - 1], q) <= reach)));
 }
+
+/** The area a mark covers on its page: its geometry, a note's icon, a text box's lines (estimated). */
+export function markArea(m: Mark): Rect {
+  if (m.kind === "note") return { x: m.at[0], y: m.at[1] - 20, w: 20, h: 20 };
+  if (m.kind === "text") {
+    const h = m.size * 1.45 * Math.max(1, m.text.split("\n").length);
+    return { x: m.at[0], y: m.at[1] - h, w: m.width, h };
+  }
+  return markBounds(m);
+}
+
+/** True when two rectangles overlap or touch. */
+export function overlaps(a: Rect, b: Rect): boolean {
+  return a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
+}
+
+/** The marks a dragged selection rectangle catches: those it overlaps, in their order. */
+export function marksIn(marks: Mark[], r: Rect): string[] {
+  return marks.filter((m) => overlaps(markArea(m), r)).map((m) => m.id);
+}
