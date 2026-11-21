@@ -226,3 +226,38 @@ export function spanRect(a: Pt, b: Pt): Rect {
 export function hasText(layout: PageLayout): boolean {
   return layout.boxes.some((_, i) => real(layout, i));
 }
+
+/**
+ * Snaps a box being moved: its left/centre/right to the nearest of `xs` and its top/middle/bottom
+ * to the nearest of `ys`, each only within `tol`. Returns the shift and the guide it lined up with.
+ */
+export function snapBox(b: Rect, xs: number[], ys: number[], tol: number): { dx: number; dy: number; gx: number | null; gy: number | null } {
+  const pick = (vals: number[], targets: number[]) => {
+    let best: [number, number] | null = null;
+    for (const v of vals)
+      for (const t of targets) {
+        const d = t - v;
+        if (Math.abs(d) <= tol && (!best || Math.abs(d) < Math.abs(best[0]))) best = [d, t];
+      }
+    return best;
+  };
+  const x = pick([b.x, b.x + b.w / 2, b.x + b.w], xs);
+  const y = pick([b.y, b.y + b.h / 2, b.y + b.h], ys);
+  return { dx: x?.[0] ?? 0, dy: y?.[0] ?? 0, gx: x?.[1] ?? null, gy: y?.[1] ?? null };
+}
+
+/** `b` turned around `a` onto the nearest multiple of `step` (45° by default), length kept. */
+export function constrainAngle(a: Pt, b: Pt, step = Math.PI / 4): Pt {
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const ang = Math.round(Math.atan2(b[1] - a[1], b[0] - a[0]) / step) * step;
+  const r = (v: number) => Math.round(v * 1e9) / 1e9;
+  return [r(a[0] + len * Math.cos(ang)), r(a[1] + len * Math.sin(ang))];
+}
+
+/** The corner opposite `a` of the square spanned towards `b` (its larger side wins). */
+export function squareCorner(a: Pt, b: Pt): Pt {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const s = Math.max(Math.abs(dx), Math.abs(dy));
+  return [a[0] + (Math.sign(dx) || 1) * s, a[1] + (Math.sign(dy) || 1) * s];
+}

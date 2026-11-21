@@ -577,3 +577,42 @@
 .sig-ink[aria-pressed="true"] {
   box-shadow: 0 0 0 2px var(--accent-text);
 }
+
+/* The selected mark's actions float next to it, like the bar in Acrobat or PDF Expert. */
+.ed-selbar {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  box-shadow: var(--shadow), 0 2px 8px rgba(18, 23, 38, 0.12);
+  white-space: nowrap;
+  color: var(--text);
+  direction: inherit;
+  transform-origin: 50% 100%;
+  animation: ed-selbar-in 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ed-selbar .icon-btn {
+  width: 36px;
+  height: 36px;
+}
+@keyframes ed-selbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.92);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ed-selbar {
+    animation: none;
+  }
+}
+.guide {
+  stroke: var(--accent);
+  stroke-width: 1px;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}

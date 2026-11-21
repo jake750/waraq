@@ -1,4 +1,4 @@
-import { charIndexAt, selectText, moveMark, fitBox, resizeBox, simplify, smoothCurve, svgStroke, scalePaths, hasText, markBounds, spanRect, duplicateMark, resizeTextBox } from "../../src/editor/geometry";
+import { charIndexAt, selectText, moveMark, fitBox, resizeBox, simplify, smoothCurve, svgStroke, scalePaths, hasText, markBounds, spanRect, duplicateMark, resizeTextBox, snapBox, constrainAngle, squareCorner } from "../../src/editor/geometry";
 import type { PageLayout } from "../../src/text/search";
 import type { Mark, Pt } from "../../src/editor/marks";
 
@@ -148,4 +148,22 @@ test("resizeTextBox drags either edge and keeps a minimum width", () => {
   expect(resizeTextBox(t, 1, 40)).toEqual({ at: [100, 500], width: 240 });
   expect(resizeTextBox(t, -1, -40)).toEqual({ at: [60, 500], width: 240 });
   expect(resizeTextBox(t, -1, 500)).toEqual({ at: [270, 500], width: 30 });
+});
+
+test("snapBox lines the nearest edge or centre up with a guide, within tolerance only", () => {
+  const b = { x: 97, y: 50, w: 20, h: 10 };
+  expect(snapBox(b, [100, 300], [0], 5)).toEqual({ dx: 3, dy: 0, gx: 100, gy: null });
+  // The centre (107) is nearer to 108 than the left edge is to 100.
+  expect(snapBox(b, [100, 108], [56], 5)).toMatchObject({ dx: 1, gx: 108, dy: 1, gy: 56 });
+  expect(snapBox(b, [200], [200], 5)).toEqual({ dx: 0, dy: 0, gx: null, gy: null });
+});
+
+test("constrainAngle and squareCorner", () => {
+  const h = constrainAngle([0, 0], [10, 1]);
+  expect(h[0]).toBeCloseTo(Math.hypot(10, 1));
+  expect(h[1]).toBeCloseTo(0);
+  const d = constrainAngle([0, 0], [10, 9]);
+  expect(d[0]).toBeCloseTo(d[1]);
+  expect(squareCorner([0, 0], [10, -4])).toEqual([10, -10]);
+  expect(squareCorner([5, 5], [5, 9])).toEqual([9, 9]);
 });

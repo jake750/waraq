@@ -434,6 +434,28 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     setFocusField({ name });
   };
 
+  const selBar = sel ? (
+  <div className="ed-group">
+    {(sel.kind === "text" || sel.kind === "note") && (
+      <button className="icon-btn" onClick={editSelected} title={t.edEditText} aria-label={t.edEditText}>
+        <PencilLine size={18} />
+      </button>
+    )}
+    <button className="icon-btn" onClick={() => duplicate(sel)} title={t.edDuplicate} aria-label={t.edDuplicate}>
+      <Copy size={18} />
+    </button>
+    <button className="icon-btn" onClick={() => dispatch({ type: "reorder", id: sel.id, to: "front" })} title={t.edFront} aria-label={t.edFront}>
+      <BringToFront size={18} />
+    </button>
+    <button className="icon-btn" onClick={() => dispatch({ type: "reorder", id: sel.id, to: "back" })} title={t.edBack} aria-label={t.edBack}>
+      <SendToBack size={18} />
+    </button>
+    <button className="icon-btn danger" onClick={remove} title={t.edDelete} aria-label={t.edDelete}>
+      <Trash2 size={18} />
+    </button>
+  </div>
+  ) : null;
+
   return (
     <div className="editor">
       <header className="reader-bar ed-bar">
@@ -546,30 +568,6 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
             </div>
           </>
         )}
-        {sel && (
-          <>
-            <span className="ed-sep" />
-            <div className="ed-group">
-              {(sel.kind === "text" || sel.kind === "note") && (
-                <button className="icon-btn" onClick={editSelected} title={t.edEditText} aria-label={t.edEditText}>
-                  <PencilLine size={18} />
-                </button>
-              )}
-              <button className="icon-btn" onClick={() => duplicate(sel)} title={t.edDuplicate} aria-label={t.edDuplicate}>
-                <Copy size={18} />
-              </button>
-              <button className="icon-btn" onClick={() => dispatch({ type: "reorder", id: sel.id, to: "front" })} title={t.edFront} aria-label={t.edFront}>
-                <BringToFront size={18} />
-              </button>
-              <button className="icon-btn" onClick={() => dispatch({ type: "reorder", id: sel.id, to: "back" })} title={t.edBack} aria-label={t.edBack}>
-                <SendToBack size={18} />
-              </button>
-              <button className="icon-btn danger" onClick={remove} title={t.edDelete} aria-label={t.edDelete}>
-                <Trash2 size={18} />
-              </button>
-            </div>
-          </>
-        )}
       </div>
 
       {saved && (
@@ -604,6 +602,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
                 onUpdate={(id, patch) => dispatch({ type: "update", id, patch })}
                 onRemove={(id) => dispatch({ type: "remove", id })}
                 onSelect={select}
+                selBar={selBar}
                 onEdit={setEditing}
                 answers={answers.get(i)}
                 onField={openField}

@@ -5,7 +5,7 @@ import PageView from "../reader/PageView";
 import { useT } from "../i18n";
 import type { PageLayout } from "../text/search";
 import { css, newId, type Mark, type Pt, type Rect, type Rgb } from "./marks";
-import { hasText, markBounds, moveMark, resizeTextBox, scalePaths, selectText, simplify, spanRect, svgStroke } from "./geometry";
+import { constrainAngle, hasText, markBounds, moveMark, resizeTextBox, scalePaths, snapBox, squareCorner, selectText, simplify, spanRect, svgStroke } from "./geometry";
 
 export type Tool = "select" | "highlight" | "underline" | "strike" | "ink" | "rect" | "ellipse" | "line" | "arrow" | "text" | "note" | "date";
 export const TEXT_TOOLS: Tool[] = ["highlight", "underline", "strike"];
@@ -35,6 +35,8 @@ type Props = {
   /** Form answers typed in the panel, shown over their fields until saved. */
   answers?: { name: string; rect: Rect; text: string }[];
   onField?(name: string): void;
+  /** Actions for the selected mark, shown in a small bar next to it. */
+  selBar?: React.ReactNode;
 };
 
 type Draft =
@@ -42,7 +44,7 @@ type Draft =
   | { kind: "ink"; pts: Pt[] }
   | { kind: "shape"; a: Pt; b: Pt }
   /** A mark being moved or reshaped, as it will be when the pointer is let go. */
-  | { kind: "live"; id: string; mark: Mark };
+  | { kind: "live"; id: string; mark: Mark; gx?: number | null; gy?: number | null };
 
 /** A handle on a selected mark: a corner of its box (0..3, see `corners`), an end of a line, or a text box's side. */
 type Handle = { corner: number } | { end: "a" | "b" } | { side: -1 | 1 };
@@ -237,7 +239,11 @@ export default function EditorPage(p: Props) {
       if (evs.length) for (const ev of evs) g.pts!.push(toPdf(ev));
       else g.pts!.push(at);
       setDraft({ kind: "ink", pts: [...g.pts!] });
-    } else if (SHAPES.includes(p.tool)) setDraft({ kind: "shape", a: g.start, b: at });
+    } else if (SHAPES.includes(p.tool)) {
+      // Shift: lines at 45° steps, square boxes and round circles.
+      const b = !e.shiftKey ? at : p.tool === "line" || p.tool === "arrow" ? constrainAngle(g.start, at) : squareCorner(g.start, at);
+      setDraft({ kind: "shape", a: g.start, b });
+    }
   };
 
   /** What a text tool marks between the gesture's start and `at`: the text, or on a scan the dragged area. */
@@ -278,14 +284,17 @@ export default function EditorPage(p: Props) {
   };
 
   // ---- moving and reshaping a selected mark ----
-  const reshape = (m: Mark, h: Handle | null, start: Pt, at: Pt, dxScreen: number): Mark => {
+  const reshape = (m: Mark, h: Handle | null, start: Pt, at: Pt, dxScreen: number, shift = false): Mark => {
     if (!h) return moveMark(m, at[0] - start[0], at[1] - start[1]);
     if ("side" in h) return m.kind === "text" ? resizeTextBox(m, h.side, dxScreen / p.scale) : m;
-    if ("end" in h) return m.kind === "line" || m.kind === "arrow" ? { ...m, [h.end]: at } : m;
+    if ("end" in h) {
+      if (m.kind !== "line" && m.kind !== "arrow") return m;
+      return { ...m, [h.end]: shift ? constrainAngle(h.end === "a" ? m.b : m.a, at) : at };
+    }
     switch (m.kind) {
       case "rect":
       case "ellipse": {
-        const r = stretch(spanRect(m.a, m.b), h.corner, at, false);
+        const r = stretch(spanRect(m.a, m.b), h.corner, at, shift);
         return { ...m, a: [r.x, r.y], b: [r.x + r.w, r.y + r.h] };
       }
       case "image":
@@ -310,12 +319,36 @@ export default function EditorPage(p: Props) {
     el.setPointerCapture(e.pointerId);
     const start = toPdf(e);
     const [sx, sy] = [e.clientX, e.clientY];
+    // What a moved mark lines up with: the page's edges and middle, and the other marks' edges and centres.
+    const xs = [0, w / 2, w];
+    const ys = [0, (p.size.h * p.scale) / 2, p.size.h * p.scale];
+    for (const o of p.marks)
+      if (o.id !== m.id) {
+        const b = viewBox(o);
+        xs.push(b.x, b.x + b.w / 2, b.x + b.w);
+        ys.push(b.y, b.y + b.h / 2, b.y + b.h);
+      }
     let last: Mark | null = null;
     const onMove = (ev: PointerEvent) => {
       // A small wobble while tapping to select isn't a move.
       if (!last && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 3) return;
-      last = reshape(m, h, start, toPdf(ev), ev.clientX - sx);
-      setDraft({ kind: "live", id: m.id, mark: last });
+      let [cx, cy] = [ev.clientX, ev.clientY];
+      let guides: { gx: number | null; gy: number | null } = { gx: null, gy: null };
+      if (!h) {
+        if (ev.shiftKey) {
+          // Shift keeps the move straight across or straight up and down.
+          if (Math.abs(cx - sx) > Math.abs(cy - sy)) cy = sy;
+          else cx = sx;
+        } else {
+          const moved = reshape(m, null, start, toPdf({ clientX: cx, clientY: cy }), 0);
+          const s = snapBox(viewBox(moved), xs, ys, 6);
+          cx += s.dx;
+          cy += s.dy;
+          guides = s;
+        }
+      }
+      last = reshape(m, h, start, toPdf({ clientX: cx, clientY: cy }), cx - sx, ev.shiftKey);
+      setDraft({ kind: "live", id: m.id, mark: last, gx: guides.gx, gy: guides.gy });
     };
     const onUp = () => {
       el.removeEventListener("pointermove", onMove as EventListener);
@@ -351,6 +384,18 @@ export default function EditorPage(p: Props) {
       const cursor = (v[0] - o[0]) * (v[1] - o[1]) > 0 ? "nwse-resize" : "nesw-resize";
       return dot(`c${k}`, v, { corner: k }, cursor);
     });
+  };
+
+  /** A mark's box on screen (a text box's height is read from the page, a note is its icon). */
+  const viewBox = (m: Mark): Rect => {
+    if (m.kind === "text") {
+      const [x, y] = toView(m.at);
+      const el = host.current?.querySelector<HTMLElement>(`[data-tid="${m.id}"]`);
+      const hgt = el?.offsetHeight || m.size * 1.45 * p.scale * Math.max(1, m.text.split("\n").length);
+      return { x, y, w: m.width * p.scale, h: hgt };
+    }
+    if (m.kind === "note") return screenBox([m.at, [m.at[0] + 20, m.at[1] - 20]]);
+    return screenBox(rectPts(markBounds(m)));
   };
 
   const sw = (n: number) => Math.max(1, n * p.scale);
@@ -465,6 +510,7 @@ export default function EditorPage(p: Props) {
     );
   };
 
+  const selMark = p.marks.find((m) => m.id === p.selected) ?? null;
   const texts = p.marks.filter((m): m is Extract<Mark, { kind: "text" }> => m.kind === "text");
   const note = p.marks.find((m): m is Extract<Mark, { kind: "note" }> => m.kind === "note" && m.id === p.editing);
 
@@ -492,6 +538,8 @@ export default function EditorPage(p: Props) {
             {draft?.kind === "ink" && (
               <path d={svgStroke(draft.pts, toView)} fill="none" stroke={css(p.color)} strokeWidth={sw(p.stroke)} strokeLinecap="round" strokeLinejoin="round" />
             )}
+            {draft?.kind === "live" && draft.gx != null && <line className="guide" x1={draft.gx} x2={draft.gx} y1={0} y2={h} />}
+            {draft?.kind === "live" && draft.gy != null && <line className="guide" x1={0} x2={w} y1={draft.gy} y2={draft.gy} />}
             {draft?.kind === "shape" &&
               drawMark({ id: "draft", page: p.index, kind: p.tool as "rect", a: draft.a, b: draft.b, color: p.color, width: p.stroke })}
           </svg>
@@ -516,6 +564,7 @@ export default function EditorPage(p: Props) {
             return (
               <div
                 key={m.id}
+                data-tid={m.id}
                 className={`ed-text${selectable ? " grab" : ""}${sel ? " selected" : ""}`}
                 style={style}
                 onPointerDown={(e) => grab(e, raw, null)}
@@ -548,6 +597,7 @@ export default function EditorPage(p: Props) {
               </div>
             );
           })}
+          {selMark && p.selBar && draft?.kind !== "live" && p.editing !== selMark.id && <SelBar box={viewBox(selMark)} pageW={w}>{p.selBar}</SelBar>}
           {note && <NoteEditor at={toView(note.at)} pageW={w} value={note.text} onDone={(text) => {
             p.onEdit(null);
             if (!text.trim() && !note.text) p.onRemove(note.id);
@@ -666,6 +716,22 @@ function NoteEditor({ at, pageW, value, onDone, onDelete }: { at: Pt; pageW: num
           onDone={finish}
         />
       </div>
+    </div>
+  );
+}
+
+/** The selected mark's actions, floating above it (below it when there's no room above). */
+function SelBar({ box, pageW, children }: { box: Rect; pageW: number; children: React.ReactNode }) {
+  const t = useT();
+  const ref = useRef<HTMLDivElement>(null);
+  const [bw, setBw] = useState(0);
+  useEffect(() => setBw(ref.current?.offsetWidth ?? 0), [children]);
+  const above = box.y - 58 >= 0;
+  const top = above ? box.y - 58 : box.y + box.h + 16;
+  const left = Math.max(4, Math.min(box.x + box.w / 2 - bw / 2, pageW - bw - 4));
+  return (
+    <div ref={ref} className="ed-selbar" role="toolbar" aria-label={t.edSelection} style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>
+      {children}
     </div>
   );
 }
