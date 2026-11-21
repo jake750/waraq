@@ -5,11 +5,13 @@ import PageView from "../reader/PageView";
 import { useT } from "../i18n";
 import type { PageLayout } from "../text/search";
 import { css, newId, type Mark, type Pt, type Rect, type Rgb } from "./marks";
-import { hasText, markBounds, moveMark, scalePaths, selectText, simplify, spanRect, svgStroke } from "./geometry";
+import { hasText, markBounds, moveMark, resizeTextBox, scalePaths, selectText, simplify, spanRect, svgStroke } from "./geometry";
 
 export type Tool = "select" | "highlight" | "underline" | "strike" | "ink" | "rect" | "ellipse" | "line" | "arrow" | "text" | "note" | "date";
 export const TEXT_TOOLS: Tool[] = ["highlight", "underline", "strike"];
 const SHAPES: Tool[] = ["rect", "ellipse", "line", "arrow"];
+/** Tools that write over marks (a pen stroke or highlight across one); every other tool picks a mark up when pressed on it. */
+const PASS_THROUGH: Tool[] = ["ink", ...TEXT_TOOLS];
 
 type Props = {
   doc: PDFDocumentProxy;
@@ -43,7 +45,7 @@ type Draft =
   | { kind: "live"; id: string; mark: Mark };
 
 /** A handle on a selected mark: a corner of its box (0..3, see `corners`), an end of a line, or a text box's side. */
-type Handle = { corner: number } | { end: "a" | "b" } | { side: true };
+type Handle = { corner: number } | { end: "a" | "b" } | { side: -1 | 1 };
 
 const corners = (r: Rect): Pt[] => [
   [r.x, r.y],
@@ -195,12 +197,14 @@ export default function EditorPage(p: Props) {
       const left = Math.max(8, Math.min(rtlUi ? cx - px : cx, w - 8 - px));
       const start = vp.convertToPdfPoint(left, cy) as Pt;
       p.onAdd({ id, page: p.index, kind: "text", at: start, width: px / p.scale, text: date ? todayLabel() : "", size: p.textSize, color: p.color, align: "start" });
+      p.onSelect(id);
       if (!date) p.onEdit(id);
       return;
     }
     if (p.tool === "note") {
       const id = newId();
       p.onAdd({ id, page: p.index, kind: "note", at, text: "", color: p.color });
+      p.onSelect(id);
       p.onEdit(id);
       return;
     }
@@ -266,14 +270,17 @@ export default function EditorPage(p: Props) {
       const pts = simplify(d.pts, 0.5 / p.scale);
       p.onAdd({ ...base, kind: "ink", paths: [pts], color: p.color, width: p.stroke });
     }
-    else if (d.kind === "shape" && Math.hypot(d.a[0] - d.b[0], d.a[1] - d.b[1]) > 3)
+    else if (d.kind === "shape" && Math.hypot(d.a[0] - d.b[0], d.a[1] - d.b[1]) > 3) {
       p.onAdd({ ...base, kind: p.tool as "rect", a: d.a, b: d.b, color: p.color, width: p.stroke });
+      // The new shape comes up selected, ready to move, resize or recolour.
+      p.onSelect(base.id);
+    }
   };
 
   // ---- moving and reshaping a selected mark ----
   const reshape = (m: Mark, h: Handle | null, start: Pt, at: Pt, dxScreen: number): Mark => {
     if (!h) return moveMark(m, at[0] - start[0], at[1] - start[1]);
-    if ("side" in h) return m.kind === "text" ? { ...m, width: Math.max(30, m.width + dxScreen / p.scale) } : m;
+    if ("side" in h) return m.kind === "text" ? resizeTextBox(m, h.side, dxScreen / p.scale) : m;
     if ("end" in h) return m.kind === "line" || m.kind === "arrow" ? { ...m, [h.end]: at } : m;
     switch (m.kind) {
       case "rect":
@@ -293,10 +300,11 @@ export default function EditorPage(p: Props) {
   };
 
   const grab = (e: RPointerEvent, m: Mark, h: Handle | null) => {
-    if (p.tool !== "select" || p.editing === m.id) return;
+    if (!selectable || p.editing === m.id) return;
     e.stopPropagation();
     e.preventDefault();
     if (p.editing) p.onEdit(null);
+    const wasSelected = p.selected === m.id;
     p.onSelect(m.id);
     const el = e.currentTarget as Element;
     el.setPointerCapture(e.pointerId);
@@ -315,6 +323,8 @@ export default function EditorPage(p: Props) {
       el.removeEventListener("pointercancel", onUp);
       setDraft(null);
       if (last) p.onUpdate(m.id, last);
+      // A tap on a text box or note that was already selected opens it for typing again.
+      else if (wasSelected && !h && (m.kind === "text" || m.kind === "note")) p.onEdit(m.id);
     };
     el.addEventListener("pointermove", onMove as EventListener);
     el.addEventListener("pointerup", onUp);
@@ -344,7 +354,7 @@ export default function EditorPage(p: Props) {
   };
 
   const sw = (n: number) => Math.max(1, n * p.scale);
-  const selectable = p.tool === "select";
+  const selectable = !PASS_THROUGH.includes(p.tool);
 
   const drawMark = (raw: Mark) => {
     const m = shown(raw);
@@ -512,7 +522,12 @@ export default function EditorPage(p: Props) {
                 onDoubleClick={() => p.onEdit(m.id)}
               >
                 {m.text}
-                {sel && <span className="handle side" onPointerDown={(e) => grab(e, raw, { side: true })} />}
+                {sel && (
+                  <>
+                    <span className="handle side start" onPointerDown={(e) => grab(e, raw, { side: -1 })} />
+                    <span className="handle side end" onPointerDown={(e) => grab(e, raw, { side: 1 })} />
+                  </>
+                )}
               </div>
             );
           })}

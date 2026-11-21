@@ -293,10 +293,9 @@
   outline-offset: 4px;
   border-radius: 2px;
 }
+/* A handle on each side: drag either edge to make the box wider or narrower. */
 .ed-text .handle.side {
   position: absolute;
-  /* Boxes grow to the right from their left edge, in either language. */
-  right: -12px;
   top: 50%;
   width: 10px;
   height: 22px;
@@ -305,6 +304,12 @@
   background: var(--surface);
   border: 2px solid var(--accent);
   cursor: ew-resize;
+}
+.ed-text .handle.side.start {
+  left: -12px;
+}
+.ed-text .handle.side.end {
+  right: -12px;
 }
 
 .ed-note {

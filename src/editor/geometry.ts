@@ -76,6 +76,18 @@ export function moveMark(m: Mark, dx: number, dy: number): Mark {
   }
 }
 
+/** A copy of `m` with a new id on `page`, nudged down and to the right so it doesn't hide the original. */
+export function duplicateMark(m: Mark, id: string, page = m.page, offset = 12): Mark {
+  return { ...moveMark(m, offset, -offset), id, page };
+}
+
+/** A text box's width dragged from its start (`edge` -1, left) or end (1, right) by `dx` points. */
+export function resizeTextBox<M extends { at: Pt; width: number }>(m: M, edge: -1 | 1, dx: number, min = 30): M {
+  if (edge === 1) return { ...m, width: Math.max(min, m.width + dx) };
+  const width = Math.max(min, m.width - dx);
+  return { ...m, width, at: [m.at[0] + (m.width - width), m.at[1]] };
+}
+
 /** An image of iw×ih fitted inside maxW×maxH (never enlarged), centred on `c`. */
 export function fitBox(iw: number, ih: number, maxW: number, maxH: number, [cx, cy]: Pt): Rect {
   const s = Math.min(1, maxW / iw, maxH / ih);

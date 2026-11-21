@@ -1,7 +1,9 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
+  BringToFront,
   CalendarDays,
+  Copy,
   Circle,
   ClipboardList,
   Highlighter,
@@ -10,7 +12,9 @@ import {
   MousePointer2,
   MoveUpRight,
   Pencil,
+  PencilLine,
   Redo2,
+  SendToBack,
   Signature,
   Square,
   StickyNote,
@@ -36,7 +40,7 @@ import type { Saved } from "../convert/queue";
 import { Results } from "../tools/ToolsScreen";
 import { emptyHistory, historyReduce } from "./history";
 import { COLORS, css, newId, type Mark, type Rgb } from "./marks";
-import { fitBox, moveMark } from "./geometry";
+import { duplicateMark, fitBox, moveMark } from "./geometry";
 import { listFields, fillFields, type Field, type FieldValue } from "./forms";
 import { writeMarks } from "./write";
 import { editorFonts } from "./fonts";
@@ -293,6 +297,22 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
     setSelected(null);
   }, [selected]);
 
+  // Picking a mark (or placing one) hands over to Select, so it can be moved and resized at once.
+  const select = (id: string | null) => {
+    setSelected(id);
+    if (id) setTool("select");
+  };
+
+  // Copy and paste keep the mark in memory; a paste lands on the page in view.
+  const clip = useRef<Mark | null>(null);
+  const duplicate = (m: Mark | null, page = m?.page) => {
+    if (!m) return;
+    const id = newId();
+    dispatch({ type: "add", mark: duplicateMark(m, id, page) });
+    select(id);
+  };
+  const editSelected = () => sel && (sel.kind === "text" || sel.kind === "note") && setEditing(sel.id);
+
   const leave = () => (dirty ? setLeaveAsk(true) : onClose());
 
   // Android back: close what's open on top, otherwise leave (asking first if there are changes).
@@ -307,8 +327,8 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   };
 
   // Keyboard: undo/redo, delete, escape, nudge.
-  const keys = useRef({ remove, leave, editing, nudge, hasSel: !!sel });
-  keys.current = { remove, leave, editing, nudge, hasSel: !!sel };
+  const keys = useRef({ remove, leave, editing, nudge, hasSel: !!sel, sel, duplicate, editSelected, page: (): number => 0 });
+  keys.current = { remove, leave, editing, nudge, hasSel: !!sel, sel, duplicate, editSelected, page: () => currentPage() };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -320,6 +340,20 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
       } else if (mod && e.key.toLowerCase() === "y") {
         e.preventDefault();
         dispatch({ type: "redo" });
+      } else if (mod && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        keys.current.duplicate(keys.current.sel);
+      } else if (mod && e.key.toLowerCase() === "c" && keys.current.sel) {
+        clip.current = keys.current.sel;
+      } else if (mod && e.key.toLowerCase() === "v" && clip.current) {
+        e.preventDefault();
+        keys.current.duplicate(clip.current, keys.current.page());
+      } else if (mod && (e.key === "]" || e.key === "[") && keys.current.sel) {
+        e.preventDefault();
+        dispatch({ type: "reorder", id: keys.current.sel.id, to: e.key === "]" ? "front" : "back" });
+      } else if (e.key === "Enter" && keys.current.sel) {
+        e.preventDefault();
+        keys.current.editSelected();
       } else if (e.key === "Delete" || e.key === "Backspace") keys.current.remove();
       else if (e.key === "Escape") setSelected(null);
       else if (keys.current.hasSel && e.key.startsWith("Arrow")) {
@@ -512,12 +546,28 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
             </div>
           </>
         )}
-        {selected && (
+        {sel && (
           <>
             <span className="ed-sep" />
-            <button className="icon-btn danger" onClick={remove} title={t.edDelete} aria-label={t.edDelete}>
-              <Trash2 size={18} />
-            </button>
+            <div className="ed-group">
+              {(sel.kind === "text" || sel.kind === "note") && (
+                <button className="icon-btn" onClick={editSelected} title={t.edEditText} aria-label={t.edEditText}>
+                  <PencilLine size={18} />
+                </button>
+              )}
+              <button className="icon-btn" onClick={() => duplicate(sel)} title={t.edDuplicate} aria-label={t.edDuplicate}>
+                <Copy size={18} />
+              </button>
+              <button className="icon-btn" onClick={() => dispatch({ type: "reorder", id: sel.id, to: "front" })} title={t.edFront} aria-label={t.edFront}>
+                <BringToFront size={18} />
+              </button>
+              <button className="icon-btn" onClick={() => dispatch({ type: "reorder", id: sel.id, to: "back" })} title={t.edBack} aria-label={t.edBack}>
+                <SendToBack size={18} />
+              </button>
+              <button className="icon-btn danger" onClick={remove} title={t.edDelete} aria-label={t.edDelete}>
+                <Trash2 size={18} />
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -553,7 +603,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
                 onAdd={(m) => dispatch({ type: "add", mark: m })}
                 onUpdate={(id, patch) => dispatch({ type: "update", id, patch })}
                 onRemove={(id) => dispatch({ type: "remove", id })}
-                onSelect={setSelected}
+                onSelect={select}
                 onEdit={setEditing}
                 answers={answers.get(i)}
                 onField={openField}

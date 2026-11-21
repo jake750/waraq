@@ -1,6 +1,6 @@
-import { charIndexAt, selectText, moveMark, fitBox, resizeBox, simplify, smoothCurve, svgStroke, scalePaths, hasText, markBounds, spanRect } from "../../src/editor/geometry";
+import { charIndexAt, selectText, moveMark, fitBox, resizeBox, simplify, smoothCurve, svgStroke, scalePaths, hasText, markBounds, spanRect, duplicateMark, resizeTextBox } from "../../src/editor/geometry";
 import type { PageLayout } from "../../src/text/search";
-import type { Mark } from "../../src/editor/marks";
+import type { Mark, Pt } from "../../src/editor/marks";
 
 // Two lines of RTL text: logical order runs right→left on each line.
 // Line 1 "ابج" at y=700, line 2 "دهو" at y=680; each letter 10pt wide.
@@ -134,4 +134,18 @@ test("a freehand drawing scales into a new box", () => {
 test("a scanned page has no text to mark", () => {
   expect(hasText({ text: "", boxes: [] })).toBe(false);
   expect(hasText(layout)).toBe(true);
+});
+
+test("duplicateMark copies with a new id, offset down-right, optionally onto another page", () => {
+  const m: Mark = { id: "a", page: 0, kind: "rect", a: [10, 10], b: [20, 20], color: [0, 0, 0], width: 2 };
+  const d = duplicateMark(m, "b", 3);
+  expect(d).toMatchObject({ id: "b", page: 3, a: [22, -2], b: [32, 8] });
+  expect(m.a).toEqual([10, 10]);
+});
+
+test("resizeTextBox drags either edge and keeps a minimum width", () => {
+  const t = { at: [100, 500] as Pt, width: 200 };
+  expect(resizeTextBox(t, 1, 40)).toEqual({ at: [100, 500], width: 240 });
+  expect(resizeTextBox(t, -1, -40)).toEqual({ at: [60, 500], width: 240 });
+  expect(resizeTextBox(t, -1, 500)).toEqual({ at: [270, 500], width: 30 });
 });

@@ -66,3 +66,14 @@ test("bidi: forced rtl paragraph", () =>
     [" ", true],
     ["123", false],
   ]));
+
+test("reorder moves a mark to the front or back, undoably; a no-op leaves history alone", () => {
+  let h = historyReduce(emptyHistory, { type: "add", mark: ink("a") });
+  h = historyReduce(h, { type: "add", mark: ink("b") });
+  h = historyReduce(h, { type: "reorder", id: "a", to: "front" });
+  expect(h.present.map((m) => m.id)).toEqual(["b", "a"]);
+  expect(historyReduce(h, { type: "reorder", id: "a", to: "front" })).toBe(h);
+  h = historyReduce(h, { type: "reorder", id: "a", to: "back" });
+  expect(h.present.map((m) => m.id)).toEqual(["a", "b"]);
+  expect(historyReduce(h, { type: "undo" }).present.map((m) => m.id)).toEqual(["b", "a"]);
+});
