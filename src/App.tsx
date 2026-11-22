@@ -5,7 +5,7 @@ import { loadLang, loadTheme, resolveTheme, saveLang, saveTheme, type ThemePref 
 import Layout, { type Route } from "./shell/Layout";
 import Home, { type QuickAction } from "./shell/Home";
 import ReaderScreen from "./reader/ReaderScreen";
-import { displayName, docKey, pickFiles, readDocument, resolveName, type DocRef } from "./files/docRef";
+import { displayName, docKey, keepAccess, pickFiles, readDocument, resolveName, type DocRef } from "./files/docRef";
 import ConvertScreen from "./convert/ConvertScreen";
 import type { Tool } from "./tools/ToolsScreen";
 import type { EditSource } from "./editor/EditorScreen";
@@ -216,7 +216,7 @@ export default function App() {
       invoke<string[]>("android_incoming")
         .then((uris) => {
           const { handleFiles, route } = latest.current;
-          if (alive && uris.length) handleFiles(uris.map((uri) => ({ kind: "uri", uri })), route === "convert");
+          if (alive && uris.length) handleFiles(keepAccess(uris.map((uri) => ({ kind: "uri", uri }))), route === "convert");
         })
         .catch(() => {});
     const onVisible = () => document.visibilityState === "visible" && takeIncoming();

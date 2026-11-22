@@ -101,6 +101,18 @@ pub async fn android_persist(app: tauri::AppHandle, uri: String) -> Result<(), S
     Ok(())
 }
 
+#[derive(Deserialize)]
+struct CopyResp {
+    path: Option<String>,
+}
+
+/// The app's private copy of a Recent file whose access grant has expired, if one was kept.
+#[tauri::command]
+pub async fn android_recent_copy(app: tauri::AppHandle, uri: String) -> Result<Option<String>, String> {
+    let r: CopyResp = call(&app, "recentCopy", serde_json::json!({ "uri": uri })).await?;
+    Ok(r.path)
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct NameResp {
     name: Option<String>,

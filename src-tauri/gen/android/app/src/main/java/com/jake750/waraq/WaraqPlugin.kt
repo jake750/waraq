@@ -70,16 +70,70 @@ class WaraqPlugin(private val activity: Activity) : Plugin(activity) {
     invoke.resolve(result)
   }
 
-  /** Keeps read access to a picked file across restarts, so Recent can reopen it (best effort). */
+  /**
+   * Keeps a file reopenable from Recent after a restart. A persistable grant is kept when the
+   * provider offers one; otherwise (the file picker's GET_CONTENT, "Open with", "Share") the grant
+   * dies with the app, so a private copy is kept instead (the newest RECENT_COPIES only).
+   */
   @Command
   fun persist(invoke: Invoke) {
-    val uri = Uri.parse(invoke.getArgs().getString("uri") ?: return invoke.reject("missing uri"))
+    val raw = invoke.getArgs().getString("uri") ?: return invoke.reject("missing uri")
+    val uri = Uri.parse(raw)
     try {
       activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      return invoke.resolve()
     } catch (e: Exception) {
-      // Not a persistable grant (e.g. a share or a VIEW intent): the file works for this session only.
+      // Not persistable: fall through to the private copy.
     }
+    Thread {
+      try {
+        val dir = File(activity.filesDir, "recent").apply { mkdirs() }
+        val dest = File(dir, copyName(raw))
+        val tmp = File(dir, dest.name + ".part")
+        activity.contentResolver.openInputStream(uri)!!.use { input ->
+          tmp.outputStream().use { out ->
+            val buf = ByteArray(64 * 1024)
+            var total = 0L
+            while (true) {
+              val n = input.read(buf)
+              if (n < 0) break
+              total += n
+              if (total > MAX_COPY_BYTES) throw IllegalStateException("too big")
+              out.write(buf, 0, n)
+            }
+          }
+        }
+        if (!tmp.renameTo(dest)) { dest.delete(); tmp.renameTo(dest) }
+        dir.listFiles()?.filter { it.name.endsWith(".part") && it != tmp }?.forEach { it.delete() }
+        dir.listFiles()?.filter { !it.name.endsWith(".part") }?.sortedByDescending { it.lastModified() }
+          ?.drop(RECENT_COPIES)?.forEach { it.delete() }
+      } catch (e: Exception) {
+        File(File(activity.filesDir, "recent"), copyName(raw) + ".part").delete()
+      }
+    }.start()
     invoke.resolve()
+  }
+
+  /** The private copy of a Recent file whose access has expired, if one was kept. */
+  @Command
+  fun recentCopy(invoke: Invoke) {
+    val raw = invoke.getArgs().getString("uri") ?: return invoke.reject("missing uri")
+    val f = File(File(activity.filesDir, "recent"), copyName(raw))
+    val result = JSObject()
+    if (f.isFile) {
+      f.setLastModified(System.currentTimeMillis())
+      result.put("path", f.absolutePath)
+    }
+    invoke.resolve(result)
+  }
+
+  private fun copyName(uri: String): String =
+    java.security.MessageDigest.getInstance("SHA-256").digest(uri.toByteArray())
+      .joinToString("") { "%02x".format(it) }.take(32)
+
+  private companion object {
+    const val RECENT_COPIES = 20 // as many as Recent lists (RECENT_MAX)
+    const val MAX_COPY_BYTES = 200L * 1024 * 1024
   }
 
   /** Copies a finished file (app cache) into Downloads/Waraq as a new entry. Never overwrites. */

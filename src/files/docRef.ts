@@ -46,7 +46,14 @@ export async function readDocument(ref: DocRef): Promise<Uint8Array> {
       const buf = await invoke<ArrayBuffer>("read_file", { path: ref.path });
       return new Uint8Array(buf);
     }
-    return await readFile(ref.uri);
+    try {
+      return await readFile(ref.uri);
+    } catch (e) {
+      // Android: the picker's grant ended with the last session; read the private copy kept for Recent.
+      const copy = await invoke<string | null>("android_recent_copy", { uri: ref.uri }).catch(() => null);
+      if (!copy) throw e;
+      return new Uint8Array(await invoke<ArrayBuffer>("read_file", { path: copy }));
+    }
   } catch (e) {
     throw new PdfError(String(e).includes("file-missing") ? "file-missing" : "read-failed");
   }

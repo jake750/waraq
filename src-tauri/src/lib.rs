@@ -60,6 +60,7 @@ pub fn run() {
             mobile::android_display_name,
             mobile::android_incoming,
             mobile::android_persist,
+            mobile::android_recent_copy,
             mobile::android_immersive,
             mobile::android_install_apk,
             #[cfg(target_os = "android")]
