@@ -96,3 +96,14 @@ export function parsePageNumber(s: string): number {
   const ascii = s.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0));
   return parseInt(ascii, 10);
 }
+
+/**
+ * Where a vertical position in the page stack falls: the row, and how far down it (0–1, or past
+ * either end inside a gap). After a zoom the same row and fraction land under the same finger.
+ */
+export function rowAt(y: number, tops: number[], heights: number[]): { row: number; frac: number } {
+  let row = 0;
+  while (row + 1 < tops.length && tops[row + 1] <= y) row++;
+  const h = heights[row] || 1;
+  return { row, frac: (y - (tops[row] ?? 0)) / h };
+}

@@ -1,4 +1,4 @@
-import { fitScale, rowScales, pageOffsets, spreadGroups, visiblePages } from "../src/reader/layout";
+import { fitScale, rowScales, pageOffsets, spreadGroups, visiblePages, rowAt } from "../src/reader/layout";
 
 test("offsets", () => expect(pageOffsets([100, 100, 100], 10)).toEqual([0, 110, 220]));
 
@@ -36,4 +36,14 @@ describe("rowScales", () => {
     expect(cover).toBe(1);
     expect(pair).toBe(1);
   });
+});
+
+test("rowAt finds the row and the fraction down it", () => {
+  const tops = [0, 110, 220];
+  const heights = [100, 100, 100];
+  expect(rowAt(0, tops, heights)).toEqual({ row: 0, frac: 0 });
+  expect(rowAt(150, tops, heights)).toEqual({ row: 1, frac: 0.4 });
+  expect(rowAt(105, tops, heights)).toEqual({ row: 0, frac: 1.05 });
+  expect(rowAt(500, tops, heights).row).toBe(2);
+  expect(rowAt(-20, tops, heights)).toEqual({ row: 0, frac: -0.2 });
 });

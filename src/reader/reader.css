@@ -159,6 +159,8 @@
   inset-inline: 0;
   display: flex;
   justify-content: center;
+  /* A page zoomed wider than the view overflows to the right, where it can be scrolled to. */
+  justify-content: safe center;
   gap: 16px;
   padding-inline: 24px;
 }

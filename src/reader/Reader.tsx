@@ -22,7 +22,7 @@ import { detectRtl } from "../text/arabic";
 import { pageText, type Match } from "../text/search";
 import { loadDocView, saveDocView } from "../prefs";
 import ShortcutsDialog from "./ShortcutsDialog";
-import { rowScales, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber } from "./layout";
+import { rowScales, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber, rowAt } from "./layout";
 import PageView, { readingOrderSelection, type HighlightRect } from "./PageView";
 import { setFullscreen } from "./fullscreen";
 import "./reader.css";
@@ -171,10 +171,33 @@ export default function Reader(p: Props) {
   // Keep the same page in view when the scale or view mode changes.
   const anchor = useRef(current);
   anchor.current = current;
+  /** A finished pinch/wheel zoom: keep the point under the fingers or cursor where it was. */
+  const focal = useRef<{ row: number; frac: number; page?: string; fx: number; vx: number; vy: number } | null>(null);
+  const focused = useRef(false);
+  useLayoutEffect(() => {
+    const g = focal.current;
+    const el = scroller.current;
+    if (!g || !el) return;
+    focal.current = null;
+    focused.current = true;
+    if (pagesEl.current) pagesEl.current.style.transform = "";
+    const top = (view === "single" ? 0 : (tops[g.row] ?? 0)) + PAD + g.frac * (rowHeights[g.row] ?? 0);
+    el.scrollTop = top - g.vy;
+    const page = g.page ? el.querySelector<HTMLElement>(`.page[data-page="${g.page}"]`) : null;
+    if (page) {
+      const b = page.getBoundingClientRect();
+      el.scrollLeft += b.left - el.getBoundingClientRect().left + g.fx * b.width - g.vx;
+    }
+  }, [scales, tops, rowHeights, view]);
   useEffect(() => {
+    if (focused.current) {
+      focused.current = false;
+      return;
+    }
     if (placed.current) goTo(anchor.current);
+    // The box matters only when fitting: at a manual zoom a scrollbar appearing must not jump the view.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fit, manualScale, box.w, box.h, view]);
+  }, [fit, manualScale, fit && box.w, fit && box.h, view]);
 
   useEffect(() => {
     if (p.focus) goTo(p.focus.page + 1);
@@ -208,12 +231,57 @@ export default function Reader(p: Props) {
   latest.current = { current, onPageChange };
   useEffect(() => () => latest.current.onPageChange(latest.current.current), []);
 
-  const zoomBy = useCallback(
-    (f: number) => {
-      setManualScale(Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * f)));
-      setFit(null);
+  // Live zoom: while a gesture runs only a CSS transform changes (no React render, no page
+  // re-layout, no canvas work); the real zoom is applied once, when the gesture ends.
+  const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
+  const live = useRef<{ f: number; ox: number; oy: number; vx: number; vy: number } | null>(null);
+  const liveZoom = useCallback(
+    (f: number, vx: number, vy: number) => {
+      const el = scroller.current;
+      const pages = pagesEl.current;
+      if (!el || !pages) return;
+      let g = live.current;
+      if (!g) g = live.current = { f: 1, ox: el.scrollLeft + vx, oy: el.scrollTop + vy, vx, vy };
+      g.f = clampScale(scale * g.f * f) / scale;
+      pages.style.transformOrigin = `${g.ox}px ${g.oy}px`;
+      pages.style.transform = `scale(${g.f})`;
     },
     [scale],
+  );
+  const commitZoom = useCallback(() => {
+    const g = live.current;
+    live.current = null;
+    if (!g) return;
+    if (Math.abs(g.f - 1) < 0.01) {
+      if (pagesEl.current) pagesEl.current.style.transform = "";
+      return;
+    }
+    const y = g.oy - PAD;
+    const at = view === "single" ? { row: rowOf(current), frac: y / (rowHeights[rowOf(current)] || 1) } : rowAt(y, tops, rowHeights);
+    // The page under the focal point and how far across it, measured while still transformed.
+    const el = scroller.current!;
+    const sr = el.getBoundingClientRect();
+    const hit = document.elementsFromPoint(sr.left + g.vx, sr.top + g.vy).find((e) => e.classList.contains("page")) as HTMLElement | undefined;
+    const hb = hit?.getBoundingClientRect();
+    const fx = hb && hb.width ? (sr.left + g.vx - hb.left) / hb.width : 0.5;
+    focal.current = { ...at, page: hit?.dataset.page, fx, vx: g.vx, vy: g.vy };
+    setManualScale(clampScale(scale * g.f));
+    setFit(null);
+  }, [scale, view, rowOf, current, rowHeights, tops]);
+
+  /** Buttons and keys: zoom around the middle of the view. */
+  const zoomBy = useCallback(
+    (f: number) => {
+      const el = scroller.current;
+      if (!el || !pagesEl.current) {
+        setManualScale(clampScale(scale * f));
+        setFit(null);
+        return;
+      }
+      liveZoom(f, el.clientWidth / 2, el.clientHeight / 2);
+      commitZoom();
+    },
+    [scale, liveZoom, commitZoom],
   );
 
   const step = useCallback(
@@ -285,21 +353,27 @@ export default function Reader(p: Props) {
   }, []);
 
   // Ctrl+wheel (and trackpad pinch) zoom on desktop.
+  // The wheel zoom ends once the wheel/touchpad has been quiet this long.
+  const settle = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     const el = scroller.current!;
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
+      const r = el.getBoundingClientRect();
       // A touchpad pinch sends many small deltas, a mouse wheel few big ones.
-      zoomBy(Math.min(1.1, Math.max(1 / 1.1, Math.exp(-e.deltaY * 0.01))));
+      liveZoom(Math.min(1.25, Math.max(1 / 1.25, Math.exp(-e.deltaY * 0.01))), e.clientX - r.left, e.clientY - r.top);
+      clearTimeout(settle.current);
+      settle.current = setTimeout(commitZoom, 180);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [zoomBy]);
+  }, [liveZoom, commitZoom]);
+  useEffect(() => () => clearTimeout(settle.current), []);
 
-  // Two-finger pinch on touch screens: live CSS scale, real re-render on release.
+  // Two-finger pinch on touch screens: live CSS scale around the fingers, real zoom on release.
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const pinch = useRef<{ start: number; ratio: number } | null>(null);
+  const pinch = useRef<{ last: number } | null>(null);
   const dist = () => {
     const [a, b] = [...pointers.current.values()];
     return Math.hypot(a.x - b.x, a.y - b.y);
@@ -307,23 +381,25 @@ export default function Reader(p: Props) {
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.pointerType !== "touch") return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size === 2) pinch.current = { start: dist(), ratio: 1 };
+    if (pointers.current.size === 2) pinch.current = { last: dist() };
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!pointers.current.has(e.pointerId)) return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch.current && pointers.current.size === 2) {
-      pinch.current.ratio = dist() / pinch.current.start;
-      if (pagesEl.current) pagesEl.current.style.transform = `scale(${pinch.current.ratio})`;
+      const d = dist();
+      if (!d || !pinch.current.last) return;
+      const [a, b] = [...pointers.current.values()];
+      const r = scroller.current!.getBoundingClientRect();
+      liveZoom(d / pinch.current.last, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+      pinch.current.last = d;
     }
   };
   const onPointerUp = (e: React.PointerEvent) => {
     pointers.current.delete(e.pointerId);
     if (pinch.current && pointers.current.size < 2) {
-      const r = pinch.current.ratio;
       pinch.current = null;
-      if (pagesEl.current) pagesEl.current.style.transform = "";
-      if (Math.abs(r - 1) > 0.02) zoomBy(r);
+      commitZoom();
     }
   };
 
