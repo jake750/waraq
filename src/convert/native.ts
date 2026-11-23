@@ -11,7 +11,7 @@ import type { PageOpts } from "./fromHtml";
 import type { Saved } from "./queue";
 import type { RunDeps } from "./run";
 
-const CODES: ConvertErrorCode[] = ["bad-input", "unsupported", "engine-failed", "timeout", "cancelled", "office-missing", "write-failed", "protected"];
+const CODES: ConvertErrorCode[] = ["bad-input", "unsupported", "engine-failed", "timeout", "cancelled", "office-missing", "write-failed", "protected", "too-large"];
 /** Native errors are "code" or "code: detail"; anything else (OS text) is a plain engine failure. */
 export const toError = (e: unknown) => {
   const s = String(e).trim();
@@ -47,13 +47,18 @@ export async function saveOutput(bytes: Uint8Array, name: string, dir: string, m
 /** HTML → PDF with the system browser engine (WebView2 / Android WebView). */
 export async function printPdf(html: string, page: PageOpts, signal: AbortSignal): Promise<Uint8Array> {
   const dir = await call<string>("temp_dir");
-  const htmlPath = await writeNew(new TextEncoder().encode(html), dir, "page.html");
-  // Named after the unique page file, so two conversions at once never share an output.
-  const outPath = htmlPath.replace(/\.html$/i, ".pdf");
-  if (signal.aborted) throw new ConvertError("cancelled");
-  await call("html_to_pdf", { htmlPath, outPath, opts: { size: page.size, landscape: page.landscape } });
-  const buf = await call<ArrayBuffer>("read_file", { path: outPath });
-  return new Uint8Array(buf);
+  try {
+    const htmlPath = await writeNew(new TextEncoder().encode(html), dir, "page.html");
+    // Named after the unique page file, so two conversions at once never share an output.
+    const outPath = htmlPath.replace(/\.html$/i, ".pdf");
+    if (signal.aborted) throw new ConvertError("cancelled");
+    await call("html_to_pdf", { htmlPath, outPath, opts: { size: page.size, landscape: page.landscape } });
+    const buf = await call<ArrayBuffer>("read_file", { path: outPath });
+    return new Uint8Array(buf);
+  } finally {
+    // The page and its PDF are read; the scratch folder goes (leftovers are swept at the next start).
+    invoke("remove_temp_dir", { path: dir }).catch(() => {});
+  }
 }
 
 export type OfficeStatus = { installed: boolean; version: string; downloadBytes: number };
@@ -67,7 +72,8 @@ export function officeInstall(onBytes: (n: number) => void): Promise<void> {
   return call("office_install", { onProgress: ch });
 }
 
-export const officeCancel = () => invoke("office_cancel").catch(() => {});
+/** Stops the conversions asked for so far, or (`"install"`) the LibreOffice download. */
+export const officeCancel = (what?: "install") => invoke("office_cancel", { what }).catch(() => {});
 
 export async function officeConvert(inputPath: string, target: string, outName: string, outDir: string, signal: AbortSignal): Promise<Saved> {
   const onAbort = () => officeCancel();

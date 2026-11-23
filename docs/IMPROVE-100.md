@@ -126,34 +126,34 @@ font weight doing everything, flat cards, a motif used for three meanings, and a
 
 ## Batch 2: reliability and security
 
-- [ ] **11** · bug · `App.tsx` open-as-PDF
+- [x] **11** · bug · `App.tsx` open-as-PDF
   - Problem: the `AbortController` is created after `await import("./convert/openAsPdf")`, so a
     cancel during chunk load is ignored.
   - Fix: create it first and check `signal.aborted` after the import.
   - L / L
-- [ ] **12** · bug · `EditorScreen.tsx` window keydown
+- [x] **12** · bug · `EditorScreen.tsx` window keydown
   - Problem: Delete or Ctrl+Z act while the Save/Leave dialog, signing or busy state is active.
   - Fix: early return via the `keys` ref.
   - M / L
-- [ ] **13** · security · `convert/odt.ts` `text:c`
+- [x] **13** · security · `convert/odt.ts` `text:c`
   - Problem: `" ".repeat(Number(c))` with an untrusted count; `1e9` crashes the renderer.
   - Fix: clamp to 0..100, plus a test.
   - M / L
-- [ ] **14** · security · `convert/epub.ts`, `convert/odt.ts`, docx path (TODO)
+- [x] **14** · security · `convert/epub.ts`, `convert/odt.ts`, docx path (TODO)
   - Problem: no zip-bomb protection.
   - Fix: check each entry's and the total uncompressed size (cap ≈ 200 MB) before `async()`; give a
     clear error code.
   - M / L
-- [ ] **15** · reliability · `src-tauri/src/office.rs` `CANCEL`
+- [x] **15** · reliability · `src-tauri/src/office.rs` `CANCEL`
   - Problem: one flag serves both install and convert. Cancelling a conversion kills a running
     LibreOffice download, and a reset at start drops a cancel issued while a job waited for `BUSY`.
   - Fix: separate flags or per-operation tokens, plus a cargo test.
   - M / M
-- [ ] **16** · reliability · `office.rs` install
+- [x] **16** · reliability · `office.rs` install
   - Problem: the ≈373 MB download has no connect or read timeout and no concurrency guard.
   - Fix: a ureq agent with timeouts (as in `update.rs`) and an `INSTALLING` AtomicBool.
   - M / L
-- [ ] **17** · reliability · `files.rs` work dirs, `convert/native.ts`, `convert/openAsPdf.ts`
+- [x] **17** · reliability · `files.rs` work dirs, `convert/native.ts`, `convert/openAsPdf.ts`
   - Problem: `work/<pid>-N` and `outputs/` are never deleted, so the cache grows forever.
   - Fix: delete the temp dir after `printPdf` reads the result; at startup, wipe `work/` dirs of
     other PIDs.
@@ -163,12 +163,17 @@ font weight doing everything, flat cards, a motif used for three meanings, and a
   - Fix: a Rust-side allowlist filled from the dialog, drag-drop, argv/single-instance and the
     chosen save folder, plus the app cache. Verify open/save/convert/print on Windows still work.
   - M / **H** (can break flows; do it alone, in its own release)
-- [ ] **19** · security · `convert/sanitize.ts`
+  - **Deferred from batch 2 (2026-11-23):** Tauri's fs scope isn't persisted, so a plain allowlist
+    would break reopening Recent files after a restart. Plan: check paths with `app.fs_scope()`
+    (the dialog plugin already adds picked paths), add argv/single-instance/drag-drop paths
+    explicitly, persist the scope (`tauri-plugin-persisted-scope`, or our own list seeded from
+    Recent), and test open/save/convert/print in `npx tauri dev` on Windows before releasing.
+- [x] **19** · security · `convert/sanitize.ts`
   - Problem: the style filter misses CSS escapes (`u\72l(`) and `image-set(`, and SVG
     `animate`/`set`/`animateMotion` can set `href` to `javascript:`.
   - Fix: drop those, plus tests in `tests/convert/`.
   - L / L
-- [ ] **20** · reliability · `files.rs` `read_file`
+- [x] **20** · reliability · `files.rs` `read_file`
   - Problem: whole-file read with no size cap, so a multi-GB file crashes the webview.
   - Fix: a `metadata().len()` check returning a `too-large` code; add the i18n message.
   - L / L
@@ -588,4 +593,5 @@ These are bigger features; propose them as separate sessions.
 
 | Batch | Date | Commit | Release | Notes |
 |---|---|---|---|---|
+| 2 | 2026-11-23 | (batch 2 commit) | v0.2.45 | 11–17, 19, 20 done; 18 deferred (needs a real desktop test, see the item). New error code `too-large` (Rust read cap 1 GiB, zip unpack cap 400 MB). |
 | 1 | 2026-11-23 | (this commit) | v0.2.44 | Verified in preview: page saved on close, reopen keeps page and chosen direction, Escape under a dialog keeps the reader, editor leave guard from the sidebar. Item 78 found already done. |

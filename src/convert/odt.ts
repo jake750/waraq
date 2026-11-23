@@ -1,10 +1,16 @@
 // OpenDocument Text (content.xml) → HTML: headings, paragraphs, bold/italic spans, lists, tables, line breaks.
-import JSZip from "jszip";
 import { escapeHtml } from "./sanitize";
+import { loadZip } from "./zipGuard";
 import { byLocal, childrenOf, localName } from "./xml";
 
+/** `<text:s text:c="n">`: n spaces. The count comes from the file, so it is bounded (1e9 would be a 1 GB string). */
+export const spaceCount = (c: string | null) => {
+  const n = Math.trunc(Number(c ?? 1));
+  return Number.isFinite(n) ? Math.min(Math.max(n, 0), 100) : 1;
+};
+
 export async function odtToHtml(bytes: Uint8Array): Promise<{ title: string; body: string }> {
-  const zip = await JSZip.loadAsync(bytes);
+  const zip = await loadZip(bytes);
   const xml = await zip.file("content.xml")?.async("string");
   if (!xml) throw new Error("no content.xml");
   const doc = new DOMParser().parseFromString(xml, "application/xml");
@@ -30,7 +36,7 @@ export async function odtToHtml(bytes: Uint8Array): Promise<{ title: string; bod
         const e = n as Element;
         switch (localName(e)) {
           case "s":
-            out += " ".repeat(Number(e.getAttribute("text:c") ?? 1));
+            out += " ".repeat(spaceCount(e.getAttribute("text:c")));
             break;
           case "tab":
             out += "&emsp;";

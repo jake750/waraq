@@ -1,6 +1,6 @@
 import { getDocument, type PDFDocumentProxy } from "pdfjs-dist";
 
-export type PdfErrorCode = "not-a-pdf" | "password-required" | "wrong-password" | "file-missing" | "read-failed";
+export type PdfErrorCode = "not-a-pdf" | "password-required" | "wrong-password" | "file-missing" | "read-failed" | "too-large";
 
 export class PdfError extends Error {
   constructor(public code: PdfErrorCode) {

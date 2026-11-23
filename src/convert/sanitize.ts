@@ -1,6 +1,12 @@
 // Converted documents are data, never code: strip everything that could run or reach the network.
 
-const DROP = "script,style,iframe,frame,frameset,object,embed,link,meta,base,form,input,button,select,textarea,noscript,template,svg script";
+// SVG animation elements can set an attribute (href → javascript:) after the page loads.
+const DROP =
+  "script,style,iframe,frame,frameset,object,embed,link,meta,base,form,input,button,select,textarea,noscript,template,svg script," +
+  "animate,set,animateMotion,animatemotion,animateTransform,animatetransform,discard";
+// Inline styles that fetch (url(), image-set()), run (expression(), -moz-binding, behavior) or hide
+// those behind CSS escapes (`u\72l(` is `url(`), so any backslash drops the style.
+const BAD_STYLE = /url\s*\(|image-set\s*\(|expression\s*\(|-moz-binding|behavior\s*:|\\/i;
 // Attributes that make a browser fetch something as soon as the page loads (or is clicked, for ping).
 const FETCHES = new Set(["background", "poster", "lowsrc", "dynsrc", "longdesc", "data", "codebase", "action", "formaction", "ping", "manifest", "srcdoc"]);
 const BLOCKS = "p,h1,h2,h3,h4,h5,h6,li,td,th,blockquote,dd,dt,figcaption,caption,pre";
@@ -23,7 +29,7 @@ export function sanitizeElement(root: Element): string {
       else if ((n === "href" || n === "xlink:href") && !link && !/^\s*(#|data:image\/)/i.test(value)) el.removeAttribute(name);
       else if (n === "src" || n === "srcset") {
         if (n === "srcset" || !/^data:image\//i.test(value)) el.removeAttribute(name);
-      } else if (n === "style" && /url\s*\(|expression\s*\(/i.test(value)) el.removeAttribute(name);
+      } else if (n === "style" && BAD_STYLE.test(value)) el.removeAttribute(name);
     }
     if (el.tagName === "IMG" && !el.getAttribute("src")) el.remove();
   });

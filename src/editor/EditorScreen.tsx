@@ -454,13 +454,15 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
   };
 
   // Keyboard: undo/redo, delete, escape, nudge.
-  const keyState = () => ({ remove, leave, editing, nudge, hasSel: !!sel || group.length > 0, sel, grouped: group.length > 0, duplicate, duplicateGroup, editSelected, selectPage, page: () => currentPage() });
+  // `blocked`: a dialog (save, leave, signature) or a save in progress owns the keyboard.
+  const keyState = () => ({ blocked: saveAsk || leaveAsk || signing || busy, remove, leave, editing, nudge, hasSel: !!sel || group.length > 0, sel, grouped: group.length > 0, duplicate, duplicateGroup, editSelected, selectPage, page: () => currentPage() });
   const keys = useRef(keyState());
   keys.current = keyState();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest("input, textarea, select, [contenteditable]")) return;
+      if (keys.current.blocked) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault();

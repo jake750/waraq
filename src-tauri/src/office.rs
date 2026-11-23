@@ -7,7 +7,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 pub const LO_VERSION: &str = "26.2.7";
@@ -18,7 +18,36 @@ const TIMEOUT: Duration = Duration::from_secs(180);
 const NO_WINDOW: u32 = 0x0800_0000;
 
 static BUSY: Mutex<()> = Mutex::new(()); // one LibreOffice at a time
-static CANCEL: AtomicBool = AtomicBool::new(false);
+static INSTALLING: AtomicBool = AtomicBool::new(false); // one download at a time
+
+/// Cancelling bumps a counter; an operation is cancelled when the counter moved since it started.
+/// So a cancel reaches the operations already asked for (running, or waiting for `BUSY`) and never
+/// a later one, and stopping a conversion doesn't stop a LibreOffice download (separate counters).
+pub struct CancelEpoch(AtomicU64);
+impl CancelEpoch {
+    pub const fn new() -> Self {
+        CancelEpoch(AtomicU64::new(0))
+    }
+    pub fn token(&self) -> u64 {
+        self.0.load(Ordering::SeqCst)
+    }
+    pub fn cancel(&self) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+    }
+    pub fn cancelled(&self, token: u64) -> bool {
+        self.0.load(Ordering::SeqCst) != token
+    }
+}
+static CANCEL_INSTALL: CancelEpoch = CancelEpoch::new();
+static CANCEL_CONVERT: CancelEpoch = CancelEpoch::new();
+
+/// Releases the install guard however `install` ends.
+struct Installing;
+impl Drop for Installing {
+    fn drop(&mut self) {
+        INSTALLING.store(false, Ordering::SeqCst);
+    }
+}
 
 /// LibreOffice export filter for a target format.
 pub fn filter_for(target: &str) -> Option<&'static str> {
@@ -93,8 +122,14 @@ pub fn office_status(app: tauri::AppHandle) -> OfficeStatus {
 #[tauri::command]
 pub async fn office_install(app: tauri::AppHandle, on_progress: tauri::ipc::Channel<u64>) -> Result<(), String> {
     let dir = own_dir(&app)?;
+    if INSTALLING.swap(true, Ordering::SeqCst) {
+        return Err("busy".into()); // a second download would write the same .msi
+    }
+    let guard = Installing;
+    let token = CANCEL_INSTALL.token();
     tauri::async_runtime::spawn_blocking(move || {
-        let r = install(&dir, &on_progress);
+        let _guard = guard;
+        let r = install(&dir, &on_progress, token);
         if r.is_err() {
             let _ = std::fs::remove_dir_all(&dir); // never leave a half-installed copy
         }
@@ -104,16 +139,20 @@ pub async fn office_install(app: tauri::AppHandle, on_progress: tauri::ipc::Chan
     .map_err(|e| e.to_string())?
 }
 
-fn install(dir: &Path, progress: &tauri::ipc::Channel<u64>) -> Result<(), String> {
+fn install(dir: &Path, progress: &tauri::ipc::Channel<u64>, token: u64) -> Result<(), String> {
     use std::io::Write;
-    CANCEL.store(false, Ordering::SeqCst);
     let parent = dir.parent().ok_or("bad path")?;
     std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     let msi = parent.join("libreoffice-download.msi");
     let _ = std::fs::remove_dir_all(dir);
 
     // Download while hashing.
-    let res = ureq::get(LO_URL).call().map_err(|_| "download-failed".to_string())?;
+    // Timeouts: a stalled connection fails instead of leaving "Downloading…" up forever.
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(20))
+        .timeout_read(Duration::from_secs(60))
+        .build();
+    let res = agent.get(LO_URL).call().map_err(|_| "download-failed".to_string())?;
     let mut reader = res.into_reader();
     let mut file = std::fs::File::create(&msi).map_err(|e| e.to_string())?;
     let mut hasher = Sha256::new();
@@ -121,7 +160,7 @@ fn install(dir: &Path, progress: &tauri::ipc::Channel<u64>) -> Result<(), String
     let mut total = 0u64;
     let mut last = Instant::now();
     loop {
-        if CANCEL.load(Ordering::SeqCst) {
+        if CANCEL_INSTALL.cancelled(token) {
             drop(file);
             let _ = std::fs::remove_file(&msi);
             return Err("cancelled".into());
@@ -182,16 +221,19 @@ pub async fn office_convert(app: tauri::AppHandle, input: String, target: String
     let filter = filter_for(&target).ok_or("unsupported")?;
     let cache = app.path().app_cache_dir().map_err(|e| e.to_string())?;
     let profile = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("libreoffice-profile");
+    let token = CANCEL_CONVERT.token(); // taken before waiting for BUSY, so a cancel while waiting counts
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = BUSY.lock().unwrap_or_else(|e| e.into_inner());
-        CANCEL.store(false, Ordering::SeqCst);
+        if CANCEL_CONVERT.cancelled(token) {
+            return Err("cancelled".to_string());
+        }
         let work = cache.join("office").join(format!("{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&work);
         let out = work.join("out");
         std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
         let src = work.join(work_name(Path::new(&input)));
         std::fs::copy(&input, &src).map_err(|_| "file-missing".to_string())?;
-        let result = run_soffice(&soffice, &profile, filter, &src, &out).and_then(|_| {
+        let result = run_soffice(&soffice, &profile, filter, &src, &out, token).and_then(|_| {
             let produced = std::fs::read_dir(&out)
                 .map_err(|e| e.to_string())?
                 .flatten()
@@ -208,7 +250,7 @@ pub async fn office_convert(app: tauri::AppHandle, input: String, target: String
     .map_err(|e| e.to_string())?
 }
 
-fn run_soffice(soffice: &Path, profile: &Path, filter: &str, src: &Path, out: &Path) -> Result<(), String> {
+fn run_soffice(soffice: &Path, profile: &Path, filter: &str, src: &Path, out: &Path, token: u64) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
     let profile_url = tauri::Url::from_directory_path(profile).map_err(|_| "bad profile path")?;
     let mut child = Command::new(soffice)
@@ -227,12 +269,13 @@ fn run_soffice(soffice: &Path, profile: &Path, filter: &str, src: &Path, out: &P
         if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
             return if status.success() { Ok(()) } else { Err("engine-failed".into()) };
         }
-        if CANCEL.load(Ordering::SeqCst) || start.elapsed() > TIMEOUT {
+        let cancelled = CANCEL_CONVERT.cancelled(token);
+        if cancelled || start.elapsed() > TIMEOUT {
             // Kill our launcher's whole process tree (it starts soffice.bin), never other LibreOffice windows.
             kill_tree(child.id());
             let _ = child.kill();
             let _ = child.wait();
-            return Err(if CANCEL.load(Ordering::SeqCst) { "cancelled".into() } else { "timeout".into() });
+            return Err(if cancelled { "cancelled".into() } else { "timeout".into() });
         }
         std::thread::sleep(Duration::from_millis(150));
     }
@@ -244,10 +287,15 @@ fn kill_tree(pid: u32) {
     let _ = Command::new("taskkill").args(["/F", "/T", "/PID", &pid.to_string()]).creation_flags(NO_WINDOW).status();
 }
 
-/// Cancels the running download or conversion.
+/// Cancels the LibreOffice download (`what` = "install") or the conversions asked for so far
+/// (anything else, the default).
 #[tauri::command]
-pub fn office_cancel() {
-    CANCEL.store(true, Ordering::SeqCst);
+pub fn office_cancel(what: Option<String>) {
+    if what.as_deref() == Some("install") {
+        CANCEL_INSTALL.cancel();
+    } else {
+        CANCEL_CONVERT.cancel();
+    }
 }
 
 #[cfg(test)]
@@ -281,6 +329,21 @@ mod tests {
         assert_eq!(find_soffice(&own, &[installed.clone()], None), Some(prog.join("soffice.com")));
         assert_eq!(find_soffice(&t.path().join("none"), &[installed.clone()], None), Some(installed.join("program").join("soffice.exe")));
         assert_eq!(find_soffice(&t.path().join("none"), &[], None), None);
+    }
+
+    #[test]
+    fn cancel_reaches_earlier_operations_only() {
+        let c = CancelEpoch::new();
+        let running = c.token();
+        assert!(!c.cancelled(running));
+        c.cancel();
+        assert!(c.cancelled(running)); // asked for before the cancel: stops
+        let later = c.token();
+        assert!(!c.cancelled(later)); // asked for after it: runs
+        let other = CancelEpoch::new();
+        let download = other.token();
+        c.cancel();
+        assert!(!other.cancelled(download)); // stopping conversions leaves a download alone
     }
 
     #[test]

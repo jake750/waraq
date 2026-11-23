@@ -36,12 +36,21 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(mobile::init())
+        .setup(|app| {
+            use tauri::Manager;
+            // Scratch files left by earlier runs (a crash, a closed window mid-conversion).
+            if let Ok(cache) = app.path().app_cache_dir() {
+                std::thread::spawn(move || files::clean_cache_dir(&cache, std::process::id()));
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             files::read_file,
             files::save_output,
             files::open_output,
             files::reveal_output,
             files::temp_dir,
+            files::remove_temp_dir,
             launch::startup_file,
             launch::selftest_dir,
             #[cfg(any(windows, target_os = "android"))]

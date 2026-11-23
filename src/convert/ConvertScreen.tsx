@@ -181,7 +181,7 @@ export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Pro
           onDownload={api.downloadOffice}
           onBuiltIn={api.chooseBuiltIn}
           onCancel={api.closePrompt}
-          onStop={officeCancel}
+          onStop={() => officeCancel("install")}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 // EPUB → one HTML body: chapters in spine order, images inlined as data: URLs.
-import JSZip from "jszip";
 import { byLocal } from "./xml";
+import { loadZip } from "./zipGuard";
 
 const dirOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/") + 1) : "");
 function resolvePath(base: string, rel: string): string {
@@ -16,7 +16,7 @@ function resolvePath(base: string, rel: string): string {
 const MIME: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" };
 
 export async function epubToHtml(bytes: Uint8Array): Promise<{ title: string; body: string }> {
-  const zip = await JSZip.loadAsync(bytes);
+  const zip = await loadZip(bytes);
   const container = await zip.file("META-INF/container.xml")?.async("string");
   if (!container) throw new Error("no container.xml");
   const cdoc = new DOMParser().parseFromString(container, "application/xml");

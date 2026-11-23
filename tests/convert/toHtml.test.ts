@@ -95,3 +95,35 @@ test("nothing in the sanitized html can fetch from the network", async () => {
   expect(out).not.toMatch(/x\.test/);
   expect(out).toContain("https://keep.test/page"); // a link loads nothing until someone follows it
 });
+
+test("svg animations and escaped css can't sneak code or fetches through", async () => {
+  const { sanitizeFragment } = await import("../../src/convert/sanitize");
+  const out = sanitizeFragment(
+    '<svg><a><animate attributeName="href" to="javascript:alert(1)"/><set attributeName="href" to="javascript:x"/><text>t</text></a></svg>' +
+      String.raw`<p style="background:u\72l(http://x/a.png)">a</p>` +
+        `<p style="background-image:image-set('http://x/b.png' 1x)">b</p><p style="color:red">c</p>`,
+  );
+  expect(out).not.toMatch(/animate|<set|javascript/i);
+  expect(out).not.toMatch(/72l|image-set|http:/);
+  expect(out).toContain('style="color:red"');
+});
+
+test("a zip that would unpack to too much is refused before unpacking", async () => {
+  const { loadZip } = await import("../../src/convert/zipGuard");
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  zip.file("content.xml", "x".repeat(200_000)); // compresses to almost nothing
+  const bytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+  await expect(loadZip(bytes, 100_000)).rejects.toMatchObject({ code: "too-large" });
+  await expect(loadZip(bytes, 1_000_000)).resolves.toBeTruthy();
+  await expect(loadZip(office("sample.docx"))).resolves.toBeTruthy();
+});
+
+test("odt space runs are bounded", async () => {
+  const { spaceCount } = await import("../../src/convert/odt");
+  expect(spaceCount(null)).toBe(1);
+  expect(spaceCount("3")).toBe(3);
+  expect(spaceCount("1e9")).toBe(100);
+  expect(spaceCount("-5")).toBe(0);
+  expect(spaceCount("abc")).toBe(1);
+});

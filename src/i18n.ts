@@ -147,6 +147,7 @@ const en = {
     "office-missing": "Needs LibreOffice (PC only)",
     "write-failed": "Couldn't save the result",
     protected: "This PDF is password-protected",
+    "too-large": "The file is too large to open safely",
   },
   officeTitle: "Better quality with LibreOffice",
   officeBody: (mb: number) =>
@@ -307,6 +308,7 @@ const en = {
     wrongPassword: "Wrong password, try again",
     fileMissing: "File not found. It may have been moved or deleted.",
     readFailed: "The file couldn't be read",
+    tooLarge: "The file is too large to open safely",
     noText: "This document has no searchable text",
   },
   edit: "Edit",
@@ -520,6 +522,7 @@ const ar: typeof en = {
     "office-missing": "يحتاج LibreOffice (على الكمبيوتر فقط)",
     "write-failed": "تعذّر حفظ النتيجة",
     protected: "ملف PDF هذا محمي بكلمة مرور",
+    "too-large": "الملف أكبر من أن يُفتح بأمان",
   },
   officeTitle: "جودة أفضل مع LibreOffice",
   officeBody: (mb: number) =>
@@ -676,6 +679,7 @@ const ar: typeof en = {
     wrongPassword: "كلمة المرور خاطئة، حاول مرة أخرى",
     fileMissing: "الملف غير موجود. ربما نُقل أو حُذف.",
     readFailed: "تعذّرت قراءة الملف",
+    tooLarge: "الملف أكبر من أن يُفتح بأمان",
     noText: "لا يحتوي هذا المستند على نص قابل للبحث",
   },
   edit: "تعديل",

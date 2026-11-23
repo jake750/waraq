@@ -6,22 +6,35 @@ use std::path::{Path, PathBuf};
 pub enum FileError {
     Missing,
     Unreadable,
+    TooLarge,
 }
+
+/// Bigger files are refused: the whole file goes to the webview, which runs out of memory around here.
+pub const MAX_READ_BYTES: u64 = 1 << 30;
 
 impl FileError {
     pub fn code(&self) -> &'static str {
         match self {
             FileError::Missing => "file-missing",
             FileError::Unreadable => "read-failed",
+            FileError::TooLarge => "too-large",
         }
     }
 }
 
 pub fn read_bytes(path: &Path) -> Result<Vec<u8>, FileError> {
-    std::fs::read(path).map_err(|e| match e.kind() {
+    read_bytes_max(path, MAX_READ_BYTES)
+}
+
+pub fn read_bytes_max(path: &Path, max: u64) -> Result<Vec<u8>, FileError> {
+    let kind = |e: std::io::Error| match e.kind() {
         std::io::ErrorKind::NotFound => FileError::Missing,
         _ => FileError::Unreadable,
-    })
+    };
+    if std::fs::metadata(path).map_err(kind)?.len() > max {
+        return Err(FileError::TooLarge);
+    }
+    std::fs::read(path).map_err(kind)
 }
 
 /// Returns the file's raw bytes (not a JSON array) to the UI.
@@ -153,6 +166,38 @@ pub fn temp_dir(app: tauri::AppHandle) -> Result<String, String> {
     Ok(dir.to_string_lossy().into_owned())
 }
 
+/// Deletes a scratch folder made by `temp_dir` once its files have been read. Only folders inside
+/// the app cache's `work` folder; anything else is refused.
+#[tauri::command]
+pub fn remove_temp_dir(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    use tauri::Manager;
+    let base = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("work");
+    let (Ok(base), Ok(dir)) = (base.canonicalize(), Path::new(&path).canonicalize()) else {
+        return Ok(()); // already gone
+    };
+    if dir.parent() != Some(base.as_path()) {
+        return Err("not a scratch folder".into());
+    }
+    std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())
+}
+
+/// Leftovers in the app cache from earlier runs: scratch folders of other processes (`work`,
+/// `office`) and temporary outputs already copied to Downloads (`outputs`, Android). Called at start.
+pub fn clean_cache_dir(cache: &Path, pid: u32) {
+    let mine = format!("{pid}-");
+    for e in std::fs::read_dir(cache.join("work")).into_iter().flatten().flatten() {
+        if !e.file_name().to_string_lossy().starts_with(&mine) {
+            let _ = std::fs::remove_dir_all(e.path());
+        }
+    }
+    for e in std::fs::read_dir(cache.join("office")).into_iter().flatten().flatten() {
+        if e.file_name().to_string_lossy() != pid.to_string() {
+            let _ = std::fs::remove_dir_all(e.path());
+        }
+    }
+    let _ = std::fs::remove_dir_all(cache.join("outputs"));
+}
+
 /// Opens an output file with its default app (documents/images only).
 #[tauri::command]
 pub fn open_output(app: tauri::AppHandle, path: String) -> Result<(), String> {
@@ -181,6 +226,30 @@ mod tests {
         let p = dir.path().join("ملف تجريبي.pdf");
         std::fs::write(&p, b"%PDF-1.7").unwrap();
         assert_eq!(read_bytes(&p).unwrap(), b"%PDF-1.7");
+    }
+
+    #[test]
+    fn too_large_files_are_refused_before_reading() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("big.pdf");
+        std::fs::write(&p, vec![0u8; 2048]).unwrap();
+        assert_eq!(read_bytes_max(&p, 1024), Err(FileError::TooLarge));
+        assert_eq!(FileError::TooLarge.code(), "too-large");
+        assert_eq!(read_bytes_max(&p, 4096).unwrap().len(), 2048);
+    }
+
+    #[test]
+    fn cache_sweep_keeps_only_this_run() {
+        let dir = tempfile::tempdir().unwrap();
+        let c = dir.path();
+        for d in ["work/42-0", "work/42-1", "work/7-0", "office/42", "office/7", "outputs"] {
+            std::fs::create_dir_all(c.join(d)).unwrap();
+        }
+        std::fs::write(c.join("outputs/a.pdf"), b"x").unwrap();
+        clean_cache_dir(c, 42);
+        assert!(c.join("work/42-0").exists() && c.join("work/42-1").exists() && c.join("office/42").exists());
+        assert!(!c.join("work/7-0").exists() && !c.join("office/7").exists() && !c.join("outputs").exists());
+        clean_cache_dir(&c.join("nothing-here"), 42); // no folders: nothing to do, no panic
     }
 
     #[test]

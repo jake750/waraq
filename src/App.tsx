@@ -43,6 +43,7 @@ export function errorText(t: Strings, code: PdfErrorCode): string {
     "wrong-password": "wrongPassword",
     "file-missing": "fileMissing",
     "read-failed": "readFailed",
+    "too-large": "tooLarge",
   };
   return t.errors[map[code]];
 }
@@ -287,9 +288,11 @@ export default function App() {
   const onOpenAsPdf = async () => {
     if (!notPdf) return;
     setNotPdf({ ...notPdf, busy: true });
+    // Made before the (first-time) chunk load, so Cancel during that load counts too.
+    const ctl = (openAsPdfAbort.current = new AbortController());
     try {
       const { openAsPdf } = await import("./convert/openAsPdf");
-      const ctl = (openAsPdfAbort.current = new AbortController());
+      if (ctl.signal.aborted) return;
       const out = await openAsPdf(notPdf.ref, notPdf.name, !!conv.office?.installed, ctl.signal, (p) =>
         setNotPdf((n) => n && { ...n, progress: p }),
       );
@@ -298,10 +301,10 @@ export default function App() {
       await openDocument({ kind: "path", path: out.path }, undefined, { name: out.name });
     } catch (e) {
       setNotPdf(null);
-      if (openAsPdfAbort.current?.signal.aborted) return;
+      if (ctl.signal.aborted) return;
       showToast(t.convertErrors[asConvertError(e).code]);
     } finally {
-      openAsPdfAbort.current = null;
+      if (openAsPdfAbort.current === ctl) openAsPdfAbort.current = null;
     }
   };
 

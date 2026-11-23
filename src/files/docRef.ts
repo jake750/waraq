@@ -55,7 +55,8 @@ export async function readDocument(ref: DocRef): Promise<Uint8Array> {
       return new Uint8Array(await invoke<ArrayBuffer>("read_file", { path: copy }));
     }
   } catch (e) {
-    throw new PdfError(String(e).includes("file-missing") ? "file-missing" : "read-failed");
+    const s = String(e);
+    throw new PdfError(s.includes("file-missing") ? "file-missing" : s.includes("too-large") ? "too-large" : "read-failed");
   }
 }
 

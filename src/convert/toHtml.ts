@@ -8,6 +8,7 @@ import { epubToHtml } from "./epub";
 import { odtToHtml } from "./odt";
 import { rtfToHtml } from "./rtf";
 import { escapeHtml, sanitizeElement, sanitizeFragment } from "./sanitize";
+import { loadZip } from "./zipGuard";
 
 export type HtmlDoc = { title: string; body: string };
 
@@ -49,6 +50,7 @@ export async function toHtml(bytes: Uint8Array, f: Fmt): Promise<HtmlDoc> {
         return { title, body: sanitizeElement(doc.body) };
       }
       case "docx": {
+        await loadZip(bytes); // refuses zip bombs before mammoth unpacks anything
         const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
         // arrayBuffer for the browser build, buffer for Node (tests).
         const res = await mammoth.convertToHtml({ arrayBuffer: ab, buffer: bytes } as never);
