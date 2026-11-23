@@ -214,7 +214,7 @@ export default function Reader(p: Props) {
   const shownKey = useRef("");
   const onScroll = () => {
     const el = scroller.current!;
-    const key = visiblePages(Math.max(0, el.scrollTop - PAD), box.h, rowHeights, GAP, 2).join();
+    const key = visiblePages(Math.max(0, el.scrollTop - PAD), box.h, rowHeights, GAP, 2, tops).join();
     if (key !== shownKey.current) setScrollTop(el.scrollTop);
     if (view === "single") return;
     const probe = el.scrollTop + el.clientHeight * 0.35 - PAD;
@@ -415,7 +415,7 @@ export default function Reader(p: Props) {
     view === "single"
       ? [rowOf(current)]
       : sizes
-        ? visiblePages(Math.max(0, scrollTop - PAD), box.h, rowHeights, GAP, 2)
+        ? visiblePages(Math.max(0, scrollTop - PAD), box.h, rowHeights, GAP, 2, tops)
         : [];
   shownKey.current = shownRows.join();
 

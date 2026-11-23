@@ -1,32 +1,57 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useT } from "../i18n";
+import { pageLayout, type PageLayout } from "../text/search";
 import { flattenOutline, headingOutline, type OutlineItem } from "./outline";
 
-type Props = { doc: PDFDocumentProxy; current: number; onPick(page: number): void };
+/** The list once built, kept by the reader so switching tabs doesn't build it again. */
+export type OutlineCache = { doc: PDFDocumentProxy; items: OutlineItem[]; built: boolean };
 
-export default function OutlinePanel({ doc, current, onPick }: Props) {
+type Props = {
+  doc: PDFDocumentProxy;
+  current: number;
+  onPick(page: number): void;
+  cache: RefObject<OutlineCache | null>;
+  /** Page text already read (by search), shared so headings needn't read it again. */
+  layouts: Map<number, PageLayout>;
+};
+
+export default function OutlinePanel({ doc, current, onPick, cache, layouts }: Props) {
   const t = useT();
-  const [items, setItems] = useState<OutlineItem[] | null>(null);
+  const kept = cache.current?.doc === doc ? cache.current : null;
+  const [items, setItems] = useState<OutlineItem[] | null>(kept?.items ?? null);
   /** True when the list was built from the document's headings (it has no outline of its own). */
-  const [built, setBuilt] = useState(false);
+  const [built, setBuilt] = useState(kept?.built ?? false);
   useEffect(() => {
+    if (cache.current?.doc === doc) return;
     let alive = true;
     setItems(null);
     setBuilt(false);
+    const read = async (d: PDFDocumentProxy, i: number) => {
+      let l = layouts.get(i);
+      if (!l) layouts.set(i, (l = await pageLayout(d, i)));
+      return l;
+    };
     flattenOutline(doc)
       .catch(() => [])
       .then(async (x) => {
-        if (x.length || !alive) return x;
-        const h = await headingOutline(doc).catch(() => []);
-        if (alive) setBuilt(h.length > 0);
-        return h;
+        if (x.length) return { items: x, built: false };
+        const h = await headingOutline(doc, read, () => alive);
+        return { items: h, built: h.length > 0 };
       })
-      .then((x) => alive && setItems(x));
+      .then(
+        (r) => {
+          cache.current = { doc, ...r };
+          if (!alive) return;
+          setBuilt(r.built);
+          setItems(r.items);
+        },
+        () => alive && setItems([]), // cancelled (left the tab): nothing kept, built again next time
+      );
     return () => {
       alive = false;
     };
-  }, [doc]);
+  }, [doc, cache, layouts]);
 
   if (!items) return <p className="panel-note">{t.loading}</p>;
   if (items.length === 0) return <p className="panel-note">{t.outlineEmpty}</p>;

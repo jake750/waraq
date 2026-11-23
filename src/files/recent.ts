@@ -1,7 +1,10 @@
 import { docKey, type DocRef } from "./docRef";
 
-/** `thumb`: a small JPEG data URL of page 1 (never kept for password-protected files). */
-export type RecentItem = { key: string; name: string; ref: DocRef; openedAt: number; lastPage: number; thumb?: string; locked?: boolean };
+/**
+ * `thumb`: a small JPEG data URL of page 1 (never kept for password-protected files); `thumbOf`:
+ * the PDF fingerprint it was drawn from, so it is redrawn only when the file changed.
+ */
+export type RecentItem = { key: string; name: string; ref: DocRef; openedAt: number; lastPage: number; thumb?: string; thumbOf?: string; locked?: boolean };
 
 export interface KV {
   get<T>(k: string): Promise<T | undefined>;
@@ -54,7 +57,7 @@ export class RecentStore {
     // Android gives the same file a new content:// URI each time another app shares it: one entry per name.
     const same = (i: RecentItem) => i.key === key || (ref.kind === "uri" && i.ref.kind === "uri" && i.name === name);
     const old = items.find((i) => i.key === key) ?? items.find(same);
-    const item: RecentItem = { key, name, ref, openedAt: this.now(), lastPage: old?.lastPage ?? 1, ...(old?.thumb ? { thumb: old.thumb } : {}), ...(old?.locked ? { locked: true } : {}) };
+    const item: RecentItem = { key, name, ref, openedAt: this.now(), lastPage: old?.lastPage ?? 1, ...(old?.thumb ? { thumb: old.thumb, ...(old.thumbOf ? { thumbOf: old.thumbOf } : {}) } : {}), ...(old?.locked ? { locked: true } : {}) };
     await this.save([item, ...items.filter((i) => !same(i))].slice(0, this.max));
     return item;
   }
@@ -70,15 +73,17 @@ export class RecentStore {
     await this.save(items);
   }
 
-  setThumb(key: string, thumb: string | undefined): Promise<void> {
-    return this.serial(() => this.doSetThumb(key, thumb));
+  setThumb(key: string, thumb: string | undefined, of?: string): Promise<void> {
+    return this.serial(() => this.doSetThumb(key, thumb, of));
   }
-  private async doSetThumb(key: string, thumb: string | undefined): Promise<void> {
+  private async doSetThumb(key: string, thumb: string | undefined, of?: string): Promise<void> {
     const items = await this.read();
     const item = items.find((i) => i.key === key);
-    if (!item || item.thumb === thumb) return;
+    if (!item || (item.thumb === thumb && item.thumbOf === of)) return;
     if (thumb) item.thumb = thumb;
     else delete item.thumb;
+    if (thumb && of) item.thumbOf = of;
+    else delete item.thumbOf;
     await this.save(items);
   }
 
@@ -92,6 +97,7 @@ export class RecentStore {
     if (!item || (item.locked && !item.thumb)) return;
     item.locked = true;
     delete item.thumb;
+    delete item.thumbOf;
     await this.save(items);
   }
 

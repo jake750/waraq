@@ -73,8 +73,9 @@ function refFinder(pdf: PDFDocument): (w: PDFWidgetAnnotation) => PDFRef | undef
   return (w) => byDict.get(w.dict);
 }
 
-export async function listFields(bytes: Uint8Array): Promise<Field[]> {
-  const pdf = await loadPdf(bytes.slice());
+/** `parsed`: the same document already loaded (its fields and widgets intact), to skip a parse. */
+export async function listFields(bytes: Uint8Array, parsed?: PDFDocument): Promise<Field[]> {
+  const pdf = parsed ?? (await loadPdf(bytes.slice()));
   if (!pdf.catalog.has(PDFName.of("AcroForm"))) return [];
   const where = pageIndex(pdf);
   const refOf = refFinder(pdf);

@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window"; // already in the main bundle (App uses the webview API)
 import { isAndroid } from "../platform";
 
 /**
@@ -14,10 +16,8 @@ export async function setFullscreen(on: boolean): Promise<void> {
       return;
     }
     if (isAndroid()) {
-      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("android_immersive", { on });
     } else {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
       await getCurrentWindow().setFullscreen(on);
     }
   } catch {

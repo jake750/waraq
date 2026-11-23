@@ -240,50 +240,59 @@ font weight doing everything, flat cards, a motif used for three meanings, and a
 
 ## Batch 4: performance
 
-- [ ] **33** · perf · `files/docRef.ts` `resolveName`/`sniffFmt`, `App.tsx`, `convert/useConvert.ts` (TODO)
+- [x] **33** · perf · `files/docRef.ts` `resolveName`/`sniffFmt`, `App.tsx`, `convert/useConvert.ts` (TODO)
   - Problem: sniffing an Android opaque URI reads the whole file, and the same file is resolved and
     read 2–3×.
   - Fix: sniff the first 64 KB only, memoize per URI and pass resolved names to `conv.add`.
   - H / M
-- [ ] **34** · perf · bundle
+  - Done (batch 4): `resolveName` remembers each URI's name (one sniff per file instead of 2–3). The 64 KB partial sniff was left out: it needs a ranged Android read that can only be tested on a device; backlog.
+- [x] **34** · perf · bundle
   - Problem: EditorScreen is 787 kB (357 kB gzipped).
   - Fix: lazy-load fontkit and the Arabic font only on the first text/form/signature write. Check
     whether `formats`/`es` pull editor-only code. Add `chunkSizeWarningLimit` only after splitting.
     Record the sizes.
   - H / M
-- [ ] **35** · perf · `App.tsx` → `EditorScreen.tsx` (`loadPdf`, `importAnnots`, `listFields`)
+  - Done (batch 4): fontkit is imported inside `embedFonts`. EditorScreen 787.8 kB (356.8 gz) → 78.7 kB (26.5 gz); fontkit is its own 710.7 kB chunk loaded on the first save. `chunkSizeWarningLimit: 800`; the `@tauri-apps/api/window` INEFFECTIVE_DYNAMIC_IMPORT warning fixed (static import). Build has no warnings.
+- [x] **35** · perf · `App.tsx` → `EditorScreen.tsx` (`loadPdf`, `importAnnots`, `listFields`)
   - Problem: opening the editor re-reads the file and parses it with pdf-lib three times, plus pdf.js.
   - Fix: parse once and pass the `PDFDocument`; from the reader use `doc.getData()`.
   - M / M
-- [ ] **36** · perf · `EditorScreen.tsx` sizes, `EditorPage.tsx` `getPage`
+  - Done (batch 4): App's check parse rides in `EditSource.pdf`; `importAnnots(bytes, parsed)` and `listFields(bytes, parsed)` share it (used once: StrictMode-safe). Three pdf-lib parses → one.
+- [x] **36** · perf · `EditorScreen.tsx` sizes, `EditorPage.tsx` `getPage`
   - Problem: `getPage` runs for every page at open and every page stays alive.
   - Fix: Reader-style sizes (page 1 plus lazy correction); `getPage` only when visible.
   - M / M
-- [ ] **37** · perf · `EditorScreen.tsx` ctrl+wheel/zoom, `EditorPage.tsx`
+  - Done (batch 4): sizes start at page 1's size; `EditorPage` fetches its page only once near the screen and reports its real size (`onSize`).
+- [x] **37** · perf · `EditorScreen.tsx` ctrl+wheel/zoom, `EditorPage.tsx`
   - Problem: `setZoom` runs per wheel tick and re-renders every unmemoized page. `highlights={[]}`
     is a new array every render, which defeats `memo(PageView)`.
   - Fix: live CSS zoom with one commit (as in the reader); `memo(EditorPage)` with stable
     callbacks; a module-level empty array.
   - M / M
-- [ ] **38** · perf · `editor/drafts.ts`
+  - Done (batch 4): ctrl+wheel scales `.ed-stack` with a CSS transform and commits one zoom after 160 ms (cursor stays put); `memo(EditorPage)` with stable callbacks (`useStable`), `selBar` only on its page, a module-level empty highlights array.
+- [x] **38** · perf · `editor/drafts.ts`
   - Problem: every 800 ms change re-encodes every image to base64 and rewrites all drafts into
     `waraq.json`, which also holds Recent and loads at startup.
   - Fix: a separate drafts store, images stored once by hash, and a size cap.
   - M / M
-- [ ] **39** · perf · `tools/ToolsScreen.tsx` `loadSource`, merge/organize
+  - Done (batch 4): drafts live in `drafts.json` (`appKV("drafts")`), moved out of `waraq.json` on first use; each image encoded once (WeakMap); 24 MB budget (newest always kept). Not by hash: the same bytes object is reused, which is what repeats.
+- [x] **39** · perf · `tools/ToolsScreen.tsx` `loadSource`, merge/organize
   - Problem: pdf-lib parses only to validate, then the bytes are parsed again for assemble.
   - Fix: keep the `PDFDocument` and pass it to `assemble()`.
   - M / L
-- [ ] **40** · perf · `reader/OutlinePanel.tsx`, `reader/outline.ts`
+  - Done (batch 4): `Source.pdf` kept from the check parse; organize and split assemble from it, merge parses each file once.
+- [x] **40** · perf · `reader/OutlinePanel.tsx`, `reader/outline.ts`
   - Problem: every switch to the Contents tab re-extracts up to 400 pages and keeps running after
     unmount.
   - Fix: cache per doc in ReaderScreen, pass a cancel check, reuse `layouts.current`.
   - M / L
-- [ ] **41** · perf · `reader/Thumbnails.tsx` + `tools/PdfThumb.tsx`
+  - Done (batch 4): `OutlineCache` ref in ReaderScreen; headings read through the search `layouts` map; `headingOutline(..., alive)` stops when the tab is left.
+- [x] **41** · perf · `reader/Thumbnails.tsx` + `tools/PdfThumb.tsx`
   - Problem: two near-duplicate components, with one IntersectionObserver per thumbnail.
   - Fix: one `PdfThumb` (`night`/`rotate` props) and a shared observer per list.
   - L / L
-- [ ] **42** · perf · `reader/layout.ts` `visiblePages`, `Reader.tsx` `onScroll`; `PageView.tsx` links/textContent; `App.tsx` `firstPageThumb`
+  - Done (batch 4): one `src/pdf/PdfThumb.tsx` (`night`, `rotate`, `fitBox`) used by the reader list and the tools; `src/pdf/useNear.ts` shares one IntersectionObserver per margin (also used by the editor pages).
+- [x] **42** · perf · `reader/layout.ts` `visiblePages`, `Reader.tsx` `onScroll`; `PageView.tsx` links/textContent; `App.tsx` `firstPageThumb`
   - Problem: there are three separate costs:
     - `pageOffsets` rebuilds an O(n) array on every scroll.
     - Links and text content are refetched on every zoom.
@@ -291,6 +300,7 @@ font weight doing everything, flat cards, a motif used for three meanings, and a
   - Fix: pass the memoized `tops` and binary-search them; cache links and text content in refs;
     skip the thumbnail when `item.thumb` exists.
   - L / L
+  - Done (batch 4): `visiblePages(..., tops)` reuses the memoized offsets; PageView reads links and text content once per page; Recent's thumbnail is redrawn only when missing or the PDF fingerprint changed (`thumbOf`).
 
 ## Batch 5: visual identity
 
@@ -582,6 +592,7 @@ small artifact) and give a recommendation.
 ## Backlog found in the audit but not in the 100
 
 - Search panel covering the page on phones (TODO 147).
+- Sniff only the first/last 64 KB of an untyped Android URI (needs a ranged native read; from item 33).
 - Bookmarks (TODO 451).
 - Highlight in the reader (TODO 449).
 - Reflow reading mode (TODO 447).
@@ -595,6 +606,7 @@ These are bigger features; propose them as separate sessions.
 
 | Batch | Date | Commit | Release | Notes |
 |---|---|---|---|---|
+| 4 | 2026-11-23 | (batch 4 commit) | v0.2.47 | Editor chunk 787.8→78.7 kB (356.8→26.5 gz), fontkit lazy; build warnings 2→0; main index 376.9→378.0 kB. Verified in preview: thumbnails, cached Contents, editor live wheel zoom, lazy pages, pen stroke + draft in drafts store, 375px dark. 279 tests. |
 | 3 | 2026-11-23 | (batch 3 commit) | v0.2.46 | theme.css split into src/styles/; 282 spacing, 38 font-size, 37 radius, 11 z-index values tokenized; computed-style diff on 7 screens × 2 themes showed only intended changes (type scale, radii 6/10/14/16 unified, med motion 260→220ms). CSS gzip 16.15→16.78 kB. ESLint+Stylelint in CI (0 errors). |
 | 2 | 2026-11-23 | (batch 2 commit) | v0.2.45 | 11–17, 19, 20 done; 18 deferred (needs a real desktop test, see the item). New error code `too-large` (Rust read cap 1 GiB, zip unpack cap 400 MB). |
 | 1 | 2026-11-23 | (this commit) | v0.2.44 | Verified in preview: page saved on close, reopen keeps page and chosen direction, Escape under a dialog keeps the reader, editor leave guard from the sidebar. Item 78 found already done. |

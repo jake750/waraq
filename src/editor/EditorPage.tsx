@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { todayLabel } from "./date";
 import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from "pdfjs-dist";
 import PageView from "../reader/PageView";
+import { watchNear } from "../pdf/useNear";
 import { useT } from "../i18n";
 import type { PageLayout } from "../text/search";
 import { css, newId, type Mark, type Pt, type Rect, type Rgb } from "./marks";
@@ -20,8 +21,10 @@ export const markerWidth = (stroke: number) => Math.max(8, stroke * 4);
 type Props = {
   doc: PDFDocumentProxy;
   index: number;
-  /** Page size at scale 1 (rotation applied). */
+  /** Page size at scale 1 (rotation applied); a guess until the page has loaded. */
   size: { w: number; h: number };
+  /** The page's real size at scale 1, reported once it has loaded. */
+  onSize: (index: number, w: number, h: number) => void;
   scale: number;
   marks: Mark[];
   tool: Tool;
@@ -94,7 +97,12 @@ function stretch(r: Rect, k: number, at: Pt, keep: boolean): Rect {
 const coarse = () => window.matchMedia?.("(pointer: coarse)").matches ?? false;
 
 /** One page in the editor: the rendered page with its marks drawn over it, and the pointer tools. */
-export default function EditorPage(p: Props) {
+export default memo(EditorPage);
+
+/** The editor draws its own text marks: no pdf.js highlights (one array, so PageView stays memo'd). */
+const NO_HIGHLIGHTS: never[] = [];
+
+function EditorPage(p: Props) {
   const host = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState<PDFPageProxy | null>(null);
   const [visible, setVisible] = useState(false);
@@ -116,9 +124,7 @@ export default function EditorPage(p: Props) {
   // Only pages near the screen are rendered.
   useEffect(() => {
     const el = host.current!;
-    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: "800px 0px" });
-    io.observe(el);
-    return () => io.disconnect();
+    return watchNear(el, "800px 0px", setVisible);
   }, []);
 
   // With a text tool in hand, read the text of the pages on screen ahead of the first drag.
@@ -128,16 +134,25 @@ export default function EditorPage(p: Props) {
     if (textTool && visible) layout(index).catch(() => {});
   }, [textTool, visible, layout, index]);
 
+  // The page itself is fetched once it first comes near the screen, then kept.
+  const near = visible || page !== null;
+  const { onSize } = p;
   useEffect(() => {
+    if (!near) return;
     let alive = true;
     p.doc
       .getPage(p.index + 1)
-      .then((pg) => alive && setPage(pg))
+      .then((pg) => {
+        if (!alive) return;
+        setPage(pg);
+        const v = pg.getViewport({ scale: 1 });
+        onSize(p.index, v.width, v.height);
+      })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [p.doc, p.index]);
+  }, [p.doc, p.index, near, onSize]);
   // Derived in the same render as the new size: marks never lag a frame behind a zoom.
   const vp: PageViewport | null = useMemo(() => page?.getViewport({ scale: p.scale }) ?? null, [page, p.scale]);
 
@@ -622,7 +637,7 @@ export default function EditorPage(p: Props) {
 
   return (
     <div ref={host} className="ed-page" style={{ width: w, height: h }}>
-      {visible && <PageView doc={p.doc} pageNumber={p.index + 1} scale={p.scale} night={false} highlights={[]} width={w} height={h} />}
+      {visible && <PageView doc={p.doc} pageNumber={p.index + 1} scale={p.scale} night={false} highlights={NO_HIGHLIGHTS} width={w} height={h} />}
       {vp && (
         <div
           className={`ed-overlay tool-${p.tool}`}

@@ -1,6 +1,6 @@
 import { pageCanvas } from "../pdf/pageCanvas";
 import { memo, useEffect, useRef, useState } from "react";
-import { TextLayer, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import { TextLayer, type PDFDocumentProxy, type PDFPageProxy, type RenderTask } from "pdfjs-dist";
 import { buildPageText, type GlyphItem } from "../text/search";
 import { detectRtl } from "../text/arabic";
 import { leasePage, type PageLease } from "./pageLease";
@@ -52,6 +52,8 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
   const hlRef = useRef<HTMLDivElement>(null);
   const [vp, setVp] = useState<Viewport | null>(null);
   const [links, setLinks] = useState<PageLink[]>([]);
+  // Links and text don't change with the zoom: read them once per page.
+  const read = useRef<{ doc: PDFDocumentProxy; page: number; links?: Promise<PageLink[]>; text?: ReturnType<PDFPageProxy["getTextContent"]> } | null>(null);
   const sizeCb = useRef(onSize);
   sizeCb.current = onSize;
   /** The page the canvas on screen shows (it stays up, stretched, while a new zoom renders). */
@@ -125,8 +127,10 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
       host.replaceChildren(canvas);
       attached = true;
       showing.current = { doc, page: pageNumber };
-      pageLinks(doc, page).then((l) => !cancelled && setLinks(l), () => {});
-      const content = await page.getTextContent();
+      let r = read.current;
+      if (r?.doc !== doc || r.page !== pageNumber) read.current = r = { doc, page: pageNumber };
+      (r.links ??= pageLinks(doc, page)).then((l) => !cancelled && setLinks(l), () => {});
+      const content = await (r.text ??= page.getTextContent());
       if (cancelled) return;
       const items = content.items.filter((it) => "str" in it && it.str !== "") as unknown as GlyphItem[];
       textDiv.replaceChildren();

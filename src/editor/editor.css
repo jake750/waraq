@@ -157,12 +157,17 @@
   min-width: 0;
   overflow: auto;
   background: var(--viewer-bg);
+}
+/* The pages, in a column; a wheel zoom scales this box live before the real zoom lands. */
+.ed-stack {
   display: flex;
   flex-direction: column;
   /* "safe": a zoomed page wider than the view starts at the edge instead of being cut off. */
   align-items: safe center;
   gap: var(--sp-4);
   padding: var(--sp-4) 0 var(--sp-12);
+  min-width: min-content;
+  min-height: 100%;
 }
 
 .ed-loading {
@@ -536,7 +541,7 @@
     border-top: 1px solid var(--stroke);
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
-  .ed-pages {
+  .ed-stack {
     padding: var(--sp-2) 0 var(--sp-6);
     gap: var(--sp-2);
   }

@@ -3,7 +3,6 @@
 // shaped text (fontkit joins Arabic; pdf-lib writes ToUnicode, so the text stays selectable).
 // `flatten` draws the annotation appearances into the page instead (notes stay notes).
 
-import fontkit from "@pdf-lib/fontkit";
 import { jpegOrientation, orientMatrix } from "../convert/exif";
 import {
   PDFArray,
@@ -201,6 +200,8 @@ export type Fonts = { arabic: PDFFont; latin: PDFFont; hasAr(cp: number): boolea
 
 /** Embeds both editor fonts (subset) into `pdf`. */
 export async function embedFonts(pdf: PDFDocument, fonts: EditorFonts): Promise<Fonts> {
+  // fontkit is ~half the editor chunk: load it only when a file is actually written.
+  const fontkit = (await import("@pdf-lib/fontkit")).default;
   pdf.registerFontkit(fontkit);
   const ar = fontkit.create(fonts.arabic as never);
   const lat = fontkit.create(fonts.latin as never);

@@ -98,9 +98,13 @@ export function headingsFromLayouts(pages: PageLayout[]): OutlineItem[] {
 /** Pages read for headings at most; a long book is still listed up to there. */
 export const HEADING_PAGES = 400;
 
-export async function headingOutline(doc: PDFDocumentProxy, read = pageLayout): Promise<OutlineItem[]> {
+/** Headings found in the text, for a document without an outline. Rejects once `alive()` is false. */
+export async function headingOutline(doc: PDFDocumentProxy, read = pageLayout, alive: () => boolean = () => true): Promise<OutlineItem[]> {
   const pages: PageLayout[] = [];
   const n = Math.min(doc.numPages, HEADING_PAGES);
-  for (let i = 0; i < n; i++) pages.push(await read(doc, i).catch(() => ({ text: "", boxes: [] })));
+  for (let i = 0; i < n; i++) {
+    if (!alive()) throw new Error("cancelled");
+    pages.push(await read(doc, i).catch(() => ({ text: "", boxes: [] })));
+  }
   return headingsFromLayouts(pages);
 }

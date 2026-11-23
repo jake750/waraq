@@ -23,3 +23,23 @@ test("an empty draft is removed, and only the newest five are kept", async () =>
   expect(await s.get("d0")).toBe(null);
   expect(await s.get("d6")).not.toBe(null);
 });
+
+test("drafts move out of the settings store once, and an old one survives the move", async () => {
+  const settings = memKV();
+  await new DraftStore(settings).put("old", [note], {});
+  const own = memKV();
+  const s = new DraftStore(own, Date.now, settings);
+  expect((await s.get("old"))?.marks).toEqual([note]);
+  expect(await settings.get("drafts")).toEqual([]);
+  expect(await own.get("drafts")).toHaveLength(1);
+});
+
+test("drafts that would grow too big keep only the newest", async () => {
+  const s = new DraftStore(memKV());
+  const big = (id: string): Mark => ({ ...image, id, bytes: new Uint8Array(10 * 1024 * 1024) });
+  await s.put("a", [big("a")], {});
+  await s.put("b", [big("b")], {});
+  await s.put("c", [big("c")], {});
+  expect(await s.get("c")).not.toBe(null);
+  expect(await s.get("a")).toBe(null); // three 13 MB drafts don't fit; the newest always does
+});

@@ -5,12 +5,13 @@ const readFile = vi.fn();
 vi.mock("@tauri-apps/api/core", () => ({ invoke: (...a: unknown[]) => invoke(...a) }));
 vi.mock("@tauri-apps/plugin-fs", () => ({ readFile: (...a: unknown[]) => readFile(...a) }));
 
-const { readDocument } = await import("../src/files/docRef");
+const { readDocument, resolveName, forgetNames } = await import("../src/files/docRef");
 const ref = { kind: "uri", uri: "content://com.android.providers.downloads.documents/document/msf%3A42" } as const;
 
 beforeEach(() => {
   invoke.mockReset();
   readFile.mockReset();
+  forgetNames();
 });
 
 test("a content URI whose grant expired is read from the private Recent copy", async () => {
@@ -32,4 +33,13 @@ test("a readable URI never touches the copy", async () => {
   readFile.mockResolvedValue(new Uint8Array([1]));
   await readDocument(ref);
   expect(invoke).not.toHaveBeenCalled();
+});
+
+test("an untyped URI is sniffed once, then its name is remembered", async () => {
+  invoke.mockResolvedValue({ name: "scan", mime: "application/octet-stream" });
+  readFile.mockResolvedValue(new TextEncoder().encode("%PDF-1.7 ..."));
+  expect(await resolveName(ref)).toBe("scan.pdf");
+  expect(await resolveName(ref)).toBe("scan.pdf");
+  expect(readFile).toHaveBeenCalledTimes(1);
+  expect(invoke).toHaveBeenCalledTimes(1);
 });

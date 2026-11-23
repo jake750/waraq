@@ -120,10 +120,11 @@ export function markOf(d: PDFDict, page: number): Mark | null {
  * The marks for every annotation the editor can edit, and the PDF without those annotations (and
  * their popups). `bytes` is the input itself when there is nothing to take out.
  */
-export async function importAnnots(input: Uint8Array): Promise<{ bytes: Uint8Array; marks: Mark[] }> {
+export async function importAnnots(input: Uint8Array, parsed?: PDFDocument): Promise<{ bytes: Uint8Array; marks: Mark[]; pdf?: PDFDocument }> {
   let pdf: PDFDocument;
   try {
-    pdf = await loadPdf(input.slice());
+    // `parsed` (the same bytes, already loaded by the caller) saves a parse; it is changed here.
+    pdf = parsed ?? (await loadPdf(input.slice()));
   } catch {
     return { bytes: input, marks: [] };
   }
@@ -147,6 +148,7 @@ export async function importAnnots(input: Uint8Array): Promise<{ bytes: Uint8Arr
     const keep = annots.asArray().filter((r) => !drop.has(r) && !popups.has(r));
     page.node.set(PDFName.of("Annots"), pdf.context.obj(keep));
   });
-  if (!marks.length) return { bytes: input, marks };
-  return { bytes: await pdf.save({ useObjectStreams: true }), marks };
+  // `pdf` is handed back (the form fields are read from it next): annotations other than marks are untouched.
+  if (!marks.length) return { bytes: input, marks, pdf };
+  return { bytes: await pdf.save({ useObjectStreams: true }), marks, pdf };
 }

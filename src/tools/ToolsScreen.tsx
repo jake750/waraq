@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocument } from "pdf-lib";
 import {
   ArrowDown,
   ArrowLeft,
@@ -37,13 +38,14 @@ import { assemble, loadPdf, splitGroups, type PageSpec, type SplitMode } from ".
 import { deleteSel, insertAfter, moveSel, rotateSel, type Item } from "./organize";
 import { compressPdf, type Reencode } from "./compress";
 import { numberPages, stripMetadata, type NumberOpts } from "./stamp";
-import PdfThumb from "./PdfThumb";
+import PdfThumb from "../pdf/PdfThumb";
 import { pickPdfs } from "./pickPdfs";
 export { pickPdfs };
 import "./tools.css";
 
 export type Tool = "organize" | "merge" | "split" | "compress" | "numbers" | "clean";
-type Source = { ref: DocRef; name: string; bytes: Uint8Array; doc: PDFDocumentProxy };
+/** `pdf`: the pdf-lib parse made to check the file, kept so saving needn't parse it again. */
+type Source = { ref: DocRef; name: string; bytes: Uint8Array; doc: PDFDocumentProxy; pdf: PDFDocument };
 type Props = { onToast(msg: string): void; onEdit(ref: DocRef): void; initialTool?: Tool; current?: { ref: DocRef; name: string } | null };
 
 /** The document open in the reader, offered by every tool so it needn't be picked again. */
@@ -53,9 +55,9 @@ const CurrentDoc = createContext<{ ref: DocRef; name: string } | null>(null);
 /** Reads and checks a PDF for the tools (protected/corrupt files fail here, before any work). */
 async function loadSource(ref: DocRef): Promise<Source> {
   const bytes = await readDocument(ref);
-  await loadPdf(bytes);
+  const pdf = await loadPdf(bytes);
   const doc = await openPdf(bytes);
-  return { ref, name: await resolveName(ref), bytes, doc };
+  return { ref, name: await resolveName(ref), bytes, doc, pdf };
 }
 
 const save = (bytes: Uint8Array, name: string, src: Source) => saveOutput(bytes, name, folderOf(src.ref), "application/pdf");
@@ -295,7 +297,7 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
   const saveAs = (pages: Item[], suffix: string) =>
     run(async () => {
       const bytes = await assemble(
-        sources.map((s) => s.bytes),
+        sources.map((s) => s.pdf),
         pages.map((p) => p.spec),
       );
       setSaved([await save(bytes, suffixName(first.name, suffix), first)]);
@@ -374,7 +376,7 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
             >
               <button className="page-tile" aria-pressed={sel.has(it.key)} onClick={() => toggle(it.key)}>
                 {"src" in s ? (
-                  <PdfThumb doc={sources[s.src].doc} index={s.index} rotate={s.rotate} width={120} />
+                  <PdfThumb className="pthumb" doc={sources[s.src].doc} index={s.index} rotate={s.rotate} width={120} height={120} fitBox />
                 ) : (
                   <div className="pthumb blank" style={{ width: 120, height: 120 }}>
                     <span>{t.blankPage}</span>
@@ -447,15 +449,14 @@ function Merge({ fail }: { onToast(m: string): void; fail(e: unknown): void }) {
           disabled={list.length < 2 || busy}
           onClick={() =>
             run(async () => {
-              const bytes: Uint8Array[] = [];
+              const docs: PDFDocument[] = [];
               const pages: PageSpec[] = [];
               for (const [k, f] of list.entries()) {
-                const b = await readDocument(f.ref);
-                const n = (await loadPdf(b)).getPageCount();
-                bytes.push(b);
-                for (let i = 0; i < n; i++) pages.push({ src: k, index: i, rotate: 0 });
+                const d = await loadPdf(await readDocument(f.ref)); // parsed once: counted, then copied
+                docs.push(d);
+                for (let i = 0; i < d.getPageCount(); i++) pages.push({ src: k, index: i, rotate: 0 });
               }
-              const out = await assemble(bytes, pages);
+              const out = await assemble(docs, pages);
               setSaved([await saveOutput(out, suffixName(list[0].name, "merged"), folderOf(list[0].ref), "application/pdf")]);
             }, fail)
           }
@@ -515,9 +516,8 @@ function Split({ fail, onToast }: { onToast(m: string): void; fail(e: unknown): 
           onClick={() =>
             run(async () => {
               const out: Saved[] = [];
-              const doc = await loadPdf(src.bytes); // parsed once for every part
               for (const [k, g] of groups!.entries())
-                out.push(await save(await assemble([doc], g.map((index) => ({ src: 0, index, rotate: 0 }))), suffixName(src.name, `part ${k + 1}`), src));
+                out.push(await save(await assemble([src.pdf], g.map((index) => ({ src: 0, index, rotate: 0 }))), suffixName(src.name, `part ${k + 1}`), src));
               setSaved(out);
               onToast(t.savedParts(out.length));
             }, fail)

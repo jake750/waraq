@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocument } from "pdf-lib";
 import {
   AlignCenter,
   AlignLeft,
@@ -62,7 +63,16 @@ import { STAMPS, STAMP_COLORS, renderStamp } from "./stamps";
 import { todayLabel } from "./date";
 import "./editor.css";
 
-export type EditSource = { ref: DocRef; name: string; bytes: Uint8Array };
+/** `pdf`: `bytes` already parsed by pdf-lib (the opener checks them), used once instead of a new parse. */
+export type EditSource = { ref: DocRef; name: string; bytes: Uint8Array; pdf?: PDFDocument };
+
+// A parsed source is changed by importAnnots, so it may be used only once (StrictMode runs effects twice).
+const usedParses = new WeakSet<PDFDocument>();
+function takeParsed(src: EditSource): PDFDocument | undefined {
+  if (!src.pdf || usedParses.has(src.pdf)) return undefined;
+  usedParses.add(src.pdf);
+  return src.pdf;
+}
 type Props = {
   src: EditSource;
   onClose(): void;
@@ -72,6 +82,13 @@ type Props = {
 };
 
 const GAP = 16;
+
+/** A callback that never changes identity but always runs the latest `fn` (so memo'd pages don't re-render). */
+function useStable<A extends unknown[], R>(fn: (...a: A) => R): (...a: A) => R {
+  const ref = useRef(fn);
+  ref.current = fn;
+  return useCallback((...a: A) => ref.current(...a), []);
+}
 const STROKES = [1.5, 3, 6];
 const SIZES = [11, 14, 20, 28];
 const isPhone = () => window.matchMedia?.("(max-width: 719px)").matches ?? false;
@@ -159,7 +176,7 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
   const [leaveAsk, setLeaveAsk] = useState(false);
   // Unsaved work from an earlier session, offered once on open. `undefined` = not looked up yet.
   const [draft, setDraft] = useState<Draft | null | undefined>(undefined);
-  const drafts = useMemo(() => new DraftStore(appKV()), []);
+  const drafts = useMemo(() => new DraftStore(appKV("drafts"), Date.now, appKV()), []);
   const draftKey = useMemo(() => `${docKey(src.ref)}#${src.bytes.length}`, [src]);
   const [width, setWidth] = useState(800);
   const [zoom, setZoom] = useState(1);
@@ -201,16 +218,13 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
     let d: PDFDocumentProxy | undefined;
     (async () => {
       // Annotations already in the file become marks; the editor shows and saves the file without them.
-      const imp = await importAnnots(src.bytes);
+      const imp = await importAnnots(src.bytes, takeParsed(src));
       d = await openPdf(imp.bytes.slice());
-      // All pages asked at once: the worker answers in one stream instead of one round trip per page.
-      const doc = d;
-      const s = await Promise.all(
-        Array.from({ length: doc.numPages }, async (_, i) => {
-          const v = (await doc.getPage(i + 1)).getViewport({ scale: 1 });
-          return { w: v.width, h: v.height };
-        }),
-      );
+      // Every page starts at page 1's size; each page reports its own once it comes near the screen
+      // (asking pdf.js for every page up front cost a round trip per page before anything showed).
+      const v = (await d.getPage(1)).getViewport({ scale: 1 });
+      const first = { w: v.width, h: v.height };
+      const s = Array.from({ length: d.numPages }, () => first);
       if (!alive) return;
       base.current = imp.bytes;
       if (imp.marks.length) {
@@ -219,7 +233,7 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
       }
       setDoc(d);
       setSizes(s);
-      const f = await listFields(src.bytes).catch(() => []);
+      const f = await listFields(src.bytes, imp.pdf).catch(() => []);
       if (!alive) return;
       setFields(f);
       if (f.length && !isPhone()) setFormsOpen(true);
@@ -249,29 +263,67 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
   // Fit to width, then the user's zoom on top (small text is easier to mark zoomed in).
   const scale = Math.min(1.6, Math.max(0.3, (width - (isPhone() ? 16 : 48)) / maxW)) * zoom;
 
-  // Zooming keeps the spot in the middle of the screen where it was (not the top-left corner).
+  // Zooming keeps a spot where it was: the middle of the screen, or the cursor for a wheel zoom.
   const lastScale = useRef(scale);
+  const focus = useRef<{ x: number; y: number } | null>(null);
+  const stack = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = scroller.current;
     const old = lastScale.current;
     lastScale.current = scale;
+    if (stack.current) stack.current.style.transform = ""; // the live zoom is now the real one
+    const at = focus.current;
+    focus.current = null;
     if (!el || old === scale) return;
     const f = scale / old;
-    el.scrollTop = (el.scrollTop + el.clientHeight / 2) * f - el.clientHeight / 2;
-    el.scrollLeft = (el.scrollLeft + el.clientWidth / 2) * f - el.clientWidth / 2;
+    const x = at?.x ?? el.clientWidth / 2;
+    const y = at?.y ?? el.clientHeight / 2;
+    el.scrollTop = (el.scrollTop + y) * f - y;
+    el.scrollLeft = (el.scrollLeft + x) * f - x;
   }, [scale]);
 
   // Ctrl + wheel (and a trackpad pinch, which browsers report the same way) zooms the pages.
+  // While the wheel turns only a CSS transform changes (no render, no page re-layout); the zoom
+  // itself is applied once the wheel has been quiet for a moment.
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
+    let live: { f: number; x: number; y: number } | null = null;
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    const commit = () => {
+      const g = live;
+      live = null;
+      if (!g) return;
+      const z = clampZoom(zoomRef.current * g.f);
+      if (z === zoomRef.current) {
+        if (stack.current) stack.current.style.transform = "";
+        return;
+      }
+      focus.current = { x: g.x, y: g.y };
+      setZoom(z);
+    };
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
-      setZoom((z) => clampZoom(z * Math.exp(-e.deltaY * 0.0025)));
+      const r = el.getBoundingClientRect();
+      if (!live) live = { f: 1, x: e.clientX - r.left, y: e.clientY - r.top };
+      const z = zoomRef.current;
+      live.f = clampZoom(z * live.f * Math.exp(-e.deltaY * 0.0025)) / z;
+      const s = stack.current;
+      if (s) {
+        s.style.transformOrigin = `${el.scrollLeft + live.x}px ${el.scrollTop + live.y}px`;
+        s.style.transform = `scale(${live.f})`;
+      }
+      clearTimeout(settle);
+      settle = setTimeout(commit, 160);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    return () => {
+      clearTimeout(settle);
+      el.removeEventListener("wheel", onWheel);
+    };
   }, []);
 
   const layout = useCallback(
@@ -322,12 +374,12 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
   // Several marks selected together (on one page); `selected` is then empty.
   const [group, setGroupIds] = useState<string[]>([]);
   const groupMarks = useMemo(() => marks.filter((m) => group.includes(m.id)), [marks, group]);
-  const setGroup = (ids: string[]) => {
+  const setGroup = useStable((ids: string[]) => {
     setSelected(null);
     setEditing(null);
     setGroupIds(ids);
     if (ids.length) setTool("select");
-  };
+  });
   /** Patches for every grouped mark the change applies to, as one undo step. */
   const groupUpdate = (fn: (m: Mark) => Partial<Mark> | null) => {
     const patches = groupMarks.flatMap((m) => {
@@ -363,13 +415,13 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
   };
 
   /** A new mark from the page, dressed in the current look. */
-  const addMark = (m: Mark) => {
+  const addMark = useStable((m: Mark) => {
     let out: Mark = m;
     if (m.kind === "rect" || m.kind === "ellipse") out = { ...m, fill, dash, opacity };
     else if (m.kind === "line" || m.kind === "arrow" || (m.kind === "ink" && m.opacity === undefined)) out = { ...m, dash, opacity };
     else if (m.kind === "text") out = { ...m, align };
     dispatch({ type: "add", mark: out });
-  };
+  });
 
   const chooseSize = (n: number) => {
     setTextSize(n);
@@ -388,11 +440,11 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
   }, [selected, group]);
 
   // Picking a mark (or placing one) hands over to Select, so it can be moved and resized at once.
-  const select = (id: string | null) => {
+  const select = useStable((id: string | null) => {
     setGroupIds([]);
     setSelected(id);
     if (id) setTool("select");
-  };
+  });
 
   // Copy and paste keep the mark in memory; a paste lands on the page in view.
   const clip = useRef<Mark | null>(null);
@@ -407,8 +459,21 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
     dispatch({ type: "addMany", marks: copies });
     setGroup(copies.map((m) => m.id));
   };
-  const moveMany = (ids: string[], dx: number, dy: number) =>
-    dispatch({ type: "updateMany", patches: marks.filter((m) => ids.includes(m.id)).map((m) => ({ id: m.id, patch: moveMark(m, dx, dy) })) });
+  const moveMany = useStable((ids: string[], dx: number, dy: number) =>
+    dispatch({ type: "updateMany", patches: marks.filter((m) => ids.includes(m.id)).map((m) => ({ id: m.id, patch: moveMark(m, dx, dy) })) }),
+  );
+  const updateMark = useCallback((id: string, patch: Partial<Mark>) => dispatch({ type: "update", id, patch }), []);
+  const removeMark = useCallback((id: string) => dispatch({ type: "remove", id }), []);
+  const removeMarks = useCallback((ids: string[]) => dispatch({ type: "removeMany", ids }), []);
+  /** A page's real size, once it has loaded (pages start at page 1's size). */
+  const pageSize = useCallback((i: number, w: number, h: number) => {
+    setSizes((old) => {
+      if (!old[i] || (Math.abs(old[i].w - w) < 0.5 && Math.abs(old[i].h - h) < 0.5)) return old;
+      const next = old.slice();
+      next[i] = { w, h };
+      return next;
+    });
+  }, []);
   /** Everything on one page selected together (how a phone selects several marks). */
   const selectPage = (page: number) => {
     const ids = marks.filter((m) => m.page === page).map((m) => m.id);
@@ -595,10 +660,12 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
   }, [fields, values]);
   // The panel focuses this field once it has rendered (on a phone it mounts only now).
   const [focusField, setFocusField] = useState<{ name: string } | null>(null);
-  const openField = (name: string) => {
+  const openField = useCallback((name: string) => {
     setFormsOpen(true);
     setFocusField({ name });
-  };
+  }, []);
+  // The selection bar is a new element every render: hand it only to the page it sits on.
+  const selPage = groupMarks[0]?.page ?? sel?.page ?? -1;
 
   const selBar = groupMarks.length ? (
     <div className="ed-group">
@@ -832,6 +899,7 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
           </div>
         )}
         <div ref={scroller} className={`ed-pages${tool === "select" ? "" : " drawing"}`}>
+          <div ref={stack} className="ed-stack">
           {doc &&
             sizes.map((s, i) => (
               <EditorPage
@@ -852,17 +920,19 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
                 editing={editing}
                 layout={layout}
                 onAdd={addMark}
-                onUpdate={(id, patch) => dispatch({ type: "update", id, patch })}
-                onRemove={(id) => dispatch({ type: "remove", id })}
-                onRemoveMany={(ids) => dispatch({ type: "removeMany", ids })}
+                onUpdate={updateMark}
+                onRemove={removeMark}
+                onRemoveMany={removeMarks}
+                onSize={pageSize}
                 onSelect={select}
-                selBar={selBar}
+                selBar={i === selPage ? selBar : undefined}
                 onEdit={setEditing}
                 answers={answers.get(i)}
                 onField={openField}
               />
             ))}
           {!doc && <div className="ed-loading">{t.preparing}</div>}
+          </div>
         </div>
         {marksOpen && (
           <MarksPanel

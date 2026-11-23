@@ -80,9 +80,28 @@ export function keepAccess(refs: DocRef[]): DocRef[] {
   return refs;
 }
 
+// A URI's name never changes, but one file is resolved two or three times on its way in (open, the
+// not-a-PDF sheet, the convert queue) and an untyped one is read whole to sniff it: remember the answer.
+const names = new Map<string, Promise<string>>();
+const NAMES_MAX = 64;
+
 /** The file's real name. Android content URIs are often opaque ("document:1000"), so ask the system. */
-export async function resolveName(ref: DocRef): Promise<string> {
-  if (ref.kind === "uri") {
+export function resolveName(ref: DocRef): Promise<string> {
+  if (ref.kind !== "uri") return Promise.resolve(docName(ref));
+  const hit = names.get(ref.uri);
+  if (hit) return hit;
+  const p = lookUpName(ref);
+  names.set(ref.uri, p);
+  p.catch(() => names.delete(ref.uri));
+  if (names.size > NAMES_MAX) names.delete(names.keys().next().value!);
+  return p;
+}
+
+/** Test hook: forget remembered names. */
+export const forgetNames = () => names.clear();
+
+async function lookUpName(ref: DocRef & { kind: "uri" }): Promise<string> {
+  {
     const r = await invoke<{ name?: string | null; mime?: string | null }>("android_display_name", { uri: ref.uri }).catch(() => null);
     const name = nameWithType(r?.name || docName(ref), r?.mime);
     const said = fmtOf(name);
@@ -93,7 +112,6 @@ export async function resolveName(ref: DocRef): Promise<string> {
     if (said) return f === "docx" ? name.trim().replace(/\.doc$/i, ".docx") : name;
     return f ? `${name.trim()}.${f}` : name;
   }
-  return docName(ref);
 }
 
 /** The folder holding a desktop file ("" for Android content URIs: outputs go to Downloads). */

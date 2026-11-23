@@ -6,7 +6,7 @@ import { useT } from "../i18n";
 import { useBack } from "../shell/back";
 import { findMatches, pageLayout, type PageLayout } from "../text/search";
 import { matchRects } from "./highlight";
-import OutlinePanel from "./OutlinePanel";
+import OutlinePanel, { type OutlineCache } from "./OutlinePanel";
 import Reader from "./Reader";
 import SearchPanel, { type SearchState } from "./SearchPanel";
 import Thumbnails from "./Thumbnails";
@@ -43,6 +43,7 @@ export default function ReaderScreen(p: Props) {
   const [ratio, setRatio] = useState(1.414);
   const [focusToken, setFocusToken] = useState(0);
   const layouts = useRef(new Map<number, PageLayout>());
+  const outline = useRef<OutlineCache | null>(null);
   const [search, setSearch] = useState<SearchState>({
     query: "",
     exact: false,
@@ -183,7 +184,7 @@ export default function ReaderScreen(p: Props) {
               </div>
               <div className="panel-body">
                 {tab === "thumbs" && <Thumbnails doc={doc} ratio={ratio} current={a.page} night={a.night} onPick={pick} />}
-                {tab === "outline" && <OutlinePanel doc={doc} current={a.page} onPick={pick} />}
+                {tab === "outline" && <OutlinePanel doc={doc} current={a.page} onPick={pick} cache={outline} layouts={layouts.current} />}
                 {tab === "info" && <InfoPanel doc={doc} name={p.name} />}
                 {tab === "search" && (
                   <SearchPanel

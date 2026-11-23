@@ -69,3 +69,16 @@ test("helpers", () => {
   expect(parseDA("0.2 g /Helv 9 Tf")).toEqual({ size: 9, color: [0.2, 0.2, 0.2] });
   expect(quadRects([10, 20, 30, 20, 10, 5, 30, 5])).toEqual([{ x: 10, y: 5, w: 20, h: 15 }]);
 });
+
+test("a form with marks: one parse serves the marks and the fields", async () => {
+  const { listFields } = await import("../../src/editor/forms");
+  const form = new Uint8Array(readFileSync("fixtures/form.pdf"));
+  const withMarks = await writeMarks(form, [marks[0], marks[6]], fonts, { flatten: false });
+  const parsed = await PDFDocument.load(withMarks.slice());
+  const imp = await importAnnots(withMarks, parsed);
+  expect(imp.marks.length).toBe(2);
+  expect(imp.pdf).toBe(parsed);
+  const shared = await listFields(withMarks, imp.pdf);
+  expect(shared.length).toBeGreaterThan(0);
+  expect(shared).toEqual(await listFields(withMarks));
+});

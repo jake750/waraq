@@ -22,6 +22,9 @@ export default defineConfig(() => ({
   worker: { format: "es" as const, plugins: () => [pdfjsLigatureFix()] },
   // Legacy build carries polyfills (e.g. Promise.try) that older Android WebViews lack.
   resolve: { alias: [{ find: /^pdfjs-dist$/, replacement: "pdfjs-dist/legacy/build/pdf.mjs" }] },
+  // The big chunks left are single libraries loaded on first use (fontkit when an edit is saved, the
+  // converters when a conversion runs) and the pdf.js worker; none is on the startup path.
+  build: { chunkSizeWarningLimit: 800 },
   clearScreen: false,
   server: {
     port: 1420,

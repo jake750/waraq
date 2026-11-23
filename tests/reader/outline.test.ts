@@ -60,3 +60,15 @@ test("headingOutline reads a real PDF", async () => {
     { title: "Methods", page: 2, depth: 0 },
   ]);
 });
+
+test("headingOutline stops reading pages once it is no longer wanted", async () => {
+  const doc = { numPages: 50 } as never;
+  let reads = 0;
+  let wanted = true;
+  const read = async () => {
+    if (++reads === 3) wanted = false;
+    return { text: "", boxes: [] };
+  };
+  await expect(headingOutline(doc, read, () => wanted)).rejects.toThrow("cancelled");
+  expect(reads).toBe(3);
+});

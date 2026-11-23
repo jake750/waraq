@@ -10,10 +10,12 @@ export function pageOffsets(heights: number[], gap: number): number[] {
   return out;
 }
 
-/** Indices (0-based) of pages intersecting the viewport, plus `overscan` on each side. */
-export function visiblePages(scrollTop: number, viewport: number, heights: number[], gap: number, overscan: number): number[] {
+/**
+ * Indices (0-based) of pages intersecting the viewport, plus `overscan` on each side.
+ * `tops`: `pageOffsets(heights, gap)` when the caller already has it (it runs on every scroll).
+ */
+export function visiblePages(scrollTop: number, viewport: number, heights: number[], gap: number, overscan: number, tops = pageOffsets(heights, gap)): number[] {
   if (heights.length === 0) return [];
-  const tops = pageOffsets(heights, gap);
   const bottom = scrollTop + viewport;
   // Binary search for the first page whose bottom is below scrollTop.
   let lo = 0;

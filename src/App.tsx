@@ -155,11 +155,12 @@ export default function App() {
         // Page 1 as a small picture for Recent; a password-protected file keeps the plain icon.
         if (item) {
           const key = item.key;
+          const fp = doc.fingerprints[0] ?? undefined;
           if (password) recentStore.setLocked(key).then(refreshRecent).catch(() => {});
-          else
+          else if (!item.thumb || !fp || item.thumbOf !== fp)
             import("./shell/thumb")
               .then(({ firstPageThumb }) => firstPageThumb(doc))
-              .then((url) => recentStore.setThumb(key, url))
+              .then((url) => recentStore.setThumb(key, url, fp))
               .then(refreshRecent)
               .catch(() => {});
         }
@@ -323,8 +324,8 @@ export default function App() {
   const editDocument = async (ref: DocRef, name?: string) => {
     try {
       const bytes = await readDocument(ref);
-      await (await import("./tools/pages")).loadPdf(bytes);
-      setEdit({ src: { ref, name: name ?? (await resolveName(ref)), bytes }, from: route === "editor" ? "tools" : route });
+      const pdf = await (await import("./tools/pages")).loadPdf(bytes); // refuses protected files early
+      setEdit({ src: { ref, name: name ?? (await resolveName(ref)), bytes, pdf }, from: route === "editor" ? "tools" : route });
       go("editor");
     } catch (e) {
       showToast(t.convertErrors[asConvertError(e, "bad-input").code]);
