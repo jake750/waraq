@@ -7,6 +7,7 @@ import type { ThemePref } from "../prefs";
 import { isAndroid } from "../platform";
 import type { Updates } from "../update/useUpdates";
 import { reportUrl, systemName } from "./report";
+import { ICON } from "./icons";
 
 export type Route = "home" | "convert" | "tools" | "reader" | "editor";
 
@@ -57,12 +58,12 @@ function UpdateSection({ u }: { u: Updates }) {
           </span>
           {s.status === "available" || s.status === "installing" || s.status === "permission" ? (
             <button className="btn btn-primary btn-sm" onClick={u.install} disabled={s.status === "installing"}>
-              <Download size={16} />
+              <Download size={ICON.sm} />
               {isAndroid() ? t.updDownload : t.updInstall}
             </button>
           ) : (
             <button className="btn btn-ghost btn-sm" onClick={u.check} disabled={s.status === "checking"}>
-              <RefreshCw size={16} className={s.status === "checking" ? "spin" : undefined} />
+              <RefreshCw size={ICON.sm} className={s.status === "checking" ? "spin" : undefined} />
               {t.updCheck}
             </button>
           )}
@@ -102,7 +103,7 @@ function UpdatePrompt({ u }: { u: Updates }) {
     <div className="update-prompt" role="dialog" aria-labelledby="update-prompt-title">
       <div className="update-prompt-head">
         <span className="update-prompt-icon" aria-hidden="true">
-          <Download size={18} />
+          <Download size={ICON.md} />
         </span>
         <div>
           <strong id="update-prompt-title">{t.updPromptTitle(s.found.version)}</strong>
@@ -142,7 +143,7 @@ function OfficeSection({ office, onGet }: { office: { installed: boolean; versio
       <p className="settings-hint">{office.installed ? t.officeInstalledAs(office.version) : t.officeNotInstalled}</p>
       {!office.installed && (
         <button className="btn btn-ghost btn-sm" onClick={onGet}>
-          <Download size={16} />
+          <Download size={ICON.sm} />
           {t.officeGet}
         </button>
       )}
@@ -166,7 +167,7 @@ function Prefs({ theme, onTheme, updates, office, onGetOffice }: Pick<Props, "th
     <>
       {/* The privacy promise comes first: it is what the app is about. */}
       <p className="settings-note">
-        <ShieldCheck size={18} />
+        <ShieldCheck size={ICON.md} />
         <span>{t.settingsPrivacy}</span>
       </p>
       <div className="pref">
@@ -181,9 +182,13 @@ function Prefs({ theme, onTheme, updates, office, onGetOffice }: Pick<Props, "th
       </div>
       <div className="pref">
         <span className="field-label">{t.theme}</span>
-        <div className="segmented">
+        <div className="segmented theme-choice">
           {themes.map(([v, label]) => (
             <button key={v} aria-pressed={theme === v} onClick={() => onTheme(v)}>
+              {/* A small picture of the app in that theme: the desk, a sheet and a line of ink. */}
+              <span className={`theme-swatch theme-swatch-${v}`} aria-hidden>
+                <i />
+              </span>
               {label}
             </button>
           ))}
@@ -204,7 +209,7 @@ function Prefs({ theme, onTheme, updates, office, onGetOffice }: Pick<Props, "th
             } else window.open(url, "_blank", "noopener");
           }}
         >
-          <Bug size={16} />
+          <Bug size={ICON.sm} />
           {t.reportButton}
         </button>
       </div>
@@ -261,16 +266,16 @@ export default function Layout(p: Props) {
   const hasUpdate = p.updates.state.status === "available" || p.updates.state.status === "permission";
   const settingsIcon = (
     <span className="badge-wrap">
-      <Settings size={20} />
+      <Settings size={ICON.md} />
       {hasUpdate && <span className="badge-dot" aria-label={t.updBadge} />}
     </span>
   );
   const items: { r: Route; label: string; icon: ReactNode }[] = [
-    { r: "home", label: t.navHome, icon: <HomeIcon size={20} /> },
-    { r: "convert", label: t.navConvert, icon: <FileOutput size={20} /> },
-    { r: "tools", label: t.navTools, icon: <Wrench size={20} /> },
+    { r: "home", label: t.navHome, icon: <HomeIcon size={ICON.md} /> },
+    { r: "convert", label: t.navConvert, icon: <FileOutput size={ICON.md} /> },
+    { r: "tools", label: t.navTools, icon: <Wrench size={ICON.md} /> },
     // The reader tab only exists while a document is open: no dead, disabled tab.
-    ...(p.readerAvailable ? [{ r: "reader" as Route, label: t.navReader, icon: <BookOpen size={20} /> }] : []),
+    ...(p.readerAvailable ? [{ r: "reader" as Route, label: t.navReader, icon: <BookOpen size={ICON.md} /> }] : []),
   ];
   return (
     <div className={rail ? "shell rail" : "shell"}>
@@ -303,7 +308,7 @@ export default function Layout(p: Props) {
               title={rail ? t.sidebarExpand : undefined}
               aria-label={folded ? t.sidebarExpand : t.sidebarFold}
             >
-              <PanelLeft size={20} />
+              <PanelLeft size={ICON.md} />
               <span className="nav-label">{t.sidebarFold}</span>
             </button>
           )}
@@ -353,7 +358,7 @@ export default function Layout(p: Props) {
             <div className="sheet-head">
               <h2 id="settings-title">{t.settings}</h2>
               <button className="icon-btn" onClick={() => setSettings(false)} aria-label={t.close} title={t.close}>
-                <X size={20} />
+                <X size={ICON.md} />
               </button>
             </div>
             <Prefs

@@ -11,6 +11,7 @@ import Reader from "./Reader";
 import SearchPanel, { type SearchState } from "./SearchPanel";
 import Thumbnails from "./Thumbnails";
 import type { HighlightRect } from "./PageView";
+import { ICON } from "../shell/icons";
 
 type Tab = "thumbs" | "outline" | "search" | "info";
 
@@ -214,7 +215,7 @@ export default function ReaderScreen(p: Props) {
             setBackTo(null);
           }}
         >
-          <Undo2 size={16} aria-hidden />
+          <Undo2 size={ICON.sm} aria-hidden />
           {t.backToPage(backTo)}
         </button>
       )}

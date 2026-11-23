@@ -304,20 +304,22 @@ font weight doing everything, flat cards, a motif used for three meanings, and a
 
 ## Batch 5: visual identity
 
-- [ ] **43** · identity · `styles/tokens.css`
+- [x] **43** · identity · `styles/tokens.css`
   - Problem: the accent has no scale, and soft fills and hover colours are improvised.
   - Fix: an ink scale 50–900 from #223b7a; derive accent/soft/hover/borders from it.
   - M / L
+  - Done (batch 5): `--ink-50…900` in tokens.css (hue 223°, 700 = #223b7a); `--accent`, `--accent-soft` (ink-100), `--accent-hover` (ink-800, replaces `filter: brightness`), `--accent-line`, `--accent-wash`, `--accent-ring` replace the improvised mixes.
 - [?] **44** · identity — NEEDS APPROVAL
   - Problem: in dark mode the accent changes character (periwinkle #8ea6e6) (TODO).
   - Fix: use ink-300/200 from the same hue family. This visibly changes the brand colour in dark
     mode, so show the user a before/after first.
   - M / M
-- [ ] **45** · identity · `theme.css` background, `reader.css` pages
+- [x] **45** · identity · `theme.css` background, `reader.css` pages
   - Problem: "Waraq" (paper) is not in the material; the identity rests on the fold alone (TODO).
   - Fix: a subtle SVG paper grain (data URI, ≤2 KB, opacity 2–3 %, off in high-contrast/forced-colors)
     and lifted-sheet page shadows.
   - M / L
+  - Done (batch 5): `--grain` (feTurbulence data URI, ~5 % dark specks light / 3.5 % light specks dark) on body; off under forced-colors and prefers-contrast: more. `--page-shadow` is a contact + soft lift shadow in both themes.
 - [?] **46** · identity — NEEDS APPROVAL
   - Problem: headings have no character; there is no wordmark (TODO).
   - Fix: Amiri Bold (already bundled for PDF writing) for the «ورق» wordmark and screen titles, or a
@@ -332,35 +334,41 @@ font weight doing everything, flat cards, a motif used for three meanings, and a
     is no dark logo variant.
   - Fix: either keep the fold top-right everywhere or mirror the logo, and add a dark tile variant.
   - L / M
-- [ ] **49** · identity · `Home.tsx`, `ConvertScreen.tsx`, `ToolsScreen.tsx`
+- [x] **49** · identity · `Home.tsx`, `ConvertScreen.tsx`, `ToolsScreen.tsx`
   - Problem: headings are inconsistent (Home has no h1, the others do) (TODO).
   - Fix: a shared `<ScreenHeader title actions>` component using the new heading tokens.
   - M / L
-- [ ] **50** · identity · icons in every `.tsx`
+  - Done (batch 5): `src/shell/ScreenHeader.tsx` (title, sub, onBack, actions) + `.screen-head` in components.css, used by Convert, Tools and every tool. Tools used Convert's `.convert-head` class from convert.css, which was missing when Tools loaded first. Home keeps its hero h1.
+- [x] **50** · identity · icons in every `.tsx`
   - Problem: lucide sizes vary (16/17/18/20/22/26) (TODO); `PanelLeft` (Reader) and `Undo2`
     (Tools) aren't mirrored.
   - Fix: `--icon-sm/md/lg` (16/20/24), an `<Icon>` wrapper or a size constant, stroke 1.75, and
     mirror the direction icons.
   - M / L
-- [ ] **51** · identity · `RecentList.tsx`, `SearchPanel.tsx`, `OutlinePanel.tsx`, the Convert empty state
+  - Done (batch 5): `ICON = {sm:16, md:20, lg:24, xl:28}` (`src/shell/icons.ts`), all 125 lucide sizes mapped; `svg.lucide { stroke-width: 1.75 }`; Reader's PanelLeft mirrors. (No Undo2 in Tools any more.)
+- [x] **51** · identity · `RecentList.tsx`, `SearchPanel.tsx`, `OutlinePanel.tsx`, the Convert empty state
   - Problem: empty states are plain text or a generic icon.
   - Fix: 3–4 small inline-SVG paper illustrations (stacked sheets, folded corner, magnifier over
     paper) drawn from tokens, so they theme automatically.
   - M / L
-- [ ] **52** · identity · `theme.css` `.toast`
+  - Done (batch 5): `src/shell/Illustration.tsx` (sheets, search, outline) from colour roles; Recent empty / no match, search no results, Contents empty. Convert's empty state is already the drop sheet.
+- [x] **52** · identity · `theme.css` `.toast`
   - Problem: the toast is plain, with no semantic meaning.
   - Fix: a frosted surface (`backdrop-filter` with a solid fallback), a semantic icon and an accent
     edge; `success`/`error`/`info` variants.
   - M / L
-- [ ] **53** · identity · Settings appearance
+  - Done (batch 5): `toastKind()` (`src/shell/toast.ts`): error strings → error, a stated kind wins (split's saved parts → success); icon + 3px inline-start edge (`--toast-info/success/error`); frosted with `@supports` fallback.
+- [x] **53** · identity · Settings appearance
   - Problem: the theme options are text only (TODO).
   - Fix: mini preview swatches (light/dark/system) built from tokens.
   - L / L
-- [ ] **54** · identity · cards (`.card`, tool rows, recent rows, quick items)
+  - Done (batch 5): `.theme-choice` swatches (desk, sheet, ink line; system split) from `--swatch-*` tokens fixed in both themes.
+- [x] **54** · identity · cards (`.card`, tool rows, recent rows, quick items)
   - Problem: three visual languages (iOS list, cards, tiles) (TODO).
   - Fix: one card recipe (surface + elev-1 + hairline + radius md, with hover elev-2) and one list-row
     recipe, used everywhere.
   - M / M
+  - Done (batch 5): one card recipe and one list recipe at the end of components.css (dropzone, quick items, tool feature; recent/tool/job lists, rows tint on hover); duplicates removed from home/tools/convert.
 
 ## Batch 6: motion and effects
 
@@ -606,6 +614,7 @@ These are bigger features; propose them as separate sessions.
 
 | Batch | Date | Commit | Release | Notes |
 |---|---|---|---|---|
+| 5a | 2026-11-23 | (batch 5 commit) | v0.2.48 | 43, 45, 49–54 done; 44, 46–48 wait for approval (mockups shown). CI: Gradle cache added after Maven Central 429s failed v0.2.47's APK twice. Verified home/tools/settings/toast/empty states at desktop and 375px dark. |
 | 4 | 2026-11-23 | (batch 4 commit) | v0.2.47 | Editor chunk 787.8→78.7 kB (356.8→26.5 gz), fontkit lazy; build warnings 2→0; main index 376.9→378.0 kB. Verified in preview: thumbnails, cached Contents, editor live wheel zoom, lazy pages, pen stroke + draft in drafts store, 375px dark. 279 tests. |
 | 3 | 2026-11-23 | (batch 3 commit) | v0.2.46 | theme.css split into src/styles/; 282 spacing, 38 font-size, 37 radius, 11 z-index values tokenized; computed-style diff on 7 screens × 2 themes showed only intended changes (type scale, radii 6/10/14/16 unified, med motion 260→220ms). CSS gzip 16.15→16.78 kB. ESLint+Stylelint in CI (0 errors). |
 | 2 | 2026-11-23 | (batch 2 commit) | v0.2.45 | 11–17, 19, 20 done; 18 deferred (needs a real desktop test, see the item). New error code `too-large` (Rust read cap 1 GiB, zip unpack cap 400 MB). |

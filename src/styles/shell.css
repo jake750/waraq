@@ -185,7 +185,7 @@
   width: 34px;
   height: 34px;
   border-radius: var(--r-sm);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: var(--accent-wash);
   color: var(--accent-text);
 }
 .update-prompt-actions {
@@ -437,4 +437,57 @@
     transform: translateY(24px);
     opacity: 0;
   }
+}
+
+/* Theme choice: each option shows the theme itself (desk, sheet, ink) above its name. */
+.theme-choice button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1-5);
+  padding-block: var(--sp-2);
+}
+.theme-swatch {
+  --sw-bg: var(--swatch-light-bg);
+  --sw-sheet: var(--swatch-light-sheet);
+  --sw-ink: var(--swatch-light-ink);
+  position: relative;
+  width: 56px;
+  height: 36px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--stroke);
+  background: var(--sw-bg);
+  overflow: hidden;
+}
+.theme-swatch::before {
+  content: "";
+  position: absolute;
+  inset: 6px 10px 0;
+  border-radius: var(--r-2xs) var(--r-2xs) 0 0;
+  background: var(--sw-sheet);
+}
+.theme-swatch i {
+  position: absolute;
+  inset-inline-start: 16px;
+  top: 14px;
+  width: 18px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--sw-ink);
+}
+.theme-swatch-dark {
+  --sw-bg: var(--swatch-dark-bg);
+  --sw-sheet: var(--swatch-dark-sheet);
+  --sw-ink: var(--swatch-dark-ink);
+}
+/* System: light and dark split down the middle. */
+.theme-swatch-system {
+  background: linear-gradient(to right, var(--swatch-light-bg) 50%, var(--swatch-dark-bg) 50%);
+}
+.theme-swatch-system::before {
+  background: linear-gradient(to right, var(--swatch-light-sheet) 50%, var(--swatch-dark-sheet) 50%);
+}
+.theme-choice button[aria-pressed="true"] .theme-swatch {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }

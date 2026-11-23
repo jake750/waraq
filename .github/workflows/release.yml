@@ -118,6 +118,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          # Keep Gradle's downloads between runs: Maven Central rate-limits (429) runners that fetch everything.
+          cache: gradle
+          cache-dependency-path: |
+            src-tauri/gen/android/**/*.gradle*
+            src-tauri/gen/android/**/gradle-wrapper.properties
 
       - uses: dtolnay/rust-toolchain@stable
         with:

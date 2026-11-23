@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useT } from "../i18n";
 import { BACK_DIALOG, useBack } from "../shell/back";
 import { appKV } from "../files/kv";
+import { ICON } from "../shell/icons";
 
 const KEY = "signatures";
 const MAX_SAVED = 6;
@@ -159,7 +160,7 @@ export default function SignaturePad({ onUse, onCancel }: { onUse(s: Signature):
                   <img src={url} alt="" />
                 </button>
                 <button className="icon-btn sig-forget" onClick={() => forget(url)} aria-label={t.edSignForget} title={t.edSignForget}>
-                  <X size={14} />
+                  <X size={ICON.sm} />
                 </button>
               </div>
             ))}

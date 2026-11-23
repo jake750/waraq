@@ -1,6 +1,7 @@
 import { FileText } from "lucide-react";
 import { useT } from "../i18n";
 import { BACK_DIALOG, useBack } from "../shell/back";
+import { ICON } from "../shell/icons";
 
 type Props = { name: string; busy: boolean; progress?: number; canOpen: boolean; onConvert(): void; onOpen(): void; onCancel(): void };
 
@@ -14,7 +15,7 @@ export default function NotPdfPrompt({ name, busy, progress, canOpen, onConvert,
       <div className="scrim" onClick={busy ? undefined : onCancel} />
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="notpdf-title" onKeyDown={(e) => e.key === "Escape" && onCancel()}>
         <div className="dialog-icon">
-          <FileText size={22} />
+          <FileText size={ICON.lg} />
         </div>
         <h2 id="notpdf-title">{t.notPdfTitle}</h2>
         <p dir="auto" className="clamp" title={name}>

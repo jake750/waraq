@@ -24,10 +24,7 @@
   gap: var(--sp-2-5);
   --fold: 34px;
   padding: var(--sp-13) var(--sp-8) var(--sp-12);
-  background: var(--surface);
-  border: 1px solid var(--stroke);
   border-radius: var(--r-lg);
-  box-shadow: var(--elev-1);
   transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
   animation: rise var(--t-med) var(--ease-out);
 }
@@ -111,8 +108,8 @@
   color: var(--on-accent);
 }
 
-.btn-primary:hover {
-  filter: brightness(1.06);
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 
 .btn-lg {
@@ -146,17 +143,9 @@
   gap: var(--sp-3);
   min-height: 56px;
   padding: var(--sp-2-5) var(--sp-3-5);
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-md);
-  background: var(--surface);
   color: var(--text);
   font-weight: 600;
   text-align: start;
-  transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
-}
-.quick-item:hover {
-  border-color: var(--stroke-strong);
-  background: var(--surface-2);
 }
 .quick-icon {
   flex: none;
@@ -173,10 +162,6 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--surface);
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-md);
-  overflow: hidden;
 }
 
 .recent-empty {
@@ -184,11 +169,8 @@
   text-align: center;
   color: var(--text-3);
 }
-.recent-empty svg {
-  display: block;
-  margin: 0 auto var(--sp-2-5);
-  color: var(--text-3);
-  opacity: 0.7;
+.recent-empty .illustration {
+  margin-bottom: var(--sp-2);
 }
 
 /* Each quick action keeps its own hue, so convert, edit, merge and compress read apart. */
@@ -207,11 +189,6 @@
   gap: var(--sp-3-5);
   padding: var(--sp-2-5) var(--sp-4);
   min-height: 64px;
-  border-bottom: 1px solid var(--stroke);
-  transition: background var(--t-fast) var(--ease-out);
-}
-.recent-item:hover {
-  background: var(--surface-2);
 }
 /* Removing from Recent is secondary: shown on hover/focus with a mouse, always on touch. */
 @media (hover: hover) {
@@ -225,9 +202,6 @@
   }
 }
 
-.recent-item:last-child {
-  border-bottom: 0;
-}
 
 .recent-open {
   flex: 1;
@@ -330,10 +304,13 @@
   width: max-content;
   max-width: min(440px, calc(100% - 32px));
   padding: var(--sp-3) var(--sp-4-5);
+  padding-inline-start: var(--sp-3-5);
   border-radius: var(--r-md);
   background: var(--toast-bg);
   color: var(--toast-fg);
   border: 1px solid var(--toast-stroke);
+  /* An ink edge on the reading-start side says what kind of message it is. */
+  border-inline-start: 3px solid var(--toast-edge, var(--toast-info));
   line-height: 1.55;
   text-wrap: pretty;
   box-shadow: var(--shadow);
@@ -342,6 +319,21 @@
   display: flex;
   align-items: center;
   gap: var(--sp-3-5);
+}
+/* Frosted where the browser can blur what's behind; the solid slip otherwise. */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .toast {
+    background: color-mix(in srgb, var(--toast-bg) 84%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    backdrop-filter: blur(14px) saturate(1.3);
+  }
+}
+.toast-info { --toast-edge: var(--toast-info); }
+.toast-success { --toast-edge: var(--toast-success); }
+.toast-error { --toast-edge: var(--toast-error); }
+.toast-icon {
+  flex: none;
+  color: var(--toast-edge);
 }
 .toast-action {
   flex: none;

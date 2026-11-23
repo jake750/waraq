@@ -10,6 +10,8 @@ import OfficePromptDialog from "./OfficePrompt";
 import { loadPaper, PAPERS, savePaper, type Paper } from "../prefs";
 import { useState } from "react";
 import "./convert.css";
+import { ICON } from "../shell/icons";
+import ScreenHeader from "../shell/ScreenHeader";
 
 const LABEL: Record<Target, string> = { pdf: "PDF", docx: "DOCX", txt: "TXT", md: "Markdown", html: "HTML", png: "PNG", jpg: "JPG" };
 const ALL_TARGETS: Target[] = ["pdf", "docx", "txt", "md", "html", "png", "jpg"];
@@ -45,23 +47,23 @@ export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Pro
   return (
     <div className="convert">
       <div className="convert-inner">
-        <header className="convert-head">
-          <div>
-            <h1>{t.convertTitle}</h1>
-            <p>{t.convertSub}</p>
-          </div>
-          {queue.jobs.length > 0 && (
-            <button className="btn btn-ghost convert-add" onClick={addFiles} aria-label={t.addFiles} title={t.addFiles}>
-              <Plus size={18} />
-              <span className="convert-add-label">{t.addFiles}</span>
-            </button>
-          )}
-        </header>
+        <ScreenHeader
+          title={t.convertTitle}
+          sub={t.convertSub}
+          actions={
+            queue.jobs.length > 0 && (
+              <button className="btn btn-ghost convert-add" onClick={addFiles} aria-label={t.addFiles} title={t.addFiles}>
+                <Plus size={ICON.md} />
+                <span className="convert-add-label">{t.addFiles}</span>
+              </button>
+            )
+          }
+        />
 
         {queue.jobs.length === 0 ? (
           <section className={`dropzone fold${dragOver ? " over" : ""}`}>
             <div className="dropzone-icon">
-              <Layers size={26} />
+              <Layers size={ICON.xl} />
             </div>
             <h2 className="dropzone-title">{dragOver ? t.dropHere : t.convertEmpty}</h2>
             <ul className="format-groups">
@@ -118,7 +120,7 @@ export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Pro
               </label>
               {waitingImages >= 2 && (
                 <button className="btn btn-ghost" onClick={() => api.dispatch({ type: "combineImages" })}>
-                  <ImageIcon size={17} />
+                  <ImageIcon size={ICON.sm} />
                   {t.combineImages}
                 </button>
               )}
@@ -147,7 +149,7 @@ export default function ConvertScreen({ api, dragOver, onToast, onOpenPdf }: Pro
             <div className="convert-actions">
               {failed.length >= 2 && !busy && (
                 <button className="btn btn-ghost" onClick={() => failed.forEach((j) => api.dispatch({ type: "retry", id: j.id }))}>
-                  <RotateCcw size={16} />
+                  <RotateCcw size={ICON.sm} />
                   {t.retryAll}
                 </button>
               )}
@@ -221,7 +223,7 @@ function JobRow({
   return (
     <li className={`job job-${job.state}`}>
       <span className="job-icon" aria-hidden>
-        {job.state === "done" ? <Check size={18} /> : job.state === "error" ? <AlertCircle size={18} /> : isImage ? <ImageIcon size={18} /> : <FileText size={18} />}
+        {job.state === "done" ? <Check size={ICON.md} /> : job.state === "error" ? <AlertCircle size={ICON.md} /> : isImage ? <ImageIcon size={ICON.md} /> : <FileText size={ICON.md} />}
       </span>
       <span className="job-text">
         <span className="job-name" title={job.name}>
@@ -239,7 +241,7 @@ function JobRow({
       </span>
       <span className="job-fmt">
         <span className="job-from">{job.fmt.toUpperCase()}</span>
-        <ArrowRight size={14} className="job-arrow" aria-hidden />
+        <ArrowRight size={ICON.sm} className="job-arrow" aria-hidden />
         {job.state === "queued" && targets.length > 1 && job.inputs.length === 1 ? (
           <select
             aria-label={t.convertTo}
@@ -260,32 +262,32 @@ function JobRow({
         {job.state === "done" && job.output && (
           <>
             <button className="btn btn-ghost btn-sm" onClick={() => (job.target === "pdf" && !job.output!.count ? onOpenPdf(job.output!) : openOutput(job.output!, MIME[job.target]).catch(fail))}>
-              <ExternalLink size={16} />
+              <ExternalLink size={ICON.sm} />
               {t.openFile}
             </button>
             {platform === "desktop" ? (
               <button className="icon-btn" title={t.showInFolder} aria-label={t.showInFolder} onClick={() => revealOutput(job.output!).catch(fail)}>
-                <FolderOpen size={17} />
+                <FolderOpen size={ICON.sm} />
               </button>
             ) : (
               <button className="icon-btn" title={t.share} aria-label={t.share} onClick={() => shareOutput(job.output!, MIME[job.target]).catch(fail)}>
-                <Share2 size={17} />
+                <Share2 size={ICON.sm} />
               </button>
             )}
           </>
         )}
         {(job.state === "error" || job.state === "cancelled") && (
           <button className="icon-btn" title={t.retry} aria-label={t.retry} onClick={() => api.dispatch({ type: "retry", id: job.id })}>
-            <RotateCcw size={17} />
+            <RotateCcw size={ICON.sm} />
           </button>
         )}
         {job.state === "running" || job.state === "queued" ? (
           <button className="icon-btn" title={t.cancelJob} aria-label={t.cancelJob} onClick={() => (job.state === "running" ? api.cancel(job.id) : api.dispatch({ type: "remove", id: job.id }))}>
-            <X size={17} />
+            <X size={ICON.sm} />
           </button>
         ) : (
           <button className="icon-btn" title={t.remove} aria-label={t.remove} onClick={() => api.dispatch({ type: "remove", id: job.id })}>
-            <X size={17} />
+            <X size={ICON.sm} />
           </button>
         )}
       </span>

@@ -1,6 +1,7 @@
 import { useEffect, useState, type RefObject } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useT } from "../i18n";
+import Illustration from "../shell/Illustration";
 import { pageLayout, type PageLayout } from "../text/search";
 import { flattenOutline, headingOutline, type OutlineItem } from "./outline";
 
@@ -54,7 +55,13 @@ export default function OutlinePanel({ doc, current, onPick, cache, layouts }: P
   }, [doc, cache, layouts]);
 
   if (!items) return <p className="panel-note">{t.loading}</p>;
-  if (items.length === 0) return <p className="panel-note">{t.outlineEmpty}</p>;
+  if (items.length === 0)
+    return (
+      <div className="panel-note">
+        <Illustration kind="outline" />
+        <p>{t.outlineEmpty}</p>
+      </div>
+    );
 
   // The chapter you're in: the last entry starting at or before the current page.
   let here = -1;

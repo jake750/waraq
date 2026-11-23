@@ -15,7 +15,8 @@ body {
   font-family: var(--font);
   font-size: var(--fs-md);
   line-height: var(--lh-body);
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: var(--grain);
   color: var(--text);
   caret-color: var(--accent);
   -webkit-font-smoothing: antialiased;

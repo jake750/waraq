@@ -267,8 +267,8 @@
 }
 .link-layer a:hover,
 .link-layer a:focus-visible {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  outline: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--accent-wash);
+  outline: 1px solid var(--accent-ring);
 }
 
 .hl-layer {
@@ -387,6 +387,9 @@
   color: var(--text-3);
   text-align: center;
   font-size: var(--fs-base-sm);
+}
+.panel-note p {
+  margin: 0;
 }
 
 .thumbs {

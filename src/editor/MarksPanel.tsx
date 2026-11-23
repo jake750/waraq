@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { useT } from "../i18n";
 import type { Mark } from "./marks";
+import { ICON } from "../shell/icons";
 
 type Props = { marks: Mark[]; selected: string | null; onPick(m: Mark): void; onDelete(id: string): void; onClose(): void };
 
@@ -43,7 +44,7 @@ export default function MarksPanel({ marks, selected, onPick, onDelete, onClose 
                   <span className="ed-mark-page">{t.edPage(m.page + 1)}</span>
                 </button>
                 <button className="icon-btn danger" onClick={() => onDelete(m.id)} title={t.edDelete} aria-label={t.edDelete}>
-                  <Trash2 size={16} />
+                  <Trash2 size={ICON.sm} />
                 </button>
               </li>
             );

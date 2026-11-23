@@ -372,3 +372,85 @@
 .dialog-status {
   font-size: var(--fs-sm);
 }
+
+/* ---- One card recipe, one list recipe ----
+   Card: a sheet of paper resting on the desk (surface, hairline, elev-1); a card you can press lifts
+   (elev-2, stronger edge). List: the same sheet holding rows split by hairlines; a row you can
+   press tints on hover. Size-specific radius and padding stay with each component. */
+.dropzone,
+.quick-item,
+.tool-feature,
+.recent-list,
+.tool-list,
+.job-list {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--elev-1);
+}
+.quick-item,
+.recent-list,
+.tool-list,
+.job-list {
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.quick-item,
+.tool-feature {
+  transition: transform var(--t-instant) ease-out, border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+.quick-item:hover,
+.tool-feature:hover {
+  border-color: var(--stroke-strong);
+  box-shadow: var(--elev-2);
+}
+.recent-list > li + li,
+.tool-list > li + li {
+  border-top: 1px solid var(--stroke);
+}
+.recent-item,
+.tool-row {
+  transition: background-color var(--t-fast) var(--ease-out);
+}
+.recent-item:hover,
+.tool-row:hover {
+  background: var(--surface-2);
+}
+
+/* Screen header (ScreenHeader.tsx): title 3xl (2xl on phones), an optional line under it, an
+   optional back arrow before and actions after. */
+.screen-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+.screen-head-text {
+  flex: 1;
+  min-width: 0;
+}
+.screen-head h1 {
+  margin: 0;
+  font-size: var(--fs-3xl);
+  line-height: var(--lh-tight);
+}
+.screen-head p {
+  margin: var(--sp-1-5) 0 0;
+  color: var(--text-2);
+  max-width: 560px;
+}
+@media (max-width: 719px) {
+  .screen-head h1 {
+    font-size: var(--fs-2xl);
+  }
+}
+
+/* One stroke weight for every icon. */
+svg.lucide {
+  stroke-width: 1.75;
+}
+
+/* Empty-state drawings (Illustration.tsx), centred above their line of text. */
+.illustration {
+  display: block;
+  margin: 0 auto var(--sp-2);
+}

@@ -26,6 +26,7 @@ import { rowScales, pageOffsets, spreadGroups, visiblePages, withPageSize, parse
 import PageView, { readingOrderSelection, type HighlightRect } from "./PageView";
 import { setFullscreen } from "./fullscreen";
 import "./reader.css";
+import { ICON } from "../shell/icons";
 
 export type ViewMode = "continuous" | "single" | "spread";
 type Size = { w: number; h: number };
@@ -426,9 +427,9 @@ export default function Reader(p: Props) {
   };
 
   const views: [ViewMode, ReactNode, string][] = [
-    ["continuous", <Rows3 size={18} />, t.viewContinuous],
-    ["single", <File size={18} />, t.viewSingle],
-    ["spread", <BookOpen size={18} />, t.viewSpread],
+    ["continuous", <Rows3 size={ICON.md} />, t.viewContinuous],
+    ["single", <File size={ICON.md} />, t.viewSingle],
+    ["spread", <BookOpen size={ICON.md} />, t.viewSpread],
   ];
 
   const api = { goTo, page: current, rtl, night };
@@ -438,14 +439,14 @@ export default function Reader(p: Props) {
       {keysHelp && <ShortcutsDialog onClose={() => setKeysHelp(false)} />}
       {full && (
         <button className="icon-btn reader-unfull" onClick={() => setFull(false)} title={`${t.exitFullscreen} (Esc)`} aria-label={t.exitFullscreen}>
-          <Minimize size={18} />
+          <Minimize size={ICON.md} />
         </button>
       )}
       <header className="reader-bar">
         {/* How far through the document you are: a hairline along the bar. */}
         {n > 1 && <span className="reader-progress" style={{ width: `${(current / n) * 100}%` }} aria-hidden />}
         <button className="icon-btn" onClick={p.onClose} title={t.close} aria-label={t.close}>
-          <X size={20} />
+          <X size={ICON.md} />
         </button>
         {p.panel && (
           <button
@@ -455,7 +456,7 @@ export default function Reader(p: Props) {
             title={t.panel}
             aria-label={t.panel}
           >
-            <PanelLeft size={19} />
+            <PanelLeft size={ICON.md} className="flip-rtl" />
           </button>
         )}
         <span className="reader-name" title={p.name}>
@@ -476,11 +477,11 @@ export default function Reader(p: Props) {
         </div>
         <div className="reader-tools">
           <button className="icon-btn zoom-ctl" onClick={() => zoomBy(1 / ZOOM_STEP)} title={t.zoomOut} aria-label={t.zoomOut}>
-            <ZoomOut size={19} />
+            <ZoomOut size={ICON.md} />
           </button>
           <span className="zoom-value zoom-ctl">{Math.round(scale * 100)}%</span>
           <button className="icon-btn zoom-ctl" onClick={() => zoomBy(ZOOM_STEP)} title={t.zoomIn} aria-label={t.zoomIn}>
-            <ZoomIn size={19} />
+            <ZoomIn size={ICON.md} />
           </button>
           <button
             className="icon-btn desk-only"
@@ -489,7 +490,7 @@ export default function Reader(p: Props) {
             title={t.fitWidth}
             aria-label={t.fitWidth}
           >
-            <ChevronsLeftRightEllipsis size={19} />
+            <ChevronsLeftRightEllipsis size={ICON.md} />
           </button>
           <button
             className="icon-btn desk-only"
@@ -498,7 +499,7 @@ export default function Reader(p: Props) {
             title={t.fitPage}
             aria-label={t.fitPage}
           >
-            <Proportions size={18} />
+            <Proportions size={ICON.md} />
           </button>
           <span className="bar-sep" />
           <div className="view-switch" role="group" aria-label={t.viewMode}>
@@ -525,7 +526,7 @@ export default function Reader(p: Props) {
             title={`${t.direction}: ${rtl ? t.dirRtl : t.dirLtr}`}
             aria-label={`${t.direction}: ${rtl ? t.dirRtl : t.dirLtr}`}
           >
-            <ArrowRightLeft size={18} />
+            <ArrowRightLeft size={ICON.md} />
           </button>
           <button
             className="icon-btn"
@@ -534,7 +535,7 @@ export default function Reader(p: Props) {
             title={`${t.pageTone}: ${toneLabel}`}
             aria-label={`${t.pageTone}: ${toneLabel}`}
           >
-            {tone === "sepia" ? <Coffee size={18} /> : <Moon size={18} />}
+            {tone === "sepia" ? <Coffee size={ICON.md} /> : <Moon size={ICON.md} />}
           </button>
           <button
             className="icon-btn"
@@ -542,21 +543,21 @@ export default function Reader(p: Props) {
             title={`${t.fullscreen} (F11)`}
             aria-label={t.fullscreen}
           >
-            <Maximize size={18} />
+            <Maximize size={ICON.md} />
           </button>
           {p.onShare && (
             <button className="icon-btn" onClick={p.onShare} title={t.share} aria-label={t.share}>
-              <Share2 size={18} />
+              <Share2 size={ICON.md} />
             </button>
           )}
           {p.onConvert && (
             <button className="icon-btn" onClick={p.onConvert} title={t.convertThis} aria-label={t.convertThis}>
-              <FileOutput size={18} />
+              <FileOutput size={ICON.md} />
             </button>
           )}
           {p.onEdit && (
             <button className="btn btn-ghost btn-sm reader-edit" onClick={p.onEdit} title={t.edit} aria-label={t.edit}>
-              <PenLine size={17} />
+              <PenLine size={ICON.sm} />
               <span>{t.edit}</span>
             </button>
           )}

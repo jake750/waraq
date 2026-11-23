@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import type { Strings } from "../i18n";
+import { ICON } from "./icons";
 
 type Props = { t: Strings; resetKey: unknown; onHome(): void; children: ReactNode };
 type State = { failed: boolean; key: unknown };
@@ -29,7 +30,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     const { t, onHome } = this.props;
     return (
       <div className="crash" role="alert">
-        <AlertTriangle size={30} aria-hidden />
+        <AlertTriangle size={ICON.xl} aria-hidden />
         <h2>{t.crashTitle}</h2>
         <p>{t.crashBody}</p>
         <div className="crash-actions">

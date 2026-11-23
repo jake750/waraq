@@ -62,6 +62,7 @@ import MarksPanel from "./MarksPanel";
 import { STAMPS, STAMP_COLORS, renderStamp } from "./stamps";
 import { todayLabel } from "./date";
 import "./editor.css";
+import { ICON } from "../shell/icons";
 
 /** `pdf`: `bytes` already parsed by pdf-lib (the opener checks them), used once instead of a new parse. */
 export type EditSource = { ref: DocRef; name: string; bytes: Uint8Array; pdf?: PDFDocument };
@@ -591,20 +592,20 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
   };
 
   const tools: [Tool, ReactNode, string][] = [
-    ["select", <MousePointer2 size={18} />, t.edSelect],
-    ["highlight", <Highlighter size={18} />, t.edHighlight],
-    ["underline", <Underline size={18} />, t.edUnderline],
-    ["strike", <Strikethrough size={18} />, t.edStrike],
-    ["ink", <Pencil size={18} />, t.edPen],
-    ["marker", <Brush size={18} />, t.edMarker],
-    ["eraser", <Eraser size={18} />, t.edEraser],
-    ["rect", <Square size={18} />, t.edRect],
-    ["ellipse", <Circle size={18} />, t.edEllipse],
-    ["line", <Minus size={18} />, t.edLine],
-    ["arrow", <MoveUpRight size={18} />, t.edArrow],
-    ["text", <Type size={18} />, t.edText],
-    ["note", <StickyNote size={18} />, t.edNote],
-    ["date", <CalendarDays size={18} />, t.edDate],
+    ["select", <MousePointer2 size={ICON.md} />, t.edSelect],
+    ["highlight", <Highlighter size={ICON.md} />, t.edHighlight],
+    ["underline", <Underline size={ICON.md} />, t.edUnderline],
+    ["strike", <Strikethrough size={ICON.md} />, t.edStrike],
+    ["ink", <Pencil size={ICON.md} />, t.edPen],
+    ["marker", <Brush size={ICON.md} />, t.edMarker],
+    ["eraser", <Eraser size={ICON.md} />, t.edEraser],
+    ["rect", <Square size={ICON.md} />, t.edRect],
+    ["ellipse", <Circle size={ICON.md} />, t.edEllipse],
+    ["line", <Minus size={ICON.md} />, t.edLine],
+    ["arrow", <MoveUpRight size={ICON.md} />, t.edArrow],
+    ["text", <Type size={ICON.md} />, t.edText],
+    ["note", <StickyNote size={ICON.md} />, t.edNote],
+    ["date", <CalendarDays size={ICON.md} />, t.edDate],
   ];
   // Controls follow what they would change: the tool in hand, or the selected mark.
   const showColors = tool !== "select" || !!selColor || groupMarks.some((m) => "color" in m);
@@ -671,35 +672,35 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
     <div className="ed-group">
       <span className="ed-count">{t.edSelected(groupMarks.length)}</span>
       <button className="icon-btn" onClick={duplicateGroup} title={t.edDuplicate} aria-label={t.edDuplicate}>
-        <Copy size={18} />
+        <Copy size={ICON.md} />
       </button>
       <button className="icon-btn danger" onClick={remove} title={t.edDelete} aria-label={t.edDelete}>
-        <Trash2 size={18} />
+        <Trash2 size={ICON.md} />
       </button>
     </div>
   ) : sel ? (
   <div className="ed-group">
     {(sel.kind === "text" || sel.kind === "note") && (
       <button className="icon-btn" onClick={editSelected} title={t.edEditText} aria-label={t.edEditText}>
-        <PencilLine size={18} />
+        <PencilLine size={ICON.md} />
       </button>
     )}
     <button className="icon-btn" onClick={() => duplicate(sel)} title={t.edDuplicate} aria-label={t.edDuplicate}>
-      <Copy size={18} />
+      <Copy size={ICON.md} />
     </button>
     <button className="icon-btn" onClick={() => dispatch({ type: "reorder", id: sel.id, to: "front" })} title={t.edFront} aria-label={t.edFront}>
-      <BringToFront size={18} />
+      <BringToFront size={ICON.md} />
     </button>
     <button className="icon-btn" onClick={() => dispatch({ type: "reorder", id: sel.id, to: "back" })} title={t.edBack} aria-label={t.edBack}>
-      <SendToBack size={18} />
+      <SendToBack size={ICON.md} />
     </button>
     {marks.some((m) => m.page === sel.page && m.id !== sel.id) && (
       <button className="icon-btn" onClick={() => selectPage(sel.page)} title={t.edSelectPage} aria-label={t.edSelectPage}>
-        <BoxSelect size={18} />
+        <BoxSelect size={ICON.md} />
       </button>
     )}
     <button className="icon-btn danger" onClick={remove} title={t.edDelete} aria-label={t.edDelete}>
-      <Trash2 size={18} />
+      <Trash2 size={ICON.md} />
     </button>
   </div>
   ) : null;
@@ -708,23 +709,23 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
     <div className="editor">
       <header className="reader-bar ed-bar">
         <button className="icon-btn" onClick={leave} title={t.close} aria-label={t.close}>
-          <X size={20} />
+          <X size={ICON.md} />
         </button>
         <div className="ed-title" dir="auto">
           {src.name}
         </div>
         <div className="ed-bar-end">
           <button className="icon-btn" onClick={() => setZoom((z) => clampZoom(z / 1.25))} disabled={zoom <= ZOOM_MIN} title={t.zoomOut} aria-label={t.zoomOut}>
-            <ZoomOut size={18} />
+            <ZoomOut size={ICON.md} />
           </button>
           <button className="icon-btn" onClick={() => setZoom((z) => clampZoom(z * 1.25))} disabled={zoom >= ZOOM_MAX} title={t.zoomIn} aria-label={t.zoomIn}>
-            <ZoomIn size={18} />
+            <ZoomIn size={ICON.md} />
           </button>
           <button className="icon-btn" onClick={() => dispatch({ type: "undo" })} disabled={!hist.past.length} title={t.edUndo} aria-label={t.edUndo}>
-            <Undo2 size={18} className="flip-rtl" />
+            <Undo2 size={ICON.md} className="flip-rtl" />
           </button>
           <button className="icon-btn" onClick={() => dispatch({ type: "redo" })} disabled={!hist.future.length} title={t.edRedo} aria-label={t.edRedo}>
-            <Redo2 size={18} className="flip-rtl" />
+            <Redo2 size={ICON.md} className="flip-rtl" />
           </button>
           <button
             className="icon-btn"
@@ -736,7 +737,7 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
             title={t.edMarks}
             aria-label={t.edMarks}
           >
-            <Layers size={18} />
+            <Layers size={ICON.md} />
           </button>
           {fields.length > 0 && (
             <button
@@ -749,7 +750,7 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
               title={t.edForms}
               aria-label={t.edForms}
             >
-              <ClipboardList size={18} />
+              <ClipboardList size={ICON.md} />
             </button>
           )}
           <button className="btn btn-primary btn-sm" onClick={() => setSaveAsk(true)} disabled={!dirty || busy}>
@@ -784,10 +785,10 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
               {gi === 3 && (
                 <>
                   <button className="icon-btn" onClick={() => fileInput.current?.click()} title={t.edImage} aria-label={t.edImage}>
-                    <ImagePlus size={18} />
+                    <ImagePlus size={ICON.md} />
                   </button>
                   <button className="icon-btn" onClick={() => setSigning(true)} title={t.edSign} aria-label={t.edSign}>
-                    <Signature size={18} />
+                    <Signature size={ICON.md} />
                   </button>
                   <button
                     className="icon-btn"
@@ -800,7 +801,7 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
                     title={t.edStamp}
                     aria-label={t.edStamp}
                   >
-                    <Stamp size={18} />
+                    <Stamp size={ICON.md} />
                   </button>
                 </>
               )}
@@ -847,7 +848,7 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
             <div className="ed-group">
               {showFill && (
                 <button className="icon-btn" aria-pressed={curFill > 0} onClick={() => chooseLook({ fill: next(FILLS, curFill) })} title={t.edFill(curFill)} aria-label={t.edFill(curFill)}>
-                  <PaintBucket size={18} style={{ opacity: curFill ? 1 : 0.55 }} />
+                  <PaintBucket size={ICON.md} style={{ opacity: curFill ? 1 : 0.55 }} />
                 </button>
               )}
               {showLook && (
@@ -867,7 +868,7 @@ export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Prop
               )}
               {showAlign && (
                 <button className="icon-btn" onClick={() => chooseLook({ align: next(ALIGNS, curAlign) })} title={t.edAlign[curAlign]} aria-label={t.edAlign[curAlign]}>
-                  <AlignIcon size={18} />
+                  <AlignIcon size={ICON.md} />
                 </button>
               )}
             </div>

@@ -7,6 +7,18 @@
   --font: "IBM Plex Sans Arabic", system-ui, "Segoe UI", Roboto, sans-serif;
 
   /* ---- Colour ---- */
+  /* Ink scale: one hue (223°) from the brand ink #223b7a (700). Accent roles below come from it. */
+  --ink-50: #f4f6fa;
+  --ink-100: #e6eaf5;
+  --ink-200: #c8d1ea;
+  --ink-300: #9dafdd;
+  --ink-400: #708acd;
+  --ink-500: #4064bf;
+  --ink-600: #2f4e9d;
+  --ink-700: #223b7a;
+  --ink-800: #182d62;
+  --ink-900: #101e42;
+
   /* "Ink on paper": a near-neutral desk, paper-white sheets, one deep ink-blue for actions. */
   --bg: #f2f1ee;
   --surface: #fdfdfb;
@@ -16,9 +28,13 @@
   --text: #14161d;
   --text-2: #464a56;
   --text-3: #5d616d;
-  --accent: #223b7a;
-  --accent-text: #223b7a;
-  --accent-soft: #e6e9f2;
+  --accent: var(--ink-700);
+  --accent-text: var(--ink-700);
+  --accent-soft: var(--ink-100);
+  --accent-hover: var(--ink-800); /* a pressed-in, deeper ink for hovered primary buttons */
+  --accent-line: var(--ink-300); /* borders and outlines in the accent family */
+  --accent-wash: color-mix(in srgb, var(--accent) 14%, transparent); /* selected rows, current item */
+  --accent-ring: color-mix(in srgb, var(--accent) 45%, transparent);
   --on-accent: #ffffff;
   /* Semantic: each with a soft fill for backgrounds; the strong colour is AA text on surfaces. */
   --danger: #b42323;
@@ -55,6 +71,18 @@
   --toast-fg: #f4f5f8;
   --toast-stroke: transparent;
   --toast-action: color-mix(in srgb, var(--toast-fg) 60%, #8fb0ff);
+  /* The toast is a dark slip in both themes, so its edge colours are the light-on-dark ones. */
+  --toast-info: #8fb0ff;
+  --toast-success: #6fcf97;
+  --toast-error: #ff8a80;
+
+  /* Theme previews in Settings show both palettes whatever the current theme (not redefined in dark). */
+  --swatch-light-bg: #f2f1ee;
+  --swatch-light-sheet: #fdfdfb;
+  --swatch-light-ink: var(--ink-700);
+  --swatch-dark-bg: #0f1117;
+  --swatch-dark-sheet: #1d212b;
+  --swatch-dark-ink: #8ea6e6;
 
   /* The folded page corner: the app's one signature mark (logo, drop zone, file icons). */
   --fold: 22px;
@@ -112,7 +140,10 @@
   --elev-3: 0 1px 2px rgba(18, 23, 38, 0.06), 0 8px 24px rgba(18, 23, 38, 0.06), 0 2px 8px rgba(18, 23, 38, 0.12);
   --elev-4: 0 1px 2px rgba(18, 23, 38, 0.06), 0 8px 24px rgba(18, 23, 38, 0.06), 0 4px 16px rgba(18, 23, 38, 0.18);
   --shadow: var(--elev-2);
-  --page-shadow: 0 1px 3px rgba(18, 23, 38, 0.18);
+  /* A sheet lifted off the desk: a tight contact shadow plus a soft one below. */
+  --page-shadow: 0 1px 2px rgba(18, 23, 38, 0.14), 0 8px 18px -6px rgba(18, 23, 38, 0.22);
+  /* Paper grain on the desk: tiled noise at ~3 % (off for high contrast, see base.css). */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.08 0 0 0 0 0.08 0 0 0 0 0.08 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 
   /* ---- Layers ---- (small local values like 1–6 inside one component stay local). */
   --z-float: 20; /* hints over the page */
@@ -148,6 +179,8 @@
   --accent: #8ea6e6;
   --accent-text: #a9bcf0;
   --accent-soft: #1f2840;
+  --accent-hover: #a9bcf0;
+  --accent-line: color-mix(in srgb, var(--accent) 50%, transparent);
   --on-accent: #0d1426;
   --danger: #ff8a80;
   --danger-soft: #3a1c20;
@@ -163,7 +196,8 @@
   --elev-2: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   --elev-3: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(18, 23, 38, 0.12);
   --elev-4: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(18, 23, 38, 0.18);
-  --page-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  --page-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 10px 22px -8px rgba(0, 0, 0, 0.7);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   --scrim: rgba(0, 0, 0, 0.62);
   --toast-bg: #262b38;
   --toast-fg: #eceef3;
@@ -178,5 +212,13 @@
     --t-med: 0ms;
     --t-slow: 0ms;
     --stagger: 0ms;
+  }
+}
+
+/* High contrast and forced colours: no texture behind text. */
+@media (forced-colors: active), (prefers-contrast: more) {
+  :root,
+  :root[data-theme] {
+    --grain: none;
   }
 }

@@ -15,26 +15,6 @@
   gap: var(--sp-5);
 }
 
-.convert-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--sp-5);
-  margin-bottom: var(--sp-2);
-}
-
-.convert-head h1 {
-  margin: 0 0 var(--sp-1-5);
-  font-size: var(--fs-3xl);
-  line-height: 1.2;
-}
-
-.convert-head p {
-  margin: 0;
-  color: var(--text-2);
-  max-width: 560px;
-}
-
 .convert-bar {
   display: flex;
   flex-wrap: wrap;
@@ -78,10 +58,6 @@ select:focus-visible {
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--surface);
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-md);
-  overflow: hidden;
 }
 
 .job {
@@ -209,10 +185,6 @@ select:focus-visible {
     padding: var(--sp-6) var(--sp-4);
   }
   /* The title keeps its line; "Add files" shrinks to its icon beside it. */
-  .convert-head {
-    align-items: flex-start;
-    gap: var(--sp-3);
-  }
   .convert-add {
     flex: none;
     padding-inline: var(--sp-3);
@@ -220,9 +192,6 @@ select:focus-visible {
   }
   .convert-add-label {
     display: none;
-  }
-  .convert-head h1 {
-    font-size: var(--fs-2xl);
   }
   .job {
     grid-template-columns: auto minmax(0, 1fr) auto;

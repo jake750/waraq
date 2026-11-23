@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { RECENT_MAX } from "../files/recent";
-import { Search, X, FileClock, Lock } from "lucide-react";
+import { Search, X, Lock } from "lucide-react";
 import { useT } from "../i18n";
 import type { RecentItem } from "../files/recent";
 import { ago } from "./time";
+import { ICON } from "./icons";
+import Illustration from "./Illustration";
 
 type Props = { items: RecentItem[]; onOpen(item: RecentItem): void; onRemove(item: RecentItem): void };
 
@@ -30,7 +32,7 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
     return (
       <ul className="recent-list">
         <li className="recent-empty">
-          <FileClock size={28} aria-hidden />
+          <Illustration kind="sheets" />
           {t.recentEmpty}
         </li>
       </ul>
@@ -51,12 +53,17 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
     <>
     {items.length >= FILTER_FROM && (
       <label className="recent-filter">
-        <Search size={16} aria-hidden />
+        <Search size={ICON.sm} aria-hidden />
         <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.recentFilter} aria-label={t.recentFilter} dir="auto" />
       </label>
     )}
     <ul className="recent-list">
-      {shown.length === 0 && <li className="recent-empty">{t.recentNoMatch}</li>}
+      {shown.length === 0 && (
+        <li className="recent-empty">
+          <Illustration kind="search" />
+          {t.recentNoMatch}
+        </li>
+      )}
       {shown.map((item) => {
         const folder = folderOf(item);
         return (
@@ -73,7 +80,7 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
               )}
               <span className="recent-text">
                 <span className="recent-name">
-                  {item.locked && <Lock size={13} className="recent-lock" aria-label={t.recentLocked} />}
+                  {item.locked && <Lock size={ICON.sm} className="recent-lock" aria-label={t.recentLocked} />}
                   {item.name}
                 </span>
                 <span className="recent-meta">
@@ -87,7 +94,7 @@ export default function RecentList({ items, onOpen, onRemove }: Props) {
               aria-label={t.removeFromRecent}
               title={t.removeFromRecent}
             >
-              <X size={16} />
+              <X size={ICON.sm} />
             </button>
           </li>
         );

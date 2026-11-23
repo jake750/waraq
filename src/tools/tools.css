@@ -15,18 +15,6 @@
   gap: var(--sp-5);
 }
 
-.tools-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-/* Screen titles: the same size as Convert's (3xl, 2xl on phones). */
-.tools-head h1 {
-  margin: 0;
-  font-size: var(--fs-3xl);
-}
-
 .tool-feature,
 .tool-row {
   width: 100%;
@@ -34,20 +22,17 @@
   align-items: center;
   gap: var(--sp-4);
   text-align: start;
+  color: var(--text);
+}
+/* A row is a plain button inside the list card; the feature is a card itself (components.css). */
+.tool-row {
   border: 0;
   background: transparent;
-  color: var(--text);
 }
 
 .tool-feature {
   padding: var(--sp-5-5) var(--sp-6);
-  background: var(--surface);
-  border: 1px solid var(--stroke);
   border-radius: var(--r-lg);
-  transition: border-color var(--t-fast) var(--ease-out);
-}
-.tool-feature:hover {
-  border-color: var(--stroke-strong);
 }
 .tool-feature .tool-icon {
   width: 52px;
@@ -71,22 +56,11 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--surface);
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-md);
-  overflow: hidden;
-}
-.tool-list li + li {
-  border-top: 1px solid var(--stroke);
 }
 
 .tool-row {
   min-height: 72px;
   padding: var(--sp-3-5) var(--sp-4);
-  transition: background var(--t-fast) var(--ease-out);
-}
-.tool-row:hover {
-  background: var(--surface-2);
 }
 
 .tool-icon {
@@ -124,9 +98,6 @@
 }
 
 @media (max-width: 719px) {
-  .tools-head h1 {
-    font-size: var(--fs-2xl);
-  }
   .tool-feature {
     flex-wrap: wrap;
     padding: var(--sp-4-5);

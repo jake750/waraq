@@ -18,6 +18,9 @@ import { asConvertError } from "./convert/errors";
 import { openPdf, PdfError, type PdfErrorCode } from "./pdf/openPdf";
 import { RecentStore, type RecentItem } from "./files/recent";
 import { appKV } from "./files/kv";
+import { toastKind, type ToastKind } from "./shell/toast";
+import { CircleAlert, CircleCheck, Info } from "lucide-react";
+import { ICON } from "./shell/icons";
 import RecentList from "./shell/RecentList";
 import PasswordPrompt from "./reader/PasswordPrompt";
 import { invoke } from "@tauri-apps/api/core";
@@ -60,6 +63,7 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   // An optional Undo for the current toast (removing a Recent entry).
   const [toastUndo, setToastUndo] = useState<(() => void) | null>(null);
+  const [toastSaid, setToastSaid] = useState<ToastKind | undefined>(undefined);
   const [locked, setLocked] = useState<{ ref: DocRef; wrong: boolean } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const conv = useConvert();
@@ -100,9 +104,10 @@ export default function App() {
     if (!toast) setToastUndo(null);
   }, [toast]);
   /** Every toast goes through here, so an Undo never stays on an unrelated message. */
-  const showToast = useCallback((msg: string | null, undo?: () => void) => {
+  const showToast = useCallback((msg: string | null, undo?: () => void, kind?: ToastKind) => {
     setToast(msg);
     setToastUndo(undo ? () => undo : null);
+    setToastSaid(kind);
   }, []);
 
   // Route changes go through `go`: leaving the editor with unsaved changes asks first
@@ -485,7 +490,8 @@ export default function App() {
         />
       )}
       {toast && (
-        <div className="toast" role="status">
+        <div className={`toast toast-${toastKind(toast, t, toastSaid)}`} role="status">
+          <ToastIcon kind={toastKind(toast, t, toastSaid)} />
           <span dir="auto">{toast}</span>
           {toastUndo && (
             <button type="button" className="toast-action" onClick={toastUndo}>
@@ -496,4 +502,9 @@ export default function App() {
       )}
     </LangContext.Provider>
   );
+}
+
+function ToastIcon({ kind }: { kind: ToastKind }) {
+  const Icon = kind === "error" ? CircleAlert : kind === "success" ? CircleCheck : Info;
+  return <Icon size={ICON.md} className="toast-icon" aria-hidden />;
 }

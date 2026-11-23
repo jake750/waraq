@@ -42,11 +42,14 @@ import PdfThumb from "../pdf/PdfThumb";
 import { pickPdfs } from "./pickPdfs";
 export { pickPdfs };
 import "./tools.css";
+import { ICON } from "../shell/icons";
+import ScreenHeader from "../shell/ScreenHeader";
+import type { ToastKind } from "../shell/toast";
 
 export type Tool = "organize" | "merge" | "split" | "compress" | "numbers" | "clean";
 /** `pdf`: the pdf-lib parse made to check the file, kept so saving needn't parse it again. */
 type Source = { ref: DocRef; name: string; bytes: Uint8Array; doc: PDFDocumentProxy; pdf: PDFDocument };
-type Props = { onToast(msg: string): void; onEdit(ref: DocRef): void; initialTool?: Tool; current?: { ref: DocRef; name: string } | null };
+type Props = { onToast(msg: string, undo?: () => void, kind?: ToastKind): void; onEdit(ref: DocRef): void; initialTool?: Tool; current?: { ref: DocRef; name: string } | null };
 
 /** The document open in the reader, offered by every tool so it needn't be picked again. */
 const CurrentDoc = createContext<{ ref: DocRef; name: string } | null>(null);
@@ -95,12 +98,7 @@ export default function ToolsScreen({ onToast, onEdit, initialTool, current = nu
       <CurrentDoc.Provider value={current}>
       <div className="tools">
         <div className="tools-inner">
-          <header className="tools-head">
-            <button className="icon-btn" onClick={back} aria-label={t.back} title={t.back}>
-              <ArrowLeft size={20} className="flip-rtl" />
-            </button>
-            <h1>{title}</h1>
-          </header>
+          <ScreenHeader title={title} onBack={back} />
           {body}
         </div>
       </div>
@@ -120,7 +118,7 @@ export default function ToolsScreen({ onToast, onEdit, initialTool, current = nu
           <span className="tool-title">{title}</span>
           <span className="tool-sub">{sub}</span>
         </span>
-        <ChevronRight size={18} className="tool-chevron flip-rtl" />
+        <ChevronRight size={ICON.md} className="tool-chevron flip-rtl" />
       </button>
     </li>
   );
@@ -128,32 +126,27 @@ export default function ToolsScreen({ onToast, onEdit, initialTool, current = nu
     [
       t.toolsGroupPages,
       [
-        ["organize", t.toolOrganize, t.toolOrganizeSub, <LayoutGrid size={20} />],
-        ["merge", t.toolMerge, t.toolMergeSub, <FileStack size={20} />],
-        ["split", t.toolSplit, t.toolSplitSub, <Scissors size={20} />],
+        ["organize", t.toolOrganize, t.toolOrganizeSub, <LayoutGrid size={ICON.md} />],
+        ["merge", t.toolMerge, t.toolMergeSub, <FileStack size={ICON.md} />],
+        ["split", t.toolSplit, t.toolSplitSub, <Scissors size={ICON.md} />],
       ],
     ],
-    [t.toolsGroupSize, [["compress", t.toolCompress, t.toolCompressSub, <Minimize2 size={20} />]]],
+    [t.toolsGroupSize, [["compress", t.toolCompress, t.toolCompressSub, <Minimize2 size={ICON.md} />]]],
     [
       t.toolsGroupMore,
       [
-        ["numbers", t.toolNumbers, t.toolNumbersSub, <Hash size={20} />],
-        ["clean", t.toolClean, t.toolCleanSub, <UserX size={20} />],
+        ["numbers", t.toolNumbers, t.toolNumbersSub, <Hash size={ICON.md} />],
+        ["clean", t.toolClean, t.toolCleanSub, <UserX size={ICON.md} />],
       ],
     ],
   ];
   return (
     <div className="tools">
       <div className="tools-inner">
-        <header className="convert-head">
-          <div>
-            <h1>{t.toolsTitle}</h1>
-            <p>{t.toolsSub}</p>
-          </div>
-        </header>
+        <ScreenHeader title={t.toolsTitle} sub={t.toolsSub} />
         <button className="tool-feature" onClick={() => openTool("edit")}>
           <span className="tool-icon">
-            <FilePen size={24} />
+            <FilePen size={ICON.lg} />
           </span>
           <span className="tool-text">
             <span className="tool-title">{t.toolEdit}</span>
@@ -182,16 +175,16 @@ export function Results({ saved }: { saved: Saved[] }) {
     <div className="tool-results" role="status">
       <span className="tool-results-text">{saved.length === 1 ? t.savedAs(saved[0].name) : t.savedParts(saved.length)}</span>
       <button className="btn btn-ghost btn-sm" onClick={() => openOutput(saved[0], mime).catch(err)}>
-        <ExternalLink size={16} />
+        <ExternalLink size={ICON.sm} />
         {t.openFile}
       </button>
       {isAndroid() ? (
         <button className="icon-btn" aria-label={t.share} title={t.share} onClick={() => shareOutput(saved[0], mime).catch(err)}>
-          <Share2 size={17} />
+          <Share2 size={ICON.sm} />
         </button>
       ) : (
         <button className="icon-btn" aria-label={t.showInFolder} title={t.showInFolder} onClick={() => revealOutput(saved[0]).catch(err)}>
-          <FolderOpen size={17} />
+          <FolderOpen size={ICON.sm} />
         </button>
       )}
     </div>
@@ -204,7 +197,7 @@ function Pick({ label, multiple, onPicked }: { label: string; multiple: boolean;
   return (
     <section className="dropzone">
       <div className="dropzone-icon">
-        <FilePlus2 size={26} />
+        <FilePlus2 size={ICON.xl} />
       </div>
       {current && (
         <button className="btn btn-primary pick-current" onClick={() => onPicked([current.ref])}>
@@ -309,22 +302,22 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
         <span className="organize-count">{sel.size ? t.selectedCount(sel.size) : t.pagesTotal(items.length)}</span>
         <span className="organize-tools">
           <button className="icon-btn" title={t.edUndo} aria-label={t.edUndo} disabled={!past.length} onClick={undo}>
-            <Undo2 size={18} />
+            <Undo2 size={ICON.md} />
           </button>
           <button className="icon-btn" title={sel.size === items.length ? t.selectNone : t.selectAll} aria-label={t.selectAll} onClick={() => setSel(sel.size === items.length ? new Set() : new Set(items.map((i) => i.key)))}>
-            <CheckSquare size={18} />
+            <CheckSquare size={ICON.md} />
           </button>
           <button className="icon-btn" title={t.rotateLeft} aria-label={t.rotateLeft} disabled={!sel.size} onClick={() => edit(rotateSel(items, sel, 270))}>
-            <RotateCcw size={18} />
+            <RotateCcw size={ICON.md} />
           </button>
           <button className="icon-btn" title={t.rotateRight} aria-label={t.rotateRight} disabled={!sel.size} onClick={() => edit(rotateSel(items, sel, 90))}>
-            <RotateCw size={18} />
+            <RotateCw size={ICON.md} />
           </button>
           <button className="icon-btn" title={t.moveEarlier} aria-label={t.moveEarlier} disabled={!sel.size} onClick={() => edit(moveSel(items, sel, -1))}>
-            <ArrowLeft size={18} className="flip-rtl" />
+            <ArrowLeft size={ICON.md} className="flip-rtl" />
           </button>
           <button className="icon-btn" title={t.moveLater} aria-label={t.moveLater} disabled={!sel.size} onClick={() => edit(moveSel(items, sel, 1))}>
-            <ArrowRight size={18} className="flip-rtl" />
+            <ArrowRight size={ICON.md} className="flip-rtl" />
           </button>
           <button
             className="icon-btn danger"
@@ -336,10 +329,10 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
               setSel(new Set());
             }}
           >
-            <Trash2 size={18} />
+            <Trash2 size={ICON.md} />
           </button>
           <button className="icon-btn" title={t.insertBlank} aria-label={t.insertBlank} onClick={async () => edit(insertAfter(items, sel, [{ key: `p${keySeq++}`, spec: { blank: await blankSize() } }]))}>
-            <SquareDashed size={18} />
+            <SquareDashed size={ICON.md} />
           </button>
           <button
             className="icon-btn"
@@ -351,7 +344,7 @@ function Organize({ fail }: { onToast(m: string): void; fail(e: unknown): void }
               if (ref) run(async () => edit(insertAfter(items, sel, await addSource(ref))), fail);
             }}
           >
-            <FilePlus2 size={18} />
+            <FilePlus2 size={ICON.md} />
           </button>
         </span>
       </div>
@@ -427,13 +420,13 @@ function Merge({ fail }: { onToast(m: string): void; fail(e: unknown): void }) {
             </span>
             <span className="job-actions">
               <button className="icon-btn" aria-label={t.moveUp} title={t.moveUp} disabled={i === 0} onClick={() => move(i, -1)}>
-                <ArrowUp size={17} />
+                <ArrowUp size={ICON.sm} />
               </button>
               <button className="icon-btn" aria-label={t.moveDown} title={t.moveDown} disabled={i === list.length - 1} onClick={() => move(i, 1)}>
-                <ArrowDown size={17} />
+                <ArrowDown size={ICON.sm} />
               </button>
               <button className="icon-btn" aria-label={t.remove} title={t.remove} onClick={() => setList(list.filter((_, k) => k !== i))}>
-                <X size={17} />
+                <X size={ICON.sm} />
               </button>
             </span>
           </li>
@@ -470,7 +463,7 @@ function Merge({ fail }: { onToast(m: string): void; fail(e: unknown): void }) {
 
 // ---------- Split ----------
 
-function Split({ fail, onToast }: { onToast(m: string): void; fail(e: unknown): void }) {
+function Split({ fail, onToast }: { onToast(m: string, undo?: () => void, kind?: ToastKind): void; fail(e: unknown): void }) {
   const t = useT();
   const [src, setSrc] = useState<Source | null>(null);
   const [mode, setMode] = useState<"each" | "every" | "ranges">("each");
@@ -519,7 +512,7 @@ function Split({ fail, onToast }: { onToast(m: string): void; fail(e: unknown): 
               for (const [k, g] of groups!.entries())
                 out.push(await save(await assemble([src.pdf], g.map((index) => ({ src: 0, index, rotate: 0 }))), suffixName(src.name, `part ${k + 1}`), src));
               setSaved(out);
-              onToast(t.savedParts(out.length));
+              onToast(t.savedParts(out.length), undefined, "success");
             }, fail)
           }
         >

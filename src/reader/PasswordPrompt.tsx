@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import { useT } from "../i18n";
+import { ICON } from "../shell/icons";
 
 type Props = { name: string; wrong: boolean; onSubmit(pw: string): void; onCancel(): void };
 
@@ -31,7 +32,7 @@ export default function PasswordPrompt({ name, wrong, onSubmit, onCancel }: Prop
         onKeyDown={(e) => e.key === "Escape" && onCancel()}
       >
         <div className="dialog-icon">
-          <Lock size={22} />
+          <Lock size={ICON.lg} />
         </div>
         <h2 id="pw-title">{t.passwordTitle}</h2>
         <p dir="auto">{t.passwordSub(name)}</p>
@@ -48,7 +49,7 @@ export default function PasswordPrompt({ name, wrong, onSubmit, onCancel }: Prop
               onChange={(e) => setPw(e.target.value)}
             />
             <button type="button" className="icon-btn" onClick={() => setShow(!show)} aria-label={show ? t.hidePassword : t.showPassword} title={show ? t.hidePassword : t.showPassword} aria-pressed={show}>
-              {show ? <EyeOff size={17} /> : <Eye size={17} />}
+              {show ? <EyeOff size={ICON.sm} /> : <Eye size={ICON.sm} />}
             </button>
           </span>
           {wrong && (

@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { useT } from "../i18n";
+import Illustration from "../shell/Illustration";
 import type { Match, PageLayout } from "../text/search";
+import { ICON } from "../shell/icons";
 
 export type SearchState = {
   query: string;
@@ -52,7 +54,7 @@ export default function SearchPanel({ state, layouts, focusToken, onChange, onPi
   return (
     <div className="search-panel">
       <div className="search-box">
-        <Search size={16} />
+        <Search size={ICON.sm} />
         <input
           ref={input}
           dir="auto"
@@ -80,6 +82,11 @@ export default function SearchPanel({ state, layouts, focusToken, onChange, onPi
         {t.searchMatchCase}
       </label>
 
+      {!state.noText && !state.scanning && state.query.trim() !== "" && n === 0 && (
+        <div className="panel-note">
+          <Illustration kind="search" />
+        </div>
+      )}
       <div className="search-status">
         <span aria-live="polite">
           {state.noText
@@ -94,10 +101,10 @@ export default function SearchPanel({ state, layouts, focusToken, onChange, onPi
         </span>
         <span className="search-nav">
           <button className="icon-btn" disabled={!n} onClick={() => step(-1)} aria-label={t.prevResult} title={t.prevResult}>
-            <ChevronUp size={18} />
+            <ChevronUp size={ICON.md} />
           </button>
           <button className="icon-btn" disabled={!n} onClick={() => step(1)} aria-label={t.nextResult} title={t.nextResult}>
-            <ChevronDown size={18} />
+            <ChevronDown size={ICON.md} />
           </button>
         </span>
       </div>

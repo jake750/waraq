@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import { useT } from "../i18n";
 import type { OfficePrompt } from "./useConvert";
+import { ICON } from "../shell/icons";
 
 type Props = { prompt: OfficePrompt; sizeMb: number; onDownload(): void; onBuiltIn(): void; onCancel(): void; onStop(): void };
 
@@ -20,7 +21,7 @@ export default function OfficePromptDialog({ prompt, sizeMb, onDownload, onBuilt
         onKeyDown={(e) => e.key === "Escape" && !working && onCancel()}
       >
         <div className="dialog-icon">
-          <Download size={22} />
+          <Download size={ICON.lg} />
         </div>
         <h2 id="office-title">{t.officeTitle}</h2>
         <p>{t.officeBody(sizeMb)}</p>
