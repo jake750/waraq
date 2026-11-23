@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "color-no-invalid-hex": true,
+    "color-no-hex": true,
+    "function-disallowed-list": ["rgb", "rgba", "hsl", "hsla"],
+    "declaration-block-no-duplicate-properties": [true, { "ignore": ["consecutive-duplicates-with-different-syntaxes"] }],
+    "block-no-empty": true,
+    "no-invalid-double-slash-comments": true
+  },
+  "overrides": [
+    {
+      "files": ["src/styles/tokens.css"],
+      "rules": { "color-no-hex": null, "function-disallowed-list": null }
+    }
+  ]
+}

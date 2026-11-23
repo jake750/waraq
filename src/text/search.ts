@@ -102,6 +102,7 @@ function clustersOf(line: Glyph[]): Cluster[] {
   const marks = line.filter((g) => isMarkRun(g.ch));
   const clusters: Cluster[] = bases.map((g) => {
     // A glyph with no Unicode value (\u0000) still occupies its place, so it must not open a gap.
+    // eslint-disable-next-line no-control-regex -- matching NUL is the point
     const text = g.ch.replace(/\u0000/g, "");
     return { text, x: g.x, w: g.w, y: g.y, size: g.size, kind: kindOf(text), space: text !== "" && text.trim() === "" };
   });

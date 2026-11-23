@@ -10,8 +10,8 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: var(--sp-1-5);
+  padding: var(--sp-2) var(--sp-2-5);
   min-height: 56px;
   background: var(--surface);
   border-bottom: 1px solid var(--stroke);
@@ -35,22 +35,22 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-inline: 4px;
+  padding-inline: var(--sp-1);
 }
 
 .reader-page {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-1-5);
   color: var(--text-2);
-  font-size: 14px;
+  font-size: var(--fs-base-sm);
   white-space: nowrap;
 }
 
 .reader-page input {
   min-width: 3ch;
   height: 34px;
-  padding: 0 6px;
+  padding: 0 var(--sp-1-5);
   text-align: center;
   border: 1px solid var(--stroke-strong);
   border-radius: var(--r-sm);
@@ -66,13 +66,13 @@
 .reader-tools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--sp-0-5);
 }
 
 .zoom-value {
   min-width: 4.5ch;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -81,12 +81,12 @@
   width: 1px;
   height: 22px;
   background: var(--stroke);
-  margin-inline: 6px;
+  margin-inline: var(--sp-1-5);
 }
 
 .view-switch {
   display: flex;
-  gap: 2px;
+  gap: var(--sp-0-5);
 }
 
 .reader-body {
@@ -117,7 +117,7 @@
 
 /* While the document opens: a calm page-shaped placeholder instead of a line of text. */
 .reader-loading {
-  padding: 24px 16px;
+  padding: var(--sp-6) var(--sp-4);
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -125,7 +125,7 @@
 .page-skeleton {
   width: min(600px, 100%);
   aspect-ratio: 1 / 1.414;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: linear-gradient(100deg, var(--paper) 40%, color-mix(in srgb, var(--paper) 88%, var(--text-3)) 50%, var(--paper) 60%) 0 0 / 300% 100%;
   box-shadow: var(--shadow);
   opacity: 0.85;
@@ -161,14 +161,14 @@
   justify-content: center;
   /* A page zoomed wider than the view overflows to the right, where it can be scrolled to. */
   justify-content: safe center;
-  gap: 16px;
-  padding-inline: 24px;
+  gap: var(--sp-4);
+  padding-inline: var(--sp-6);
 }
 
 .page {
   position: relative;
   flex: none;
-  background: #fff;
+  background: var(--page-bg);
   box-shadow: var(--page-shadow);
 }
 
@@ -187,13 +187,13 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: #f2e3c2;
+  background: var(--page-bg-sepia);
   mix-blend-mode: multiply;
   pointer-events: none;
 }
 /* Night pages are recoloured on the canvas itself (night.ts), so pictures keep their colours. */
 .page:has(.canvas-host.night) {
-  background: #121212;
+  background: var(--page-bg-night);
 }
 
 /* pdf.js text layer (subset of pdf_viewer.css) */
@@ -237,7 +237,7 @@
 }
 
 .textLayer ::selection {
-  background: rgba(47, 95, 224, 0.3);
+  background: var(--page-selection);
 }
 
 .textLayer br::selection {
@@ -263,7 +263,7 @@
 .link-layer a {
   position: absolute;
   pointer-events: auto;
-  border-radius: 2px;
+  border-radius: var(--r-2xs);
 }
 .link-layer a:hover,
 .link-layer a:focus-visible {
@@ -281,13 +281,13 @@
 .hl {
   position: absolute;
   background: var(--highlight);
-  border-radius: 2px;
+  border-radius: var(--r-2xs);
   mix-blend-mode: multiply;
 }
 
 .hl.current {
   background: var(--highlight-current);
-  outline: 2px solid rgba(255, 120, 0, 0.9);
+  outline: 2px solid var(--highlight-current-line);
 }
 
 @media (max-width: 719px) {
@@ -300,9 +300,9 @@
   /* Phones: the bar sits at the bottom, in reach of the thumb. */
   .reader-bar {
     order: 2;
-    gap: 2px;
+    gap: var(--sp-0-5);
     /* Room between the outer buttons (close, edit) and the screen edge. */
-    padding-inline: 12px;
+    padding-inline: var(--sp-3);
     padding-bottom: calc(8px + env(safe-area-inset-bottom));
     border-bottom: 0;
     border-top: 1px solid var(--stroke);
@@ -325,7 +325,7 @@
   }
   /* Matches PAD in Reader.tsx on phones. */
   .page-row {
-    padding-inline: 10px;
+    padding-inline: var(--sp-2-5);
   }
   .reader-panel {
     position: fixed;
@@ -333,15 +333,15 @@
     bottom: 0;
     width: auto;
     height: 60%;
-    z-index: 41;
+    z-index: var(--z-sheet);
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     border: 0;
     box-shadow: var(--shadow);
     animation: rise var(--t-med) var(--ease-out);
   }
   .page-row {
-    padding-inline: 8px;
-    gap: 8px;
+    padding-inline: var(--sp-2);
+    gap: var(--sp-2);
   }
 }
 
@@ -354,8 +354,8 @@
 .panel-tabs {
   flex: none;
   display: flex;
-  gap: 2px;
-  padding: 8px;
+  gap: var(--sp-0-5);
+  padding: var(--sp-2);
   border-bottom: 1px solid var(--stroke);
 }
 
@@ -366,7 +366,7 @@
   border-radius: var(--r-sm);
   background: transparent;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .panel-tabs button[aria-selected="true"] {
@@ -383,43 +383,43 @@
 
 .panel-note {
   margin: 0;
-  padding: 24px 16px;
+  padding: var(--sp-6) var(--sp-4);
   color: var(--text-3);
   text-align: center;
-  font-size: 14px;
+  font-size: var(--fs-base-sm);
 }
 
 .thumbs {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 16px 0 24px;
+  gap: var(--sp-3-5);
+  padding: var(--sp-4) 0 var(--sp-6);
 }
 
 .thumb {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-1-5);
   border: 0;
   background: transparent;
   padding: 0;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .thumb-canvas {
-  background: #fff;
+  background: var(--page-bg);
   box-shadow: var(--page-shadow);
   outline: 2px solid transparent;
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: var(--r-2xs);
   transition: outline-color var(--t-fast) var(--ease-out);
 }
 
 .thumb-canvas.night {
-  background: #121212;
+  background: var(--page-bg-night);
 }
 
 .thumb-canvas canvas {
@@ -444,17 +444,17 @@
 .outline {
   list-style: none;
   margin: 0;
-  padding: 8px;
+  padding: var(--sp-2);
 }
 
 .outline button {
   width: 100%;
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--sp-2-5);
   min-height: 40px;
-  padding-block: 8px;
-  padding-inline-end: 10px;
+  padding-block: var(--sp-2);
+  padding-inline-end: var(--sp-2-5);
   border: 0;
   border-radius: var(--r-sm);
   background: transparent;
@@ -477,7 +477,7 @@
 }
 
 .outline-page {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -485,15 +485,15 @@
 .search-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: var(--sp-2-5);
+  padding: var(--sp-3);
 }
 
 .search-box {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2-5);
   min-height: 40px;
   border: 1px solid var(--stroke-strong);
   border-radius: var(--r-sm);
@@ -518,8 +518,8 @@
 .check {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 
@@ -534,7 +534,7 @@
   align-items: center;
   justify-content: space-between;
   min-height: 36px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 
@@ -548,25 +548,25 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-0-5);
 }
 
 .result-page {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-3);
-  padding: 10px 8px 4px;
+  padding: var(--sp-2-5) var(--sp-2) var(--sp-1);
 }
 
 .search-results button {
   width: 100%;
-  padding: 8px;
+  padding: var(--sp-2);
   border: 0;
   border-radius: var(--r-sm);
   background: transparent;
   text-align: start;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
   color: var(--text-2);
 }
 
@@ -582,7 +582,7 @@
 .search-results mark {
   background: var(--highlight);
   color: inherit;
-  border-radius: 2px;
+  border-radius: var(--r-2xs);
 }
 
 @media (max-width: 719px) {
@@ -590,7 +590,7 @@
     display: block;
   }
   .reader-panel .sheet-handle {
-    margin: 10px auto 0;
+    margin: var(--sp-2-5) auto 0;
   }
 }
 
@@ -645,16 +645,16 @@
   width: max-content;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   min-height: 44px;
-  padding: 0 18px;
+  padding: 0 var(--sp-4-5);
   border: 1px solid var(--toast-stroke);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--toast-bg);
   color: var(--toast-fg);
   font-weight: 600;
   box-shadow: var(--shadow);
-  z-index: 40;
+  z-index: var(--z-scrim);
   animation: rise var(--t-med) var(--ease-out);
 }
 .reader-back-chip svg {
@@ -680,19 +680,19 @@
 
 /* Keyboard shortcuts dialog */
 .kbd-list {
-  margin: 4px 0 0;
+  margin: var(--sp-1) 0 0;
   display: grid;
-  gap: 10px;
+  gap: var(--sp-2-5);
 }
 .kbd-list > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--sp-4);
 }
 .kbd-list dt {
   display: flex;
-  gap: 6px;
+  gap: var(--sp-1-5);
   flex: none;
 }
 .kbd-list dd {
@@ -707,7 +707,7 @@ kbd {
   padding: 3px 7px;
   border: 1px solid var(--stroke-strong);
   border-bottom-width: 2px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   background: var(--surface-2);
   font: 600 var(--fs-xs) / 1.4 ui-monospace, monospace;
   text-align: center;
@@ -717,7 +717,7 @@ kbd {
   margin: 0;
   color: var(--text-3);
   font-size: var(--fs-xs);
-  line-height: 1.6;
+  line-height: var(--lh-body);
 }
 
 /* Phones zoom by pinching: the zoom buttons and percentage would only crowd the bottom bar. */
@@ -730,7 +730,7 @@ kbd {
 /* Reader panel → Info: label above value, one row each. */
 .doc-info {
   margin: 0;
-  padding: 4px 14px 14px;
+  padding: var(--sp-1) var(--sp-3-5) var(--sp-3-5);
   display: grid;
   gap: 0;
 }
@@ -743,7 +743,7 @@ kbd {
   color: var(--text-3);
 }
 .doc-info dd {
-  margin: 2px 0 0;
+  margin: var(--sp-0-5) 0 0;
   font-size: var(--fs-sm);
   overflow-wrap: anywhere;
 }

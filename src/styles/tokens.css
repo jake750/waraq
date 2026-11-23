@@ -1,0 +1,182 @@
+/* Design tokens: the one place raw values live. Every other stylesheet uses these names.
+   Roles, not values: the card is always lighter than the page in both themes.
+   Layout uses logical properties only (inline-start/end) so Arabic mirrors for free.
+   Identity «ورق وحبر» (paper and ink): docs/IMPROVE-100.md. */
+
+:root {
+  --font: "IBM Plex Sans Arabic", system-ui, "Segoe UI", Roboto, sans-serif;
+
+  /* ---- Colour ---- */
+  /* "Ink on paper": a near-neutral desk, paper-white sheets, one deep ink-blue for actions. */
+  --bg: #f2f1ee;
+  --surface: #fdfdfb;
+  --surface-2: #f6f5f2;
+  --stroke: #e3e1db;
+  --stroke-strong: #c8c5bd;
+  --text: #14161d;
+  --text-2: #464a56;
+  --text-3: #5d616d;
+  --accent: #223b7a;
+  --accent-text: #223b7a;
+  --accent-soft: #e6e9f2;
+  --on-accent: #ffffff;
+  /* Semantic: each with a soft fill for backgrounds; the strong colour is AA text on surfaces. */
+  --danger: #b42323;
+  --danger-soft: #fbe9e7;
+  --success: #1f7a4d;
+  --success-soft: #e3f1e9;
+  --warning: #9a5600;
+  --warning-soft: #fbefdc;
+  --info: var(--accent);
+  --info-soft: var(--accent-soft);
+  --viewer-bg: #e5e3de;
+  --paper: #ffffff;
+  /* A PDF page itself (behind its canvas) is white in both themes; the reader's tones recolour it. */
+  --page-bg: #ffffff;
+  --page-bg-sepia: #f2e3c2;
+  --page-bg-night: #121212;
+  --page-ink: #10172a;
+  --page-ink-2: #6b7489;
+  /* Search hits and selections on pages (the page is always light, so these don't change with the theme). */
+  --highlight: rgba(255, 196, 0, 0.45);
+  --highlight-current: rgba(255, 120, 0, 0.55);
+  --highlight-current-line: rgba(255, 120, 0, 0.9);
+  --page-selection: rgba(47, 95, 224, 0.3);
+  --mark-selected-bg: rgba(47, 95, 224, 0.1);
+  --mark-selected-line: rgba(47, 95, 224, 0.5);
+  /* Home quick actions: one hue each, so convert, edit, merge and compress read apart. */
+  --cat-convert: #2f6fd6;
+  --cat-edit: #b5651d;
+  --cat-merge: #2e8b57;
+  --cat-compress: #8a4fc1;
+  --scrim: rgba(8, 10, 18, 0.4);
+  /* Toasts: a dark slip in light mode, a raised dark slip in dark mode (never a white flash). */
+  --toast-bg: #1d2130;
+  --toast-fg: #f4f5f8;
+  --toast-stroke: transparent;
+  --toast-action: color-mix(in srgb, var(--toast-fg) 60%, #8fb0ff);
+
+  /* The folded page corner: the app's one signature mark (logo, drop zone, file icons). */
+  --fold: 22px;
+  --fold-flap: #dcd9d1;
+  --fold-shadow: rgba(20, 22, 29, 0.14);
+  --page-max: 880px;
+
+  /* ---- Type ---- in rem, so the system/browser text size scales the whole UI. */
+  --fs-xs: 0.75rem; /* 12 */
+  --fs-sm: 0.8125rem; /* 13 */
+  --fs-base-sm: 0.875rem; /* 14 */
+  --fs-md: 0.9375rem; /* 15: body */
+  --fs-lg: 1rem; /* 16 */
+  --fs-xl: 1.125rem; /* 18 */
+  --fs-2xl: 1.375rem; /* 22 */
+  --fs-3xl: 1.75rem; /* 28 */
+  --fs-4xl: 2.125rem; /* 34 */
+  --lh-tight: 1.3;
+  --lh-heading: 1.45; /* room for Arabic marks (tashkeel) above and below */
+  --lh-body: 1.6;
+
+  /* ---- Space ---- a 4px grid; the number is the multiple of 4px (1-5 = 6px, a half step). */
+  --sp-0-5: 2px;
+  --sp-1: 4px;
+  --sp-1-5: 6px;
+  --sp-2: 8px;
+  --sp-2-5: 10px;
+  --sp-3: 12px;
+  --sp-3-5: 14px;
+  --sp-4: 16px;
+  --sp-4-5: 18px;
+  --sp-5: 20px;
+  --sp-5-5: 22px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-13: 52px;
+  --sp-18: 72px;
+  --sp-24: 96px;
+
+  /* ---- Shape ---- xs: chips, marks · sm: inputs, small buttons · md: cards, tiles · lg: sheets, dialogs. */
+  --r-2xs: 2px;
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+  --r-round: 50%;
+
+  /* ---- Elevation ---- sheets of paper: 1 resting card · 2 raised · 3 floating bar · 4 dialog/toast. */
+  --elev-1: 0 1px 2px rgba(18, 23, 38, 0.06);
+  --elev-2: 0 1px 2px rgba(18, 23, 38, 0.06), 0 8px 24px rgba(18, 23, 38, 0.06);
+  --elev-3: 0 1px 2px rgba(18, 23, 38, 0.06), 0 8px 24px rgba(18, 23, 38, 0.06), 0 2px 8px rgba(18, 23, 38, 0.12);
+  --elev-4: 0 1px 2px rgba(18, 23, 38, 0.06), 0 8px 24px rgba(18, 23, 38, 0.06), 0 4px 16px rgba(18, 23, 38, 0.18);
+  --shadow: var(--elev-2);
+  --page-shadow: 0 1px 3px rgba(18, 23, 38, 0.18);
+
+  /* ---- Layers ---- (small local values like 1–6 inside one component stay local). */
+  --z-float: 20; /* hints over the page */
+  --z-bar: 30; /* floating bars over the page */
+  --z-scrim: 40;
+  --z-sheet: 41;
+  --z-dialog: 50;
+  --z-popover: 55;
+  --z-toast: 60;
+
+  /* ---- Motion ---- short and soft; only transform/opacity animate. Spring only for small presses. */
+  --t-instant: 90ms;
+  --t-fast: 140ms;
+  --t-med: 220ms;
+  --t-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* entering */
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45); /* leaving */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* small presses and toggles */
+  --stagger: 30ms; /* per list item, at most 8 items */
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f1117;
+  --surface: #171a22;
+  --surface-2: #1d212b;
+  --stroke: #2a2f3b;
+  --stroke-strong: #3c4352;
+  --text: #eceef3;
+  --text-2: #b3b8c4;
+  --text-3: #8f95a3;
+  --accent: #8ea6e6;
+  --accent-text: #a9bcf0;
+  --accent-soft: #1f2840;
+  --on-accent: #0d1426;
+  --danger: #ff8a80;
+  --danger-soft: #3a1c20;
+  --success: #6fcf97;
+  --success-soft: #16301f;
+  --warning: #f0b35a;
+  --warning-soft: #3a2a12;
+  --viewer-bg: #0a0c11;
+  --fold-flap: #2d3241;
+  --fold-shadow: rgba(0, 0, 0, 0.45);
+  --paper: #e4e7ee;
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --elev-2: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --elev-3: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(18, 23, 38, 0.12);
+  --elev-4: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(18, 23, 38, 0.18);
+  --page-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  --scrim: rgba(0, 0, 0, 0.62);
+  --toast-bg: #262b38;
+  --toast-fg: #eceef3;
+  --toast-stroke: #3c4352;
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-instant: 0ms;
+    --t-fast: 0ms;
+    --t-med: 0ms;
+    --t-slow: 0ms;
+    --stagger: 0ms;
+  }
+}

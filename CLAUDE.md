@@ -27,8 +27,8 @@ cd src-tauri && cargo test  # Rust unit tests
 
 ## Definition of done
 
-A change is done when: `npx tsc --noEmit -p .` and `npm test` pass (the release workflow's `check` job runs
-both and blocks the release otherwise); new logic has a test next to its mirror in `tests/`; every new string
+A change is done when: `npx tsc --noEmit -p .`, `npm run lint` and `npm test` pass (the release workflow's
+`check` job runs all three and blocks the release otherwise); new logic has a test next to its mirror in `tests/`; every new string
 exists in English and Arabic; UI changes were looked at in the browser preview at phone width (375px) and in
 dark mode; Rust changes pass `cargo test`; and nothing writes over an opened file.
 
@@ -90,7 +90,10 @@ main checkout's server), run `vite --port <other> --strictPort` from a temporary
   `forms.ts` hand-builds field appearances, because pdf-lib's own break mixed Arabic and Latin.
 - **Tools** (`src/tools/`): `assemble()` takes bytes or a loaded `PDFDocument` per source. `compress.ts` gets
   its `Reencode` injected. Merge, split and organize drop forms and the outline by design.
-- **UI shell:** tokens in `src/theme.css` (ink `--accent`, paper surfaces, `.fold` corner motif). `Layout.tsx`
+- **UI shell:** all raw values live in `src/styles/tokens.css` (colour roles, `--fs-*` rem type scale, `--sp-*`
+  4px spacing grid, `--r-*`, `--elev-*`, `--z-*`, `--t-*`/`--ease-*` motion); other CSS uses only those names
+  (`npm run lint` runs ESLint + Stylelint, which rejects raw hex/rgba outside tokens). `src/styles/` holds
+  base, shell, home and components in cascade order (`main.tsx`). Ink `--accent`, paper surfaces, `.fold` motif. `Layout.tsx`
   folds the sidebar to a rail while reading/editing; Settings (with updates) opens as a sheet.
 - **i18n:** `ar: typeof en`, so a missing Arabic string fails `tsc`. `arCount()` handles Arabic plurals.
 - **Tests:** `tests/` mirrors `src/`; fixtures are original content (`fixtures/README.md`). Env is node; add

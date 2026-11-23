@@ -180,7 +180,7 @@ export default function App() {
         showToast(errorText(t, code));
       }
     },
-    [t, recentStore, refreshRecent],
+    [t, recentStore, refreshRecent, go, showToast],
   );
 
   // Browser preview: ?open=/fixtures/arabic-book.pdf
@@ -210,7 +210,7 @@ export default function App() {
       if (skipped.length) showToast(skippedText(t, skipped));
       go("convert");
     },
-    [openDocument, conv, t],
+    [openDocument, conv, t, go, showToast],
   );
 
   // Browser preview only: window.__waraqQueue(["/fixtures/office/sample.docx"]) queues dev files.
@@ -348,7 +348,7 @@ export default function App() {
     go("home");
     prev?.doc.loadingTask.destroy().catch(() => {});
     refreshRecent();
-  }, [refreshRecent]);
+  }, [refreshRecent, go]);
 
   // Android back: the reader closes like its close button; other screens go back to Home.
   // The editor handles back itself (it asks before dropping unsaved changes).

@@ -4,7 +4,12 @@ import ReactDOM from "react-dom/client";
 import "@fontsource/ibm-plex-sans-arabic/400.css";
 import "@fontsource/ibm-plex-sans-arabic/600.css";
 import "@fontsource/ibm-plex-sans-arabic/700.css";
-import "./theme.css";
+// Order matters: later files refine earlier ones (same cascade as the single theme.css had).
+import "./styles/tokens.css";
+import "./styles/base.css";
+import "./styles/shell.css";
+import "./styles/home.css";
+import "./styles/components.css";
 import "./pdf/pdfjs";
 import App from "./App";
 

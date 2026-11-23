@@ -180,60 +180,62 @@ font weight doing everything, flat cards, a motif used for three meanings, and a
 
 ## Batch 3: design system foundation (do before any visual batch)
 
-- [ ] **21** · tokens · `theme.css` → `src/styles/tokens.css`
+- [x] **21** · tokens · `theme.css` → `src/styles/tokens.css`
   - Problem: there is no spacing scale; every gap and padding is a raw px value.
   - Fix: `--sp-1..--sp-10` on a 4 px grid, and replace the raw values across all CSS files.
   - H / M
-- [ ] **22** · tokens · all CSS
+- [x] **22** · tokens · all CSS
   - Problem: the type scale is flat (xl 19 vs 2xl 20), with one-offs 13.5/18/24/28 px.
   - Fix: a new scale 12/13/14/16/18/22/28/34 in **rem**, plus `--lh-tight/normal/loose` (≥1.4 for
     Arabic headings). Replace the one-offs.
   - M / M
-- [ ] **23** · tokens
+- [x] **23** · tokens
   - Problem: radii drift (6/8/10/12/14/16/18) and icon tiles come in 36/40/44/56.
   - Fix: radius roles xs/sm/md/lg/pill and tile tokens `--tile-sm/md/lg`; map every use.
   - M / L
-- [ ] **24** · tokens
+- [x] **24** · tokens
   - Problem: only `--shadow`/`--page-shadow` exist; there are 13 raw shadows and cards look flat (TODO).
   - Fix: `--elev-1..4` for light and dark; replace the raw shadows.
   - M / L
-- [ ] **25** · tokens
+- [x] **25** · tokens
   - Problem: z-index values are scattered (5…60).
   - Fix: `--z-base/raised/sticky/panel/scrim/sheet/dialog/toast`.
   - L / L
-- [ ] **26** · tokens
+- [x] **26** · tokens
   - Problem: motion has two durations, an unused `--ease-in-out` and one-off springs in editor.css.
   - Fix: the motion tokens from the identity section; replace raw durations and easings.
   - H / L
-- [ ] **27** · tokens
+- [x] **27** · tokens
   - Problem: there are no success/warning/info colours. Paper (#fff ×9), night paper (#121212), the
     selection blue, the search outline and `#6b7489` are all hard-coded, and highlights are
     light-only.
   - Fix: semantic plus `-soft` tokens; `--paper`, `--paper-night`, `--selection`, `--hl`,
     `--hl-current` for both themes.
   - H / L
-- [ ] **28** · bug/system · `tools/tools.css` `.flip-rtl`, `convert/convert.css` `.btn-sm`/`.dialog-status`, `.icon-btn.danger` ×2
+- [x] **28** · bug/system · `tools/tools.css` `.flip-rtl`, `convert/convert.css` `.btn-sm`/`.dialog-status`, `.icon-btn.danger` ×2
   - Problem: shared rules live in lazily loaded feature CSS. The editor's Undo/Redo arrows aren't
     mirrored in RTL until the Tools screen has been opened once.
   - Fix: move them into shared component CSS.
   - H / L
-- [ ] **29** · tokens · Home quick actions, toast action `#8fb0ff`
+- [x] **29** · tokens · Home quick actions, toast action `#8fb0ff`
   - Problem: four raw category hues.
   - Fix: `--cat-convert/edit/compress/merge` (+ soft) for light and dark.
   - L / L
-- [ ] **30** · tooling · new `stylelint` config + `npm run lint` (CSS) + ESLint (TS/React hooks)
+- [x] **30** · tooling · new `stylelint` config + `npm run lint` (CSS) + ESLint (TS/React hooks)
   - Problem: there is no linter (TODO P1).
   - Fix: a lightweight config, `react-hooks/exhaustive-deps` and a no-raw-hex rule outside the token
     files; add it to the release `check` job.
   - M / L (dev deps only)
-- [ ] **31** · quality · `theme.css` (1393 lines)
+- [x] **31** · quality · `theme.css` (1393 lines)
   - Problem: one file for tokens, base styles, every component and the shell.
   - Fix: split into `styles/tokens.css`, `base.css`, `components/*.css` and `shell.css`, imported
     from `main.tsx`. No visual change; take before/after screenshots.
   - M / M
-- [ ] **32** · cleanup
+- [x] **32** · cleanup
   - Problem: `--fold-bg` is set three times and never read; `--ease-in-out` is unused.
   - Fix: remove them; run `npx knip` once for dead exports/files and remove the confirmed ones.
+  - Done 2026-11-23: dead tokens removed. `npx -y knip` was blocked by the session's permission
+    classifier (unpinned download); run it when the user allows, e.g. as a pinned dev dependency.
   - L / L
 
 ## Batch 4: performance
@@ -593,5 +595,6 @@ These are bigger features; propose them as separate sessions.
 
 | Batch | Date | Commit | Release | Notes |
 |---|---|---|---|---|
+| 3 | 2026-11-23 | (batch 3 commit) | v0.2.46 | theme.css split into src/styles/; 282 spacing, 38 font-size, 37 radius, 11 z-index values tokenized; computed-style diff on 7 screens × 2 themes showed only intended changes (type scale, radii 6/10/14/16 unified, med motion 260→220ms). CSS gzip 16.15→16.78 kB. ESLint+Stylelint in CI (0 errors). |
 | 2 | 2026-11-23 | (batch 2 commit) | v0.2.45 | 11–17, 19, 20 done; 18 deferred (needs a real desktop test, see the item). New error code `too-large` (Rust read cap 1 GiB, zip unpack cap 400 MB). |
 | 1 | 2026-11-23 | (this commit) | v0.2.44 | Verified in preview: page saved on close, reopen keeps page and chosen direction, Escape under a dialog keeps the reader, editor leave guard from the sidebar. Item 78 found already done. |

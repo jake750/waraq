@@ -96,10 +96,10 @@ export function rtfToHtml(bytes: Uint8Array): string {
         i += 2;
         continue;
       }
-      if (next === "~") (flushBytes(), addText(" "), (i += 2));
+      if (next === "~") { flushBytes(); addText(" "); i += 2; }
       else if (next === "-" || next === "*") i += 2;
-      else if (next === "_") (flushBytes(), addText("‑"), (i += 2));
-      else if (next === "\n" || next === "\r") (endPara(), (i += 2));
+      else if (next === "_") { flushBytes(); addText("‑"); i += 2; }
+      else if (next === "\n" || next === "\r") { endPara(); i += 2; }
       else {
         const m = /^([a-zA-Z]+)(-?\d+)? ?/.exec(src.slice(i + 1, i + 40));
         if (!m) {
@@ -118,11 +118,11 @@ export function rtfToHtml(bytes: Uint8Array): string {
           addText(String.fromCharCode(arg < 0 ? arg + 65536 : arg));
           skipChars = st.uc;
         } else if (word === "par" || word === "sect") endPara();
-        else if (word === "line") (flushRun(), (cur += "<br>"));
+        else if (word === "line") { flushRun(); cur += "<br>"; }
         else if (word === "tab") addText("\t");
         else if (word === "b") st.bold = arg !== 0;
         else if (word === "i") st.italic = arg !== 0;
-        else if (word === "plain") (st.bold = false), (st.italic = false);
+        else if (word === "plain") { st.bold = false; st.italic = false; }
         else if (word === "emdash") addText("—");
         else if (word === "endash") addText("–");
         else if (word === "lquote") addText("‘");

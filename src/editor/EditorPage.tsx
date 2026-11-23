@@ -755,7 +755,7 @@ function useCommit(initial: string, onDone: (text: string) => void) {
       mounted.current = false;
       setTimeout(() => !mounted.current && finish(), 0);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
   const change = (v: string) => {
     latest.current = v;
     setText(v);

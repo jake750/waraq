@@ -10,6 +10,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "lint": "eslint . && stylelint \"src/**/*.css\"",
     "tauri": "tauri",
     "fixtures": "node scripts/make-fixtures.mjs",
     "release": "node scripts/release.mjs"
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@cantoo/pdf-lib": "^2.11.1",
+    "@eslint/js": "^9.39.5",
     "@fontsource/amiri": "^5.3.0",
     "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^26.6.6",
@@ -46,9 +48,14 @@
     "@types/react-dom": "^19.3.0",
     "@types/turndown": "^5.0.6",
     "@vitejs/plugin-react": "^6.3.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "happy-dom": "^21.0.4",
     "pdf-lib": "^1.17.1",
+    "stylelint": "^18.1.0",
     "typescript": "~6.0.3",
+    "typescript-eslint": "^8.74.0",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
   }

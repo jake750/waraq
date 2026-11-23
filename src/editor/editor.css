@@ -13,17 +13,17 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-inline: 4px;
+  padding-inline: var(--sp-1);
   unicode-bidi: plaintext;
 }
 
 .ed-bar-end {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
 }
 .ed-bar-end .btn {
-  margin-inline-start: 6px;
+  margin-inline-start: var(--sp-1-5);
 }
 
 /* ---------- Tool strip ---------- */
@@ -34,11 +34,11 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
   background: var(--accent-soft);
   border-bottom: 1px solid var(--stroke);
-  font-size: 14px;
+  font-size: var(--fs-base-sm);
 }
 .ed-draft span {
   flex: 1 1 220px;
@@ -48,8 +48,8 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: var(--sp-1-5);
+  padding: var(--sp-1-5) var(--sp-2-5);
   background: var(--surface);
   border-bottom: 1px solid var(--stroke);
   overflow-x: auto;
@@ -62,7 +62,7 @@
 .ed-group {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--sp-0-5);
   flex: none;
 }
 
@@ -70,7 +70,7 @@
   flex: none;
   width: 1px;
   height: 24px;
-  margin-inline: 4px;
+  margin-inline: var(--sp-1);
   background: var(--stroke);
 }
 
@@ -79,7 +79,7 @@
   width: 26px;
   height: 26px;
   margin: 5px 3px;
-  border-radius: 50%;
+  border-radius: var(--r-round);
   border: 2px solid var(--surface);
   box-shadow: 0 0 0 1px var(--stroke-strong);
   cursor: pointer;
@@ -92,7 +92,7 @@
 .ed-stroke span {
   display: block;
   width: 18px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 .ed-stroke[aria-checked="true"],
 .ed-size[aria-checked="true"] {
@@ -104,25 +104,21 @@
   line-height: 1;
 }
 
-.icon-btn.danger {
-  color: var(--danger);
-}
-
 /* Floats over the pages: showing it must not push the page away from under the pointer. */
 .ed-hint {
   position: absolute;
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 20;
+  z-index: var(--z-float);
   max-width: calc(100% - 32px);
-  padding: 6px 14px;
-  font-size: 13px;
+  padding: var(--sp-1-5) var(--sp-3-5);
+  font-size: var(--fs-sm);
   text-align: center;
   color: var(--text-2);
   background: var(--surface);
   border: 1px solid var(--stroke);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   box-shadow: var(--shadow);
   pointer-events: none;
   animation: hint-out 4s var(--ease-out) forwards;
@@ -139,7 +135,7 @@
 
 .ed-saved {
   flex: none;
-  padding: 8px 12px 0;
+  padding: var(--sp-2) var(--sp-3) 0;
   background: var(--viewer-bg);
 }
 .ed-saved .tool-results {
@@ -165,8 +161,8 @@
   flex-direction: column;
   /* "safe": a zoomed page wider than the view starts at the edge instead of being cut off. */
   align-items: safe center;
-  gap: 16px;
-  padding: 16px 0 48px;
+  gap: var(--sp-4);
+  padding: var(--sp-4) 0 var(--sp-12);
 }
 
 .ed-loading {
@@ -177,7 +173,7 @@
 .ed-page {
   position: relative;
   flex: none;
-  background: #fff;
+  background: var(--page-bg);
   box-shadow: var(--page-shadow);
 }
 .ed-page .page {
@@ -266,7 +262,7 @@
   padding: 0;
   border: 0;
   font-family: var(--font);
-  line-height: 1.45;
+  line-height: var(--lh-heading);
   white-space: pre-wrap;
   overflow-wrap: break-word;
   unicode-bidi: plaintext;
@@ -291,7 +287,7 @@
   overflow: hidden;
   outline: 1.5px solid var(--accent);
   outline-offset: 4px;
-  border-radius: 2px;
+  border-radius: var(--r-2xs);
 }
 /* A handle on each side: drag either edge to make the box wider or narrower. */
 .ed-text .handle.side {
@@ -300,7 +296,7 @@
   width: 10px;
   height: 22px;
   margin-top: -11px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: var(--surface);
   border: 2px solid var(--accent);
   cursor: ew-resize;
@@ -316,7 +312,7 @@
   position: absolute;
   z-index: 6;
   width: 240px;
-  padding: 10px;
+  padding: var(--sp-2-5);
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--stroke);
@@ -327,8 +323,8 @@
   width: 100%;
   resize: vertical;
   font: inherit;
-  font-size: 14px;
-  padding: 8px;
+  font-size: var(--fs-base-sm);
+  padding: var(--sp-2);
   border: 1px solid var(--stroke-strong);
   border-radius: var(--r-sm);
   background: var(--surface);
@@ -338,8 +334,8 @@
 .ed-note-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
-  margin-top: 8px;
+  gap: var(--sp-1-5);
+  margin-top: var(--sp-2);
 }
 
 /* A form field: its typed answer over the page, and a tap target that opens it in the panel. */
@@ -350,7 +346,7 @@
   padding-inline: 3px;
   overflow: hidden;
   white-space: nowrap;
-  color: #10172a;
+  color: var(--page-ink);
   font-family: var(--font);
   unicode-bidi: plaintext;
   pointer-events: none;
@@ -363,11 +359,11 @@
 .ed-answer.grab {
   pointer-events: auto;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: var(--r-2xs);
 }
 .ed-answer.grab:hover {
-  background: rgba(47, 95, 224, 0.1);
-  outline: 1px solid rgba(47, 95, 224, 0.5);
+  background: var(--mark-selected-bg);
+  outline: 1px solid var(--mark-selected-line);
 }
 
 /* ---------- Forms panel ---------- */
@@ -385,25 +381,25 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px 8px;
+  padding: var(--sp-3) var(--sp-3-5) var(--sp-2);
 }
 .ed-forms-head h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 .ed-forms-body {
   flex: 1;
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 6px 14px 20px;
+  gap: var(--sp-3-5);
+  padding: var(--sp-1-5) var(--sp-3-5) var(--sp-5);
 }
 .ed-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
+  gap: var(--sp-1-5);
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 .ed-field.check {
@@ -413,7 +409,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--sp-2);
   width: 100%;
 }
 .ed-field-page {
@@ -422,7 +418,7 @@
   background: none;
   padding: 0;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--accent-text);
   text-decoration: underline;
   cursor: pointer;
@@ -432,9 +428,9 @@
 .ed-field select {
   width: 100%;
   min-height: 38px;
-  padding: 8px 10px;
+  padding: var(--sp-2) var(--sp-2-5);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-base-sm);
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--stroke-strong);
@@ -453,7 +449,7 @@
 /* ---------- Dialogs ---------- */
 
 .ed-muted {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   margin-top: -4px;
 }
@@ -465,14 +461,14 @@
   width: min(560px, calc(100vw - 32px));
 }
 .sig-hint {
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .sig-canvas {
   display: block;
   width: 100%;
   height: 180px;
-  margin: 4px 0 12px;
-  background: #fff;
+  margin: var(--sp-1) 0 var(--sp-3);
+  background: var(--page-bg);
   border: 1px dashed var(--stroke-strong);
   border-radius: var(--r-md);
   touch-action: none;
@@ -481,8 +477,8 @@
 .sig-saved {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-1);
 }
 .sig-chip {
   position: relative;
@@ -492,8 +488,8 @@
   place-items: center;
   width: 128px;
   height: 56px;
-  padding: 6px;
-  background: #fff;
+  padding: var(--sp-1-5);
+  background: var(--page-bg);
   border: 1px solid var(--stroke);
   border-radius: var(--r-sm);
   cursor: pointer;
@@ -513,7 +509,7 @@
   height: 22px;
   min-width: 0;
   padding: 0;
-  border-radius: 50%;
+  border-radius: var(--r-round);
   background: var(--surface);
   border: 1px solid var(--stroke);
 }
@@ -529,7 +525,7 @@
      the tool strip already takes the bottom edge. */
   .editor .ed-bar {
     order: 0;
-    padding-bottom: 8px;
+    padding-bottom: var(--sp-2);
     border-top: 0;
     border-bottom: 1px solid var(--stroke);
   }
@@ -541,8 +537,8 @@
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
   .ed-pages {
-    padding: 8px 0 24px;
-    gap: 8px;
+    padding: var(--sp-2) 0 var(--sp-6);
+    gap: var(--sp-2);
   }
   .ed-forms {
     position: fixed;
@@ -550,27 +546,27 @@
     bottom: 0;
     width: auto;
     height: 60%;
-    z-index: 41;
+    z-index: var(--z-sheet);
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     border: 0;
     box-shadow: var(--shadow);
     animation: rise var(--t-med) var(--ease-out);
   }
   .ed-forms .sheet-handle {
-    margin: 10px auto 0;
+    margin: var(--sp-2-5) auto 0;
   }
 }
 
 /* Signature ink swatches */
 .sig-inks {
   display: flex;
-  gap: 10px;
-  margin: -4px 0 10px;
+  gap: var(--sp-2-5);
+  margin: -4px 0 var(--sp-2-5);
 }
 .sig-ink {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--r-round);
   border: 2px solid var(--surface);
   box-shadow: 0 0 0 1px var(--stroke);
 }
@@ -583,17 +579,17 @@
   position: absolute;
   z-index: 4;
   display: flex;
-  gap: 2px;
-  padding: 4px;
+  gap: var(--sp-0-5);
+  padding: var(--sp-1);
   background: var(--surface);
   border: 1px solid var(--stroke);
-  border-radius: 12px;
-  box-shadow: var(--shadow), 0 2px 8px rgba(18, 23, 38, 0.12);
+  border-radius: var(--r-md);
+  box-shadow: var(--elev-3);
   white-space: nowrap;
   color: var(--text);
   direction: inherit;
   transform-origin: 50% 100%;
-  animation: ed-selbar-in 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: ed-selbar-in var(--t-med) var(--ease-spring);
 }
 .ed-selbar .icon-btn {
   width: 36px;
@@ -623,13 +619,13 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 2px;
+  gap: var(--sp-0-5);
 }
 .ed-marks li {
   display: flex;
   align-items: center;
-  gap: 4px;
-  border-radius: 10px;
+  gap: var(--sp-1);
+  border-radius: var(--r-md);
 }
 .ed-marks li[aria-current="true"] {
   background: var(--accent-soft);
@@ -639,15 +635,15 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
+  gap: var(--sp-2-5);
+  padding: var(--sp-2);
   border: 0;
   background: none;
   color: var(--text);
   font: inherit;
   text-align: start;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 .ed-mark-row:hover {
   background: var(--accent-soft);
@@ -656,13 +652,13 @@
   flex: none;
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--r-round);
 }
 .ed-mark-text {
   flex: 1;
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: var(--sp-0-5);
 }
 .ed-mark-text > span {
   overflow: hidden;
@@ -690,6 +686,7 @@
 .ed-swatch.custom {
   position: relative;
   overflow: hidden;
+  /* stylelint-disable-next-line color-no-hex -- the colour wheel shows every hue on purpose */
   background: conic-gradient(#e33, #ec3, #3c5, #3be, #36e, #c3e, #e33);
 }
 .ed-swatch.custom input {
@@ -705,25 +702,25 @@
 /* The stamps menu */
 .ed-stamp-menu {
   position: fixed;
-  z-index: 30;
+  z-index: var(--z-bar);
   display: grid;
-  gap: 4px;
-  padding: 6px;
+  gap: var(--sp-1);
+  padding: var(--sp-1-5);
   background: var(--surface);
   border: 1px solid var(--stroke);
-  border-radius: 12px;
-  box-shadow: var(--shadow), 0 4px 16px rgba(18, 23, 38, 0.18);
-  animation: ed-selbar-in 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: var(--r-md);
+  box-shadow: var(--elev-4);
+  animation: ed-selbar-in var(--t-med) var(--ease-spring);
 }
 .ed-stamp-menu button {
   border: 2px solid currentColor;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   /* On paper, as the stamp will look on the page (also in dark mode). */
   background: var(--paper);
   font: inherit;
   font-weight: 700;
   letter-spacing: 0.04em;
-  padding: 6px 14px;
+  padding: var(--sp-1-5) var(--sp-3-5);
   cursor: pointer;
 }
 .ed-stamp-menu button:hover {
@@ -732,7 +729,7 @@
 .ed-menu-scrim {
   position: fixed;
   inset: 0;
-  z-index: 29;
+  z-index: calc(var(--z-bar) - 1);
 }
 .marquee {
   fill: color-mix(in srgb, var(--accent) 10%, transparent);
@@ -742,7 +739,7 @@
   pointer-events: none;
 }
 .ed-count {
-  padding-inline: 8px 4px;
+  padding-inline: var(--sp-2) var(--sp-1);
   font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
   color: var(--text);
