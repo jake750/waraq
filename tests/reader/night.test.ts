@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { darkAreas, nightOffThread, nightPixels, quadsBox } from "../../src/reader/night";
 
 const px = (...rgb: number[]) => {
@@ -48,6 +48,29 @@ describe("nightOffThread", () => {
   it("falls back to the main thread where there are no workers", async () => {
     const out = await nightOffThread(new Uint8ClampedArray([0, 0, 0, 255]));
     expect([...out]).toEqual([255, 255, 255, 255]);
+  });
+
+  it("fails the waiting pages when the worker breaks, then works on the main thread", async () => {
+    vi.resetModules();
+    class BrokenWorker {
+      onmessage: unknown = null;
+      onerror: (() => void) | null = null;
+      onmessageerror: (() => void) | null = null;
+      postMessage() {
+        setTimeout(() => this.onerror?.());
+      }
+      terminate() {}
+    }
+    vi.stubGlobal("Worker", BrokenWorker);
+    try {
+      const night = await import("../../src/reader/night");
+      await expect(night.nightOffThread(new Uint8ClampedArray([0, 0, 0, 255]))).rejects.toThrow();
+      const out = await night.nightOffThread(new Uint8ClampedArray([0, 0, 0, 255]));
+      expect([...out]).toEqual([255, 255, 255, 255]);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.resetModules();
+    }
   });
 });
 

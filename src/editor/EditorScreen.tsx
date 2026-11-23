@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
   AlignCenter,
@@ -63,7 +63,13 @@ import { todayLabel } from "./date";
 import "./editor.css";
 
 export type EditSource = { ref: DocRef; name: string; bytes: Uint8Array };
-type Props = { src: EditSource; onClose(): void; onToast(msg: string): void };
+type Props = {
+  src: EditSource;
+  onClose(): void;
+  onToast(msg: string): void;
+  /** Set by the editor: the app calls it before going elsewhere (the sidebar, a dropped file). */
+  leaveGuard?: RefObject<((go: () => void) => void) | null>;
+};
 
 const GAP = 16;
 const STROKES = [1.5, 3, 6];
@@ -122,7 +128,7 @@ async function readImage(file: File): Promise<{ bytes: Uint8Array; fmt: "png" | 
   return { bytes: new Uint8Array(await blob.arrayBuffer()), fmt: "png", w, h };
 }
 
-export default function EditorScreen({ src, onClose, onToast }: Props) {
+export default function EditorScreen({ src, onClose, onToast, leaveGuard }: Props) {
   const t = useT();
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
@@ -412,6 +418,26 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   const editSelected = () => sel && (sel.kind === "text" || sel.kind === "note") && setEditing(sel.id);
 
   const leave = () => (dirty ? setLeaveAsk(true) : onClose());
+  // Leaving another way than the editor's own close (the sidebar, a dropped or shared file):
+  // with unsaved changes, ask first, then carry on to where the user was going.
+  const pendingGo = useRef<(() => void) | null>(null);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    if (!leaveGuard) return;
+    leaveGuard.current = (go) => {
+      if (!dirtyRef.current) return go();
+      pendingGo.current = go;
+      setLeaveAsk(true);
+    };
+    return () => {
+      leaveGuard.current = null;
+    };
+  }, [leaveGuard]);
+  const keepEditing = () => {
+    pendingGo.current = null;
+    setLeaveAsk(false);
+  };
 
   // Android back: close what's open on top, otherwise leave (asking first if there are changes).
   useBack(true, leave);
@@ -419,7 +445,7 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
   useBack(marksOpen, () => setMarksOpen(false), BACK_DIALOG);
   useBack(!!stampMenu, () => setStampMenu(null), BACK_DIALOG);
   useBack(saveAsk, () => !busy && setSaveAsk(false), BACK_DIALOG);
-  useBack(leaveAsk, () => setLeaveAsk(false), BACK_DIALOG);
+  useBack(leaveAsk, keepEditing, BACK_DIALOG);
 
   // Arrow keys nudge the selected mark (one point, ten with Shift).
   const nudge = (dx: number, dy: number) => {
@@ -937,8 +963,8 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
 
       {leaveAsk && (
         <>
-          <div className="scrim" onClick={() => setLeaveAsk(false)} />
-          <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="leave-title" onKeyDown={(e) => e.key === "Escape" && setLeaveAsk(false)}>
+          <div className="scrim" onClick={keepEditing} />
+          <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="leave-title" onKeyDown={(e) => e.key === "Escape" && keepEditing()}>
             <h2 id="leave-title">{t.edLeaveTitle}</h2>
             <p>{t.edLeaveSub}</p>
             <div className="dialog-actions">
@@ -946,12 +972,14 @@ export default function EditorScreen({ src, onClose, onToast }: Props) {
                 className="btn btn-ghost danger"
                 onClick={() => {
                   drafts.remove(draftKey).catch(() => {});
-                  onClose();
+                  const go = pendingGo.current;
+                  pendingGo.current = null;
+                  (go ?? onClose)();
                 }}
               >
                 {t.edLeave}
               </button>
-              <button className="btn btn-primary" onClick={() => setLeaveAsk(false)}>
+              <button className="btn btn-primary" onClick={keepEditing}>
                 {t.edKeep}
               </button>
             </div>

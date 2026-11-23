@@ -120,6 +120,24 @@ export default function ReaderScreen(p: Props) {
 
   const focus = search.results[search.current] ?? null;
 
+  // Stable callbacks: a new function each render would restart the reader's page-save
+  // debounce and re-render every (memoized) thumbnail.
+  const props = useRef(p);
+  props.current = p;
+  const onPageChange = useCallback((page: number) => {
+    pageRef.current = page;
+    setBackTo((b) => (b === page ? null : b));
+    props.current.onPageChange(page);
+  }, []);
+  const api = useRef<{ page: number; goTo(page: number): void } | null>(null);
+  const pick = useCallback((page: number) => {
+    const a = api.current;
+    if (!a) return;
+    if (Math.abs(page - a.page) > 1) setBackTo(a.page);
+    a.goTo(page);
+    if (isPhone()) setPanelOpen(false);
+  }, []);
+
   const openSearch = useCallback(() => {
     setPanelOpen(true);
     setTab("search");
@@ -140,11 +158,7 @@ export default function ReaderScreen(p: Props) {
         docKey={p.docKey}
         name={p.name}
         initialPage={p.initialPage}
-        onPageChange={(page) => {
-          pageRef.current = page;
-          if (page === backTo) setBackTo(null);
-          p.onPageChange(page);
-        }}
+        onPageChange={onPageChange}
         onClose={p.onClose}
         panelOpen={panelOpen}
         onPanelToggle={() => setPanelOpen((o) => !o)}
@@ -154,13 +168,9 @@ export default function ReaderScreen(p: Props) {
         onShare={p.onShare}
         highlights={highlights}
         focus={focus}
-        panel={(api) => {
-          goRef.current = api.goTo;
-          const pick = (page: number) => {
-            if (Math.abs(page - api.page) > 1) setBackTo(api.page);
-            api.goTo(page);
-            if (isPhone()) setPanelOpen(false);
-          };
+        panel={(a) => {
+          goRef.current = a.goTo;
+          api.current = a;
           return (
             <>
               <div className="sheet-handle phone-only" />
@@ -172,8 +182,8 @@ export default function ReaderScreen(p: Props) {
                 ))}
               </div>
               <div className="panel-body">
-                {tab === "thumbs" && <Thumbnails doc={doc} ratio={ratio} current={api.page} night={api.night} onPick={pick} />}
-                {tab === "outline" && <OutlinePanel doc={doc} current={api.page} onPick={pick} />}
+                {tab === "thumbs" && <Thumbnails doc={doc} ratio={ratio} current={a.page} night={a.night} onPick={pick} />}
+                {tab === "outline" && <OutlinePanel doc={doc} current={a.page} onPick={pick} />}
                 {tab === "info" && <InfoPanel doc={doc} name={p.name} />}
                 {tab === "search" && (
                   <SearchPanel

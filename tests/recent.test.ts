@@ -78,3 +78,20 @@ test("a password-protected file is marked locked and keeps no picture", async ()
   expect(item.locked).toBe(true);
   expect(item.thumb).toBeUndefined();
 });
+
+test("changes made at the same time don't overwrite each other", async () => {
+  const s = new RecentStore(memKV());
+  await s.touch({ kind: "path", path: "x" }, "x");
+  // The page-1 picture and the reader's page arrive together, without waiting for each other.
+  await Promise.all([s.setThumb("x", "data:thumb"), s.setLastPage("x", 9), s.touch({ kind: "path", path: "y" }, "y")]);
+  const items = await s.list();
+  expect(items.map((i) => i.key)).toEqual(["y", "x"]);
+  expect(items[1]).toMatchObject({ thumb: "data:thumb", lastPage: 9 });
+});
+
+test("a failed change doesn't block the ones after it", async () => {
+  const kv = memKV();
+  const s = new RecentStore({ get: kv.get, set: () => Promise.reject(new Error("disk full")) });
+  await expect(s.touch({ kind: "path", path: "x" }, "x")).rejects.toThrow("disk full");
+  await expect(s.list()).resolves.toEqual([]);
+});

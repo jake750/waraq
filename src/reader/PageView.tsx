@@ -43,6 +43,9 @@ export default memo(PageView);
 /** While zoom keeps changing (wheel, touchpad pinch, ± held), wait this long before re-rendering. */
 const ZOOM_SETTLE_MS = 160;
 
+/** The search hit last scrolled into view (document, page, position); shared by all pages. */
+let lastHit = "";
+
 function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, width, height, onSize, onGoTo }: Props) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -168,8 +171,14 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
       el.style.height = `${Math.abs(y2 - y1)}px`;
       host.appendChild(el);
     }
-    host.querySelector(".hl.current")?.scrollIntoView({ block: "center", inline: "nearest" });
-  }, [highlights, vp]);
+    // Scroll to the current hit only when it is a new one: not on every scan batch, zoom or remount.
+    const cur = highlights.find((r) => r.current);
+    const hit = cur && `${doc.fingerprints[0]}:${pageNumber}:${Math.round(cur.x)},${Math.round(cur.y)}`;
+    if (hit && hit !== lastHit) {
+      lastHit = hit;
+      host.querySelector(".hl.current")?.scrollIntoView({ block: "center", inline: "nearest" });
+    }
+  }, [highlights, vp, doc, pageNumber]);
 
   return (
     <div className="page" style={{ width, height }} data-page={pageNumber}>

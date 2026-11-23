@@ -116,7 +116,12 @@ export async function applyNight(
     original.height = box.h;
     original.getContext("2d")!.drawImage(canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
   }
-  const data = await nightOffThread(ctx.getImageData(0, 0, w, h).data, w, solid);
+  const pixels = () => ctx.getImageData(0, 0, w, h).data;
+  const data = await nightOffThread(pixels(), w, solid).catch(() => {
+    const d = pixels(); // the canvas is untouched until putImageData below
+    nightPixels(d, w, solid);
+    return d;
+  });
   if (cancelled?.()) {
     if (original) original.width = original.height = 0;
     return;
@@ -158,18 +163,23 @@ export function quadsBox(quads: number[][], w: number, h: number): { x: number; 
 
 let worker: Worker | null | undefined;
 let nextId = 0;
-const waiting = new Map<number, (buf: ArrayBuffer) => void>();
+const waiting = new Map<number, { resolve(buf: ArrayBuffer): void; reject(e: Error): void }>();
 
 function nightWorker(): Worker | null {
   if (worker !== undefined) return worker;
   try {
     worker = new Worker(new URL("./nightWorker.ts", import.meta.url), { type: "module" });
     worker.onmessage = (e: MessageEvent<{ id: number; buf: ArrayBuffer }>) => {
-      waiting.get(e.data.id)?.(e.data.buf);
+      waiting.get(e.data.id)?.resolve(e.data.buf);
       waiting.delete(e.data.id);
     };
-    worker.onerror = () => {
-      worker = null; // fall back to the main thread from now on
+    // A broken worker: fall back to the main thread from now on, and fail the pages still
+    // waiting (their pixels went to the worker) so the caller can redo them instead of hanging.
+    worker.onerror = worker.onmessageerror = () => {
+      worker?.terminate();
+      worker = null;
+      for (const w of waiting.values()) w.reject(new Error("night worker failed"));
+      waiting.clear();
     };
   } catch {
     worker = null;
@@ -185,8 +195,8 @@ export async function nightOffThread(data: Uint8ClampedArray<ArrayBuffer>, width
     return data;
   }
   const id = nextId++;
-  const buf = await new Promise<ArrayBuffer>((resolve) => {
-    waiting.set(id, resolve);
+  const buf = await new Promise<ArrayBuffer>((resolve, reject) => {
+    waiting.set(id, { resolve, reject });
     w.postMessage({ id, buf: data.buffer, width, solid }, [data.buffer]);
   });
   return new Uint8ClampedArray(buf);

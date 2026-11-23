@@ -78,8 +78,11 @@ export default function Reader(p: Props) {
   const [manualScale, setManualScale] = useState(() => saved.zoom ?? 1);
   const [view, setView] = useState<ViewMode>(() => saved.view ?? "continuous");
   const [rtl, setRtl] = useState(() => saved.rtl ?? false);
+  // The direction is saved only once it is known (detected from the text or chosen by hand),
+  // so detection never overwrites the reader's own choice.
+  const rtlKnown = useRef(saved.rtl !== undefined);
   useEffect(
-    () => saveDocView(p.docKey, { view, rtl, ...(fit ? { fit } : { zoom: manualScale }) }),
+    () => saveDocView(p.docKey, { view, ...(rtlKnown.current ? { rtl } : {}), ...(fit ? { fit } : { zoom: manualScale }) }),
     [p.docKey, view, rtl, fit, manualScale],
   );
   // Page tone: plain, night (inverted) or sepia; the moon button cycles through them.
@@ -104,7 +107,10 @@ export default function Reader(p: Props) {
     (async () => {
       let sample = "";
       for (let i = 0; i < Math.min(3, n); i++) sample += await pageText(doc, i);
-      if (alive) setRtl(detectRtl(sample));
+      if (alive && !rtlKnown.current) {
+        rtlKnown.current = true;
+        setRtl(detectRtl(sample));
+      }
     })().catch(() => {});
     return () => {
       alive = false;
@@ -221,14 +227,14 @@ export default function Reader(p: Props) {
     }
   };
 
-  const { onPageChange } = p;
+  // Read through a ref: a parent re-rendering (a conversion's progress) must not restart the debounce.
+  const latest = useRef({ current, onPageChange: p.onPageChange });
+  latest.current = { current, onPageChange: p.onPageChange };
   useEffect(() => {
-    const id = setTimeout(() => onPageChange(current), 500);
+    const id = setTimeout(() => latest.current.onPageChange(current), 500);
     return () => clearTimeout(id);
-  }, [current, onPageChange]);
+  }, [current]);
   // Leaving the reader inside the debounce window still saves the page.
-  const latest = useRef({ current, onPageChange });
-  latest.current = { current, onPageChange };
   useEffect(() => () => latest.current.onPageChange(latest.current.current), []);
 
   // Live zoom: while a gesture runs only a CSS transform changes (no React render, no page
@@ -314,6 +320,8 @@ export default function Reader(p: Props) {
       const target = e.target as Element | null;
       if (target instanceof Element && target.closest("input, textarea, select, [contenteditable]")) return;
       if (keysHelp) return; // the dialog handles its own keys
+      // Settings, a password or another dialog on top owns the keyboard (one Escape closes only it).
+      if (e.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
       const mod = e.ctrlKey || e.metaKey;
       if (e.key === "?") setKeysHelp(true);
       else if (mod && (e.key === "+" || e.key === "=")) zoomBy(ZOOM_STEP);
@@ -510,7 +518,10 @@ export default function Reader(p: Props) {
           <button
             className="icon-btn desk-only"
             aria-pressed={rtl}
-            onClick={() => setRtl(!rtl)}
+            onClick={() => {
+              rtlKnown.current = true;
+              setRtl(!rtl);
+            }}
             title={`${t.direction}: ${rtl ? t.dirRtl : t.dirLtr}`}
             aria-label={`${t.direction}: ${rtl ? t.dirRtl : t.dirLtr}`}
           >

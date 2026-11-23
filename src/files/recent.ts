@@ -21,17 +21,36 @@ export class RecentStore {
     private max = RECENT_MAX,
   ) {}
 
-  async list(): Promise<RecentItem[]> {
+  /**
+   * Every change is read → modify → write; they run one after another, so two changes made
+   * at once (the page-1 picture and the last page, say) can't overwrite each other.
+   */
+  private queue: Promise<unknown> = Promise.resolve();
+  private serial<T>(op: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(op, op);
+    this.queue = run.catch(() => {});
+    return run;
+  }
+
+  private async read(): Promise<RecentItem[]> {
     return (await this.kv.get<RecentItem[]>(KEY)) ?? [];
+  }
+
+  /** The list as it is once the changes already asked for are written. */
+  list(): Promise<RecentItem[]> {
+    return this.serial(() => this.read());
   }
 
   private save(items: RecentItem[]) {
     return this.kv.set(KEY, items);
   }
 
-  async touch(ref: DocRef, name: string): Promise<RecentItem> {
+  touch(ref: DocRef, name: string): Promise<RecentItem> {
+    return this.serial(() => this.doTouch(ref, name));
+  }
+  private async doTouch(ref: DocRef, name: string): Promise<RecentItem> {
     const key = docKey(ref);
-    const items = await this.list();
+    const items = await this.read();
     // Android gives the same file a new content:// URI each time another app shares it: one entry per name.
     const same = (i: RecentItem) => i.key === key || (ref.kind === "uri" && i.ref.kind === "uri" && i.name === name);
     const old = items.find((i) => i.key === key) ?? items.find(same);
@@ -40,16 +59,22 @@ export class RecentStore {
     return item;
   }
 
-  async setLastPage(key: string, page: number): Promise<void> {
-    const items = await this.list();
+  setLastPage(key: string, page: number): Promise<void> {
+    return this.serial(() => this.doSetLastPage(key, page));
+  }
+  private async doSetLastPage(key: string, page: number): Promise<void> {
+    const items = await this.read();
     const item = items.find((i) => i.key === key);
     if (!item || item.lastPage === page) return;
     item.lastPage = page;
     await this.save(items);
   }
 
-  async setThumb(key: string, thumb: string | undefined): Promise<void> {
-    const items = await this.list();
+  setThumb(key: string, thumb: string | undefined): Promise<void> {
+    return this.serial(() => this.doSetThumb(key, thumb));
+  }
+  private async doSetThumb(key: string, thumb: string | undefined): Promise<void> {
+    const items = await this.read();
     const item = items.find((i) => i.key === key);
     if (!item || item.thumb === thumb) return;
     if (thumb) item.thumb = thumb;
@@ -58,8 +83,11 @@ export class RecentStore {
   }
 
   /** A password-protected file: no picture of its content, and a lock in the list. */
-  async setLocked(key: string): Promise<void> {
-    const items = await this.list();
+  setLocked(key: string): Promise<void> {
+    return this.serial(() => this.doSetLocked(key));
+  }
+  private async doSetLocked(key: string): Promise<void> {
+    const items = await this.read();
     const item = items.find((i) => i.key === key);
     if (!item || (item.locked && !item.thumb)) return;
     item.locked = true;
@@ -67,15 +95,17 @@ export class RecentStore {
     await this.save(items);
   }
 
-  async remove(key: string): Promise<void> {
-    await this.save((await this.list()).filter((i) => i.key !== key));
+  remove(key: string): Promise<void> {
+    return this.serial(async () => this.save((await this.read()).filter((i) => i.key !== key)));
   }
 
   /** Put a removed item back where it was (undo). */
-  async restore(item: RecentItem): Promise<void> {
-    const items = (await this.list()).filter((i) => i.key !== item.key);
-    items.push(item);
-    items.sort((a, b) => b.openedAt - a.openedAt);
-    await this.save(items.slice(0, this.max));
+  restore(item: RecentItem): Promise<void> {
+    return this.serial(async () => {
+      const items = (await this.read()).filter((i) => i.key !== item.key);
+      items.push(item);
+      items.sort((a, b) => b.openedAt - a.openedAt);
+      await this.save(items.slice(0, this.max));
+    });
   }
 }

@@ -76,50 +76,50 @@ font weight doing everything, flat cards, a motif used for three meanings, and a
 
 ## Batch 1: critical bugs (state, data loss, races)
 
-- [ ] **1** · bug · `App.tsx` (route/`setRoute`, `handleFiles`, Android incoming), `shell/Layout.tsx` nav, `editor/EditorScreen.tsx`
+- [x] **1** · bug · `App.tsx` (route/`setRoute`, `handleFiles`, Android incoming), `shell/Layout.tsx` nav, `editor/EditorScreen.tsx`
   - Problem: the sidebar rail, drag-drop and incoming files all unmount the editor without the
     leave prompt. Up to 800 ms of edits are lost (draft debounce), and `edit.src.bytes` stays in memory.
   - Fix: route every route change through a guard the editor registers (dirty → `setLeaveAsk`).
     Clear `edit` on leave.
   - H / risk M
-- [ ] **2** · bug · `App.tsx` `onPageChange`/`openRef`, `reader/Reader.tsx` unmount flush
+- [x] **2** · bug · `App.tsx` `onPageChange`/`openRef`, `reader/Reader.tsx` unmount flush
   - Problem: on close the last page is dropped (`openRef` is nulled first). On switching documents,
     the old document's page is written to the new document's key.
   - Fix: `onPageChange(docKey, page)` and save by that key.
   - H / L
-- [ ] **3** · bug/perf · `reader/ReaderScreen.tsx` inline `onPageChange`, `Reader.tsx` debounce effect
+- [x] **3** · bug/perf · `reader/ReaderScreen.tsx` inline `onPageChange`, `Reader.tsx` debounce effect
   - Problem: the callback is new every render, so the 500 ms debounce restarts on each one. During a
     conversion, App re-renders every 250 ms and the page is never saved.
   - Fix: stable callback; read it from a ref.
   - H / L
-- [ ] **4** · perf · `ReaderScreen.tsx` `panel()`/`pick`, `reader/Thumbnails.tsx`
+- [x] **4** · perf · `ReaderScreen.tsx` `panel()`/`pick`, `reader/Thumbnails.tsx`
   - Problem: `pick` is recreated every render, which defeats `memo(Thumb)`, so every thumbnail
     re-renders on every page change, search batch or conversion tick.
   - Fix: stable `onPick` via `useCallback` and refs; render the panel as a component.
   - H / L
-- [ ] **5** · bug · `Reader.tsx` window keydown
+- [x] **5** · bug · `Reader.tsx` window keydown
   - Problem: Escape closes the document even when the Settings sheet or a dialog is on top.
   - Fix: ignore keys while an `[aria-modal="true"]` or sheet is open, or when `e.defaultPrevented`.
   - M / L
-- [ ] **6** · bug · `Reader.tsx` `detectRtl`
+- [x] **6** · bug · `Reader.tsx` `detectRtl`
   - Problem: auto-detection overwrites the user's saved per-document reading direction on every open.
   - Fix: skip detection when `saved.rtl !== undefined`.
   - M / L
-- [ ] **7** · bug · `reader/night.ts` worker `onerror`
+- [x] **7** · bug · `reader/night.ts` worker `onerror`
   - Problem: pending `waiting` promises never settle, so night-mode pages and thumbnails stay blank
     forever.
   - Fix: on `error`/`messageerror`, fall back to `nightPixels` for each pending entry and clear the map.
   - M / L
-- [ ] **8** · bug · `reader/PageView.tsx` `.hl.current` `scrollIntoView`, `ReaderScreen.tsx` highlights
+- [x] **8** · bug · `reader/PageView.tsx` `.hl.current` `scrollIntoView`, `ReaderScreen.tsx` highlights
   - Problem: the view jumps back to the current hit on every scan batch and every zoom.
   - Fix: scroll only when the current match identity changes; memoize per-page highlight arrays.
   - M / L
-- [ ] **9** · bug · `App.tsx` `toastUndo`, recent remove/restore
+- [x] **9** · bug · `App.tsx` `toastUndo`, recent remove/restore
   - Problem: a new toast keeps the previous Undo button, which then restores an unrelated Recent
     item. `remove`/`restore` have no `.catch`.
   - Fix: a single `showToast(msg, undo?)`, and catch store failures with a toast.
   - M / L
-- [ ] **10** · race · `files/recent.ts` `setLastPage`/`setThumb`/`setLocked`/`touch`
+- [x] **10** · race · `files/recent.ts` `setLastPage`/`setThumb`/`setLocked`/`touch`
   - Problem: each does read→mutate→save unserialised, so writes are lost (thumbnail or last page).
   - Fix: a promise-chain queue inside `RecentStore`, plus a test.
   - M / L
@@ -459,7 +459,7 @@ font weight doing everything, flat cards, a motif used for three meanings, and a
   - Problem: no fast navigation for long books.
   - Fix: a page scrubber on the scrollbar edge with a page-number bubble while dragging.
   - M / M
-- [ ] **78** · ux · editor pen (TODO)
+- [~] **78** · ux · editor pen (TODO) — already present: the editor toolbar has an Eraser tool (seen 2026-11-23)
   - Problem: no eraser.
   - Fix: an eraser tool that removes the ink strokes it touches (via history, so it can be undone).
   - M / M
@@ -588,4 +588,4 @@ These are bigger features; propose them as separate sessions.
 
 | Batch | Date | Commit | Release | Notes |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| 1 | 2026-11-23 | (this commit) | v0.2.44 | Verified in preview: page saved on close, reopen keeps page and chosen direction, Escape under a dialog keeps the reader, editor leave guard from the sidebar. Item 78 found already done. |

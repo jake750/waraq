@@ -98,6 +98,27 @@ export default function App() {
   useEffect(() => {
     if (!toast) setToastUndo(null);
   }, [toast]);
+  /** Every toast goes through here, so an Undo never stays on an unrelated message. */
+  const showToast = useCallback((msg: string | null, undo?: () => void) => {
+    setToast(msg);
+    setToastUndo(undo ? () => undo : null);
+  }, []);
+
+  // Route changes go through `go`: leaving the editor with unsaved changes asks first
+  // (the editor registers the guard), and leaving it drops its copy of the file.
+  const routeRef = useRef(route);
+  routeRef.current = route;
+  const leaveGuard = useRef<((go: () => void) => void) | null>(null);
+  const go = useCallback((r: Route) => {
+    const leaving = routeRef.current === "editor" && r !== "editor";
+    const run = () => {
+      if (leaving) setEdit(null);
+      setRoute(r);
+    };
+    const guard = leaving ? leaveGuard.current : null;
+    if (guard) guard(run);
+    else run();
+  }, []);
 
   const openDocument = useCallback(
     async (ref: DocRef, password?: string, temp?: { name: string }) => {
@@ -141,12 +162,12 @@ export default function App() {
               .then(refreshRecent)
               .catch(() => {});
         }
-        setRoute("reader");
+        go("reader");
         prev?.doc.loadingTask.destroy().catch(() => {});
         // Say up front when there's no text to search or copy (a scan).
         import("./pdf/scanned")
           .then((m) => m.looksScanned(doc))
-          .then((scan) => scan && !stale() && setToast(t.scannedNotice), () => {});
+          .then((scan) => scan && !stale() && showToast(t.scannedNotice), () => {});
       } catch (e) {
         if (stale()) return;
         const code = e instanceof PdfError ? e.code : "read-failed";
@@ -155,7 +176,7 @@ export default function App() {
           return;
         }
         if (code === "file-missing") await recentStore.remove(docKey(ref)).then(refreshRecent, () => {});
-        setToast(errorText(t, code));
+        showToast(errorText(t, code));
       }
     },
     [t, recentStore, refreshRecent],
@@ -181,12 +202,12 @@ export default function App() {
       if (!toQueue && named.length === 1 && /\.pdf$/i.test(named[0].name)) return openDocument(named[0].ref);
       if (!toQueue && named.length === 1) {
         // Unknown types can't be read or converted: say so instead of offering choices that fail.
-        if (!fmtOf(named[0].name)) return setToast(skippedText(t, [{ name: named[0].name, unknown: true }]));
+        if (!fmtOf(named[0].name)) return showToast(skippedText(t, [{ name: named[0].name, unknown: true }]));
         return setNotPdf({ ...named[0], busy: false });
       }
       const skipped = await conv.add(refs);
-      if (skipped.length) setToast(skippedText(t, skipped));
-      setRoute("convert");
+      if (skipped.length) showToast(skippedText(t, skipped));
+      go("convert");
     },
     [openDocument, conv, t],
   );
@@ -278,7 +299,7 @@ export default function App() {
     } catch (e) {
       setNotPdf(null);
       if (openAsPdfAbort.current?.signal.aborted) return;
-      setToast(t.convertErrors[asConvertError(e).code]);
+      showToast(t.convertErrors[asConvertError(e).code]);
     } finally {
       openAsPdfAbort.current = null;
     }
@@ -286,14 +307,14 @@ export default function App() {
 
   // The editor works on its own copy of the bytes; protected files are refused before it opens.
   const onQuick = async (a: QuickAction) => {
-    if (a === "convert") return setRoute("convert");
+    if (a === "convert") return go("convert");
     if (a === "edit") {
       const [ref] = await pickPdfs(false);
       if (ref) editDocument(ref);
       return;
     }
     setToolStart((s) => ({ tool: a, n: (s?.n ?? 0) + 1 }));
-    setRoute("tools");
+    go("tools");
   };
 
   const editDocument = async (ref: DocRef, name?: string) => {
@@ -301,18 +322,19 @@ export default function App() {
       const bytes = await readDocument(ref);
       await (await import("./tools/pages")).loadPdf(bytes);
       setEdit({ src: { ref, name: name ?? (await resolveName(ref)), bytes }, from: route === "editor" ? "tools" : route });
-      setRoute("editor");
+      go("editor");
     } catch (e) {
-      setToast(t.convertErrors[asConvertError(e, "bad-input").code]);
+      showToast(t.convertErrors[asConvertError(e, "bad-input").code]);
     }
   };
 
+  // Saved under the key of the document the reader shows: by the time a closing reader
+  // flushes its page, `openRef` may already be null or point at the next document.
   const onPageChange = useCallback(
-    (page: number) => {
+    (key: string, page: number) => {
       const cur = openRef.current;
-      if (cur) cur.initialPage = page; // coming back to the reader resumes here
-      const key = cur?.key;
-      if (key) recentStore.setLastPage(key, page).catch(() => {});
+      if (cur?.key === key) cur.initialPage = page; // coming back to the reader resumes here
+      recentStore.setLastPage(key, page).catch(() => {});
     },
     [recentStore],
   );
@@ -320,27 +342,27 @@ export default function App() {
     const prev = openRef.current;
     openRef.current = null;
     setOpen(null);
-    setRoute("home");
+    go("home");
     prev?.doc.loadingTask.destroy().catch(() => {});
     refreshRecent();
   }, [refreshRecent]);
 
   // Android back: the reader closes like its close button; other screens go back to Home.
   // The editor handles back itself (it asks before dropping unsaved changes).
-  useBack(route !== "home" && route !== "editor", () => (route === "reader" ? onClose() : setRoute("home")), BACK_ROUTE);
+  useBack(route !== "home" && route !== "editor", () => (route === "reader" ? onClose() : go("home")), BACK_ROUTE);
   useBack(!!locked, () => setLocked(null), BACK_DIALOG);
 
   return (
     <LangContext.Provider value={langCtx}>
       <Layout
         route={route}
-        onRoute={setRoute}
+        onRoute={go}
         readerAvailable={!!open}
         updates={updates}
         office={isAndroid() || !inTauri() ? null : conv.office}
         onGetOffice={() => {
           conv.askOffice();
-          setRoute("convert");
+          go("convert");
         }}
         theme={theme}
         onTheme={(v) => {
@@ -354,7 +376,8 @@ export default function App() {
           <EditorScreen
             key={edit.src.name + edit.src.bytes.length}
             src={edit.src}
-            onToast={setToast}
+            onToast={showToast}
+            leaveGuard={leaveGuard}
             onClose={() => {
               setRoute(edit.from === "reader" && !open ? "home" : edit.from);
               setEdit(null);
@@ -364,7 +387,7 @@ export default function App() {
           <ToolsScreen
             key={toolStart?.n ?? 0}
             initialTool={toolStart?.tool}
-            onToast={setToast}
+            onToast={showToast}
             onEdit={(ref) => editDocument(ref)}
             current={open ? { ref: open.ref, name: open.name } : null}
           />
@@ -372,10 +395,7 @@ export default function App() {
           <ConvertScreen
             api={conv}
             dragOver={dragOver}
-            onToast={(m, undo) => {
-              setToast(m);
-              setToastUndo(undo ? () => undo : null);
-            }}
+            onToast={showToast}
             // A PDF result opens in Waraq's own reader.
             onOpenPdf={(out) => openDocument(out.uri ? { kind: "uri", uri: out.uri } : { kind: "path", path: out.path }, undefined, { name: out.name })}
           />
@@ -386,17 +406,17 @@ export default function App() {
             docKey={open.key}
             name={open.name}
             initialPage={open.initialPage}
-            onPageChange={onPageChange}
+            onPageChange={(page) => onPageChange(open.key, page)}
             onClose={onClose}
             onEdit={() => editDocument(open.ref, open.name)}
             onConvert={async () => {
               const skipped = await conv.add([open.ref]);
-              if (skipped.length) setToast(skippedText(t, skipped));
-              setRoute("convert");
+              if (skipped.length) showToast(skippedText(t, skipped));
+              go("convert");
             }}
             onShare={
               open.ref.kind === "uri"
-                ? () => invoke("android_share", { uri: (open.ref as { uri: string }).uri, mime: "application/pdf" }).catch((e) => setToast(String(e)))
+                ? () => invoke("android_share", { uri: (open.ref as { uri: string }).uri, mime: "application/pdf" }).catch((e) => showToast(String(e)))
                 : undefined
             }
           />
@@ -410,14 +430,16 @@ export default function App() {
                 items={recent}
                 onOpen={(item) => openDocument(item.ref)}
                 onRemove={(item) =>
-                  recentStore.remove(item.key).then(() => {
-                    refreshRecent();
-                    setToast(t.recentRemoved(item.name));
-                    setToastUndo(() => () => {
-                      setToast(null);
-                      recentStore.restore(item).then(refreshRecent);
-                    });
-                  })
+                  recentStore.remove(item.key).then(
+                    () => {
+                      refreshRecent();
+                      showToast(t.recentRemoved(item.name), () => {
+                        showToast(null);
+                        recentStore.restore(item).then(refreshRecent, () => showToast(t.recentFailed));
+                      });
+                    },
+                    () => showToast(t.recentFailed),
+                  )
                 }
               />
             }
@@ -448,8 +470,8 @@ export default function App() {
             const ref = notPdf.ref;
             setNotPdf(null);
             const skipped = await conv.add([ref], { start: true });
-            if (skipped.length) setToast(skippedText(t, skipped));
-            setRoute("convert");
+            if (skipped.length) showToast(skippedText(t, skipped));
+            go("convert");
           }}
           onOpen={onOpenAsPdf}
           onCancel={() => {
