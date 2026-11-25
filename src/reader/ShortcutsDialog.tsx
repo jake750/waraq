@@ -11,6 +11,7 @@ export default function ShortcutsDialog({ onClose }: { onClose(): void }) {
     [[`${mod} 0`], t.kbdFit],
     [[`${mod} F`], t.kbdFind],
     [["F11"], t.kbdFull],
+    [["N"], t.kbdNight],
     [["Esc"], t.kbdClose],
     [["?"], t.kbdHelp],
   ];

@@ -5,7 +5,7 @@ import { buildPageText, type GlyphItem } from "../text/search";
 import { detectRtl } from "../text/arabic";
 import { leasePage, type PageLease } from "./pageLease";
 import { canvasPixels } from "./layout";
-import { applyNight, solidRadius } from "./night";
+import { applyNight, solidRadius, type NightOptions } from "./night";
 import { openLink, pageLinks, type PageLink } from "./links";
 
 export type HighlightRect = { x: number; y: number; w: number; h: number; current: boolean };
@@ -14,7 +14,8 @@ type Props = {
   doc: PDFDocumentProxy;
   pageNumber: number;
   scale: number;
-  night: boolean;
+  /** Night look for the page, or false for plain pages. */
+  night: NightOptions | false;
   /** Warm paper tone for long reading (ignored at night). */
   sepia?: boolean;
   /** Rectangles in PDF user space (from pageLayout boxes). */
@@ -57,7 +58,7 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
   const sizeCb = useRef(onSize);
   sizeCb.current = onSize;
   /** The page the canvas on screen shows (it stays up, stretched, while a new zoom renders). */
-  const showing = useRef<{ doc: PDFDocumentProxy; page: number } | null>(null);
+  const showing = useRef<{ doc: PDFDocumentProxy; page: number; tone: string } | null>(null);
   // The scale actually rendered: a drawn page stays stretched until zooming stops, so each wheel
   // tick doesn't start a full render (and night pass) of every visible page.
   const [scale, setScale] = useState(wanted);
@@ -110,7 +111,7 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
         canvas,
         viewport,
         transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined,
-        recordImages: night,
+        recordImages: !!night,
       });
       try {
         await task.promise;
@@ -120,13 +121,16 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
       if (cancelled) return;
       if (night) {
         const coords = task.imageCoordinates ?? (page as unknown as { imageCoordinates?: ArrayLike<number> }).imageCoordinates;
-        await applyNight(canvas, coords, () => cancelled, solidRadius(scale * ratio));
+        await applyNight(canvas, coords, () => cancelled, solidRadius(scale * ratio), night);
         if (cancelled) return;
       }
+      // A new page tone fades in over the old one instead of snapping (zoom re-renders just swap).
+      const tone = night ? `n${night.level}${night.warm ? "w" : ""}` : "d";
+      if (showing.current && showing.current.tone !== tone) canvas.classList.add("tone-in");
       for (const c of host.querySelectorAll("canvas")) c.width = c.height = 0;
       host.replaceChildren(canvas);
       attached = true;
-      showing.current = { doc, page: pageNumber };
+      showing.current = { doc, page: pageNumber, tone };
       let r = read.current;
       if (r?.doc !== doc || r.page !== pageNumber) read.current = r = { doc, page: pageNumber };
       (r.links ??= pageLinks(doc, page)).then((l) => !cancelled && setLinks(l), () => {});
@@ -185,7 +189,7 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
   }, [highlights, vp, doc, pageNumber]);
 
   return (
-    <div className="page" style={{ width, height }} data-page={pageNumber}>
+    <div className={night ? "page night" : "page"} style={{ width, height }} data-page={pageNumber}>
       <div ref={canvasHost} className={night ? "canvas-host night" : sepia ? "canvas-host sepia" : "canvas-host"} />
       <div ref={hlRef} className="hl-layer" />
       <div ref={textRef} className="textLayer" />

@@ -191,9 +191,107 @@
   mix-blend-mode: multiply;
   pointer-events: none;
 }
-/* Night pages are recoloured on the canvas itself (night.ts), so pictures keep their colours. */
-.page:has(.canvas-host.night) {
+/* Night pages are recoloured on the canvas itself (night.ts), so pictures keep their colours.
+   A faint edge keeps the dark page apart from the dark desk around it. */
+.page.night {
   background: var(--page-bg-night);
+  box-shadow: 0 0 0 1px var(--page-edge-night), var(--page-shadow);
+}
+.reader-scroll.night {
+  background: var(--viewer-bg-night);
+}
+.page.night .hl {
+  background: var(--highlight-night);
+  mix-blend-mode: screen;
+}
+.page.night .hl.current {
+  background: var(--highlight-current-night);
+}
+.page.night .textLayer ::selection {
+  background: var(--page-selection-night);
+}
+.page.night .link-layer a:hover,
+.page.night .link-layer a:focus-visible {
+  background: var(--link-wash-night);
+}
+/* A new page tone fades in instead of snapping. */
+.canvas-host canvas.tone-in {
+  animation: fade var(--t-slow) var(--ease-out);
+}
+
+/* Page-colour menu under the moon button. */
+.tone-wrap {
+  position: relative;
+}
+.tone-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-bar) - 1);
+}
+.tone-menu {
+  position: absolute;
+  top: calc(100% + var(--sp-1-5));
+  inset-inline-end: 0;
+  z-index: var(--z-bar);
+  width: 240px;
+  display: grid;
+  gap: var(--sp-0-5);
+  padding: var(--sp-1-5);
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  box-shadow: var(--elev-4);
+  animation: tone-menu-in var(--t-med) var(--ease-out);
+  transform-origin: top;
+}
+@keyframes tone-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+.tone-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 40px;
+  padding-inline: var(--sp-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.tone-item:hover,
+.tone-item:focus-visible {
+  background: var(--surface-2);
+}
+.tone-item[aria-checked="true"] {
+  font-weight: 600;
+}
+.tone-check {
+  margin-inline-start: auto;
+  color: var(--accent-text);
+}
+.tone-night {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+  padding: var(--sp-2) var(--sp-1) var(--sp-1);
+  border-top: 1px solid var(--stroke);
+}
+/* Phones: the bar is at the bottom, so the menu opens upward, across the screen. */
+@media (max-width: 719px) {
+  .tone-menu {
+    position: fixed;
+    top: auto;
+    bottom: calc(64px + env(safe-area-inset-bottom));
+    inset-inline: var(--sp-2);
+    width: auto;
+    transform-origin: bottom;
+  }
 }
 
 /* pdf.js text layer (subset of pdf_viewer.css) */

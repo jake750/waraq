@@ -71,6 +71,23 @@ export function saveDocView(key: string, v: DocView) {
   write(DOC_VIEWS, JSON.stringify([[key, v], ...rest].slice(0, DOC_VIEWS_MAX)));
 }
 
+// Reader: the page tone (kept across documents and restarts) and how night pages look.
+// "auto" follows the app: night pages while the app is dark.
+export type PageTone = "day" | "night" | "sepia" | "auto";
+export type NightPrefs = { tone: PageTone; level: 0 | 1 | 2; warm: boolean };
+export function loadNightPrefs(): NightPrefs {
+  let v: Partial<NightPrefs> = {};
+  try {
+    v = JSON.parse(read("waraq.night") ?? "{}") ?? {};
+  } catch {
+    /* a damaged value: the defaults */
+  }
+  const tone = (["day", "night", "sepia", "auto"] as const).find((t) => t === v.tone) ?? "day";
+  const level = v.level === 0 || v.level === 2 ? v.level : 1;
+  return { tone, level, warm: v.warm === true };
+}
+export const saveNightPrefs = (p: NightPrefs) => write("waraq.night", JSON.stringify(p));
+
 // Conversion: the paper new PDFs are laid out on (documents and images). Margins stay the default.
 export type Paper = "A4" | "A4-landscape" | "Letter" | "Letter-landscape";
 export const PAPERS: Paper[] = ["A4", "A4-landscape", "Letter", "Letter-landscape"];

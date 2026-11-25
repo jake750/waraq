@@ -3,7 +3,7 @@ import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { pageCanvas } from "./pageCanvas";
 import { useNear } from "./useNear";
 import { leasePage, type PageLease } from "../reader/pageLease";
-import { applyNight, solidRadius } from "../reader/night";
+import { applyNight, solidRadius, type NightOptions } from "../reader/night";
 
 type Props = {
   doc: PDFDocumentProxy;
@@ -16,7 +16,7 @@ type Props = {
   /** Fit the longer side into the box (tools grid) instead of the width (reader list). */
   fitBox?: boolean;
   /** The reader's night tone (images kept in colour). */
-  night?: boolean;
+  night?: NightOptions | false;
   className?: string;
   margin?: number;
 };
@@ -46,11 +46,11 @@ export default memo(function PdfThumb({ doc, index, width, height, rotate = 0, f
       canvas.height = Math.floor(viewport.height);
       // Hidden until the night pass is done, so a white page doesn't flash first.
       if (night) canvas.style.visibility = "hidden";
-      task = pg.render({ canvas, viewport, recordImages: night });
+      task = pg.render({ canvas, viewport, recordImages: !!night });
       await task.promise;
       if (night && !cancelled) {
         const coords = task.imageCoordinates ?? (pg as unknown as { imageCoordinates?: ArrayLike<number> }).imageCoordinates;
-        await applyNight(canvas, coords, () => cancelled, solidRadius(fit * dpr));
+        await applyNight(canvas, coords, () => cancelled, solidRadius(fit * dpr), night);
       }
       canvas.style.visibility = "";
     })().catch(() => {});

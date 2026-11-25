@@ -8,6 +8,7 @@ import {
   Maximize,
   Minimize,
   Moon,
+  SunMoon,
   Coffee,
   PenLine,
   PanelLeft,
@@ -20,7 +21,9 @@ import { useT } from "../i18n";
 import { useBack } from "../shell/back";
 import { detectRtl } from "../text/arabic";
 import { pageText, type Match } from "../text/search";
-import { loadDocView, saveDocView } from "../prefs";
+import { loadDocView, loadNightPrefs, saveDocView, saveNightPrefs, type PageTone } from "../prefs";
+import type { NightOptions } from "./night";
+import ToneMenu from "./ToneMenu";
 import ShortcutsDialog from "./ShortcutsDialog";
 import { rowScales, pageOffsets, spreadGroups, visiblePages, withPageSize, parsePageNumber, rowAt } from "./layout";
 import PageView, { readingOrderSelection, type HighlightRect } from "./PageView";
@@ -48,7 +51,7 @@ type Props = {
   onPageChange(page: number): void;
   onClose(): void;
   /** Side panel content (thumbnails, outline, search); receives the reader API. */
-  panel?: (api: ReaderApi & { page: number; rtl: boolean; night: boolean }) => ReactNode;
+  panel?: (api: ReaderApi & { page: number; rtl: boolean; night: NightOptions | false }) => ReactNode;
   panelOpen?: boolean;
   onPanelToggle?(): void;
   onFind?(): void;
@@ -86,10 +89,17 @@ export default function Reader(p: Props) {
     () => saveDocView(p.docKey, { view, ...(rtlKnown.current ? { rtl } : {}), ...(fit ? { fit } : { zoom: manualScale }) }),
     [p.docKey, view, rtl, fit, manualScale],
   );
-  // Page tone: plain, night (inverted) or sepia; the moon button cycles through them.
-  const [tone, setTone] = useState<"day" | "night" | "sepia">("day");
-  const night = tone === "night";
-  const toneLabel = tone === "night" ? t.night : tone === "sepia" ? t.sepia : t.toneDay;
+  // Page tone: plain, night (recoloured), sepia or "auto" (night while the app is dark), chosen
+  // from the moon button's menu and kept across documents and restarts with the night look.
+  const [nightPrefs, setNightPrefs] = useState(loadNightPrefs);
+  const { tone, level, warm } = nightPrefs;
+  const setNight = useCallback((change: Partial<typeof nightPrefs>) => setNightPrefs((v) => ({ ...v, ...change })), []);
+  useEffect(() => saveNightPrefs(nightPrefs), [nightPrefs]);
+  const appDark = useAppDark();
+  const shown: Exclude<PageTone, "auto"> = tone === "auto" ? (appDark ? "night" : "day") : tone;
+  const night = useMemo<NightOptions | false>(() => (shown === "night" ? { level, warm } : false), [shown, level, warm]);
+  const [toneMenu, setToneMenu] = useState(false);
+  const toneLabel = tone === "auto" ? t.toneAuto : tone === "night" ? t.night : tone === "sepia" ? t.sepia : t.toneDay;
   const [full, setFull] = useState(false);
   const [keysHelp, setKeysHelp] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
@@ -336,6 +346,8 @@ export default function Reader(p: Props) {
       else if (view === "single" && e.key === "PageDown") step(1);
       else if (view === "single" && e.key === "PageUp") step(-1);
       else if (e.key === "F11") setFull((f) => !f);
+      // N (by key position, so it works on an Arabic layout too): night pages on and off.
+      else if (!mod && !e.altKey && e.code === "KeyN") setNight({ tone: shown === "night" ? "day" : "night" });
       else if (e.key === "Escape") {
         if (full) setFull(false);
         else onClose();
@@ -345,7 +357,7 @@ export default function Reader(p: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [zoomBy, step, rtl, goTo, n, view, onFind, onClose, full, keysHelp]);
+  }, [zoomBy, step, rtl, goTo, n, view, onFind, onClose, full, keysHelp, shown, setNight]);
 
   // Copy Arabic selections in reading order.
   useEffect(() => {
@@ -433,6 +445,7 @@ export default function Reader(p: Props) {
   ];
 
   const api = { goTo, page: current, rtl, night };
+  const closeToneMenu = useCallback(() => setToneMenu(false), []);
 
   return (
     <div className={full ? "reader full" : "reader"}>
@@ -528,15 +541,30 @@ export default function Reader(p: Props) {
           >
             <ArrowRightLeft size={ICON.md} />
           </button>
-          <button
-            className="icon-btn"
-            aria-pressed={tone !== "day"}
-            onClick={() => setTone(tone === "day" ? "night" : tone === "night" ? "sepia" : "day")}
-            title={`${t.pageTone}: ${toneLabel}`}
-            aria-label={`${t.pageTone}: ${toneLabel}`}
-          >
-            {tone === "sepia" ? <Coffee size={ICON.md} /> : <Moon size={ICON.md} />}
-          </button>
+          <div className="tone-wrap">
+            <button
+              className="icon-btn"
+              aria-pressed={tone !== "day"}
+              aria-haspopup="menu"
+              aria-expanded={toneMenu}
+              onClick={() => setToneMenu((o) => !o)}
+              title={`${t.pageTone}: ${toneLabel} (N)`}
+              aria-label={`${t.pageTone}: ${toneLabel}`}
+            >
+              {tone === "sepia" ? <Coffee size={ICON.md} /> : tone === "auto" ? <SunMoon size={ICON.md} /> : <Moon size={ICON.md} />}
+            </button>
+            {toneMenu && (
+              <ToneMenu
+                tone={tone}
+                level={level}
+                warm={warm}
+                onTone={(v) => setNight({ tone: v })}
+                onLevel={(v) => setNight({ level: v })}
+                onWarm={(v) => setNight({ warm: v })}
+                onClose={closeToneMenu}
+              />
+            )}
+          </div>
           <button
             className="icon-btn"
             onClick={() => setFull(true)}
@@ -568,7 +596,7 @@ export default function Reader(p: Props) {
         {p.panel && p.panelOpen && <aside className="reader-panel">{p.panel(api)}</aside>}
         <div
           ref={scroller}
-          className="reader-scroll"
+          className={night ? "reader-scroll night" : "reader-scroll"}
           onScroll={onScroll}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -610,7 +638,7 @@ export default function Reader(p: Props) {
                         pageNumber={pg}
                         scale={scales[r]}
                         night={night}
-                        sepia={tone === "sepia"}
+                        sepia={shown === "sepia"}
                         width={sizes[pg - 1].w * scales[r]}
                         height={sizes[pg - 1].h * scales[r]}
                         highlights={p.highlights?.get(pg) ?? NO_HIGHLIGHTS}
@@ -630,3 +658,15 @@ export default function Reader(p: Props) {
 }
 
 const NO_HIGHLIGHTS: HighlightRect[] = [];
+
+/** Whether the app is in its dark theme right now (App.tsx sets `data-theme` on the root). */
+function useAppDark(): boolean {
+  const read = () => typeof document !== "undefined" && document.documentElement.dataset.theme === "dark";
+  const [dark, setDark] = useState(read);
+  useEffect(() => {
+    const mo = new MutationObserver(() => setDark(read()));
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => mo.disconnect();
+  }, []);
+  return dark;
+}

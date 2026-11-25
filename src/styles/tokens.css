@@ -58,6 +58,14 @@
   --highlight-current: rgba(255, 120, 0, 0.55);
   --highlight-current-line: rgba(255, 120, 0, 0.9);
   --page-selection: rgba(47, 95, 224, 0.3);
+  /* Night pages (dark in both themes): the desk around them, their edge, and hits, selections and
+     links drawn over a dark page (screen blend, since multiply vanishes on black). */
+  --viewer-bg-night: #060709;
+  --page-edge-night: rgba(255, 255, 255, 0.09);
+  --highlight-night: rgba(255, 196, 0, 0.34);
+  --highlight-current-night: rgba(255, 138, 30, 0.5);
+  --page-selection-night: rgba(110, 150, 255, 0.42);
+  --link-wash-night: rgba(130, 165, 255, 0.2);
   --mark-selected-bg: rgba(47, 95, 224, 0.1);
   --mark-selected-line: rgba(47, 95, 224, 0.5);
   /* Home quick actions: one hue each, so convert, edit, merge and compress read apart. */

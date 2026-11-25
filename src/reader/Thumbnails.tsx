@@ -1,3 +1,4 @@
+import type { NightOptions } from "./night";
 import { memo, useEffect, useRef } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import PdfThumb from "../pdf/PdfThumb";
@@ -6,7 +7,7 @@ import PdfThumb from "../pdf/PdfThumb";
 const WIDE = typeof window !== "undefined" && window.innerWidth >= 1400;
 const THUMB_W = WIDE ? 168 : 132;
 
-type Props = { doc: PDFDocumentProxy; ratio: number; current: number; night?: boolean; onPick(page: number): void };
+type Props = { doc: PDFDocumentProxy; ratio: number; current: number; night?: NightOptions | false; onPick(page: number): void };
 
 /** Page thumbnails; each renders only while near the visible part of the list. */
 export default function Thumbnails({ doc, ratio, current, night = false, onPick }: Props) {
@@ -37,7 +38,7 @@ const Thumb = memo(function Thumb({
   page: number;
   height: number;
   active: boolean;
-  night: boolean;
+  night: NightOptions | false;
   onPick(page: number): void;
 }) {
   return (
