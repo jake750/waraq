@@ -83,7 +83,8 @@ main checkout's server), run `vite --port <other> --strictPort` from a temporary
   CSP. `exif.ts` fixes photo orientation.
 - **Reader** (`src/reader/`): pdf.js is the **legacy** build (old Android WebViews) + `pdfjsLigatureFix`.
   Make page canvases with `pageCanvas()` (`src/pdf/pageCanvas.ts`, `dir="ltr"`): a canvas inherits RTL and
-  garbles pdf.js Arabic. Night mode: `grayscale(1) invert(0.92)` on the canvas only. `fullscreen.ts` sets
+  garbles pdf.js Arabic. Night and sepia: `night.ts` recolours the canvas pixels (in `nightWorker.ts`) with `NightOptions`
+  (`sepia: true` for sepia); photos are put back, already-dark pages left alone. `fullscreen.ts` sets
   `:root[data-fullscreen]` (hides chrome), plus window full screen (desktop) or immersive bars (Android).
 - **Editor** (`src/editor/`): marks live in PDF user space with history undo/redo. `write.ts` writes
   annotations with appearance streams, or flattens them. Text boxes are real shaped text (fontkit, `bidi.ts`).
