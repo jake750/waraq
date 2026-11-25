@@ -179,17 +179,18 @@
   height: 100%;
 }
 
-/* Sepia: a warm paper tone multiplied over the page (white turns cream, ink stays dark). */
-.canvas-host.sepia {
-  position: relative;
-}
-.canvas-host.sepia::after {
-  content: "";
-  position: absolute;
-  inset: 0;
+/* Sepia pages are recoloured on the canvas too (cream paper, brown ink, photos kept), on a warm desk. */
+.page.sepia {
   background: var(--page-bg-sepia);
-  mix-blend-mode: multiply;
-  pointer-events: none;
+}
+.reader-scroll.sepia {
+  background: var(--viewer-bg-sepia);
+}
+.page.sepia .hl {
+  background: var(--highlight-sepia);
+}
+.page.sepia .textLayer ::selection {
+  background: var(--page-selection-sepia);
 }
 /* Night pages are recoloured on the canvas itself (night.ts), so pictures keep their colours.
    A faint edge keeps the dark page apart from the dark desk around it. */

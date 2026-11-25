@@ -15,7 +15,7 @@ type Props = {
   rotate?: number;
   /** Fit the longer side into the box (tools grid) instead of the width (reader list). */
   fitBox?: boolean;
-  /** The reader's night tone (images kept in colour). */
+  /** The reader's night or sepia tone (images kept in colour). */
   night?: NightOptions | false;
   className?: string;
   margin?: number;
@@ -50,7 +50,7 @@ export default memo(function PdfThumb({ doc, index, width, height, rotate = 0, f
       await task.promise;
       if (night && !cancelled) {
         const coords = task.imageCoordinates ?? (pg as unknown as { imageCoordinates?: ArrayLike<number> }).imageCoordinates;
-        await applyNight(canvas, coords, () => cancelled, solidRadius(fit * dpr), night);
+        await applyNight(canvas, coords, () => cancelled, night.sepia ? 0 : solidRadius(fit * dpr), night);
       }
       canvas.style.visibility = "";
     })().catch(() => {});

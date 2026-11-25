@@ -272,6 +272,10 @@ const en = {
   nightBright: "Bright",
   nightWarm: "Warm tint",
   kbdNight: "Night mode on/off",
+  sepiaWarmth: "Warmth",
+  sepiaLight: "Light",
+  sepiaMedium: "Medium",
+  sepiaDeep: "Deep",
   panel: "Side panel",
   loading: "Loading…",
 
@@ -652,6 +656,10 @@ const ar: typeof en = {
   nightBright: "ساطع",
   nightWarm: "لون دافئ",
   kbdNight: "تشغيل/إيقاف الوضع الليلي",
+  sepiaWarmth: "درجة الدفء",
+  sepiaLight: "خفيف",
+  sepiaMedium: "متوسط",
+  sepiaDeep: "عميق",
   panel: "اللوحة الجانبية",
   loading: "جارٍ التحميل…",
 

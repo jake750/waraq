@@ -43,7 +43,7 @@ const Thumb = memo(function Thumb({
 }) {
   return (
     <button className="thumb" data-thumb={page} aria-current={active ? "page" : undefined} onClick={() => onPick(page)}>
-      <PdfThumb className={night ? "thumb-canvas night" : "thumb-canvas"} doc={doc} index={page - 1} width={THUMB_W} height={height} night={night} margin={300} />
+      <PdfThumb className={night ? (night.sepia ? "thumb-canvas sepia" : "thumb-canvas night") : "thumb-canvas"} doc={doc} index={page - 1} width={THUMB_W} height={height} night={night} margin={300} />
       <span>{page}</span>
     </button>
   );

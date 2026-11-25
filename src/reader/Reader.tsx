@@ -92,12 +92,17 @@ export default function Reader(p: Props) {
   // Page tone: plain, night (recoloured), sepia or "auto" (night while the app is dark), chosen
   // from the moon button's menu and kept across documents and restarts with the night look.
   const [nightPrefs, setNightPrefs] = useState(loadNightPrefs);
-  const { tone, level, warm } = nightPrefs;
+  const { tone, level, warm, sepiaLevel } = nightPrefs;
   const setNight = useCallback((change: Partial<typeof nightPrefs>) => setNightPrefs((v) => ({ ...v, ...change })), []);
   useEffect(() => saveNightPrefs(nightPrefs), [nightPrefs]);
   const appDark = useAppDark();
   const shown: Exclude<PageTone, "auto"> = tone === "auto" ? (appDark ? "night" : "day") : tone;
-  const night = useMemo<NightOptions | false>(() => (shown === "night" ? { level, warm } : false), [shown, level, warm]);
+  // Night and sepia are both drawn into the canvas (night.ts); `night` carries whichever is shown.
+  const night = useMemo<NightOptions | false>(
+    () => (shown === "night" ? { level, warm } : shown === "sepia" ? { level: sepiaLevel, warm: false, sepia: true } : false),
+    [shown, level, warm, sepiaLevel],
+  );
+  const toneClass = night ? (night.sepia ? " sepia" : " night") : "";
   const [toneMenu, setToneMenu] = useState(false);
   const toneLabel = tone === "auto" ? t.toneAuto : tone === "night" ? t.night : tone === "sepia" ? t.sepia : t.toneDay;
   const [full, setFull] = useState(false);
@@ -558,6 +563,8 @@ export default function Reader(p: Props) {
                 tone={tone}
                 level={level}
                 warm={warm}
+                sepiaLevel={sepiaLevel}
+                onSepiaLevel={(v) => setNight({ sepiaLevel: v })}
                 onTone={(v) => setNight({ tone: v })}
                 onLevel={(v) => setNight({ level: v })}
                 onWarm={(v) => setNight({ warm: v })}
@@ -596,7 +603,7 @@ export default function Reader(p: Props) {
         {p.panel && p.panelOpen && <aside className="reader-panel">{p.panel(api)}</aside>}
         <div
           ref={scroller}
-          className={night ? "reader-scroll night" : "reader-scroll"}
+          className={`reader-scroll${toneClass}`}
           onScroll={onScroll}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -638,7 +645,6 @@ export default function Reader(p: Props) {
                         pageNumber={pg}
                         scale={scales[r]}
                         night={night}
-                        sepia={shown === "sepia"}
                         width={sizes[pg - 1].w * scales[r]}
                         height={sizes[pg - 1].h * scales[r]}
                         highlights={p.highlights?.get(pg) ?? NO_HIGHLIGHTS}

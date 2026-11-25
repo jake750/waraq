@@ -181,3 +181,27 @@ describe("paperLike", () => {
     expect(paperLike(new Uint8ClampedArray(0))).toBe(false);
   });
 });
+
+describe("sepia", () => {
+  const px = (...v: number[]) => new Uint8ClampedArray(v);
+  it("turns white paper cream and black ink brown, without flipping", () => {
+    const d = px(255, 255, 255, 255, 0, 0, 0, 255);
+    nightPixels(d, 2, 4, { level: 1, warm: false, sepia: true });
+    expect([...d]).toEqual([244, 232, 206, 255, 48, 37, 26, 255]);
+  });
+  it("keeps colours apart and gets warmer with the level", () => {
+    const blue = px(30, 60, 200, 255);
+    nightPixels(blue, 0, 0, { level: 1, warm: false, sepia: true });
+    expect(blue[2]).toBeGreaterThan(blue[0]);
+    const light = px(255, 255, 255, 255);
+    const deep = px(255, 255, 255, 255);
+    nightPixels(light, 0, 0, { level: 0, warm: false, sepia: true });
+    nightPixels(deep, 0, 0, { level: 2, warm: false, sepia: true });
+    expect(light[0] - light[2]).toBeLessThan(deep[0] - deep[2]);
+  });
+  it("leaves dense dark boxes dark (no flip, no keep mask needed)", () => {
+    const d = new Uint8ClampedArray(40 * 40 * 4).fill(0);
+    nightPixels(d, 40, 4, { level: 1, warm: false, sepia: true });
+    expect(d[0]).toBe(48);
+  });
+});

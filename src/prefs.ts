@@ -72,9 +72,9 @@ export function saveDocView(key: string, v: DocView) {
 }
 
 // Reader: the page tone (kept across documents and restarts) and how night pages look.
-// "auto" follows the app: night pages while the app is dark.
+// "auto" follows the app: night pages while the app is dark. `sepiaLevel` is the sepia warmth.
 export type PageTone = "day" | "night" | "sepia" | "auto";
-export type NightPrefs = { tone: PageTone; level: 0 | 1 | 2; warm: boolean };
+export type NightPrefs = { tone: PageTone; level: 0 | 1 | 2; warm: boolean; sepiaLevel: 0 | 1 | 2 };
 export function loadNightPrefs(): NightPrefs {
   let v: Partial<NightPrefs> = {};
   try {
@@ -84,7 +84,8 @@ export function loadNightPrefs(): NightPrefs {
   }
   const tone = (["day", "night", "sepia", "auto"] as const).find((t) => t === v.tone) ?? "day";
   const level = v.level === 0 || v.level === 2 ? v.level : 1;
-  return { tone, level, warm: v.warm === true };
+  const sepiaLevel = v.sepiaLevel === 0 || v.sepiaLevel === 2 ? v.sepiaLevel : 1;
+  return { tone, level, warm: v.warm === true, sepiaLevel };
 }
 export const saveNightPrefs = (p: NightPrefs) => write("waraq.night", JSON.stringify(p));
 

@@ -1,10 +1,28 @@
-// Night mode for a rendered page: white paper turns near-black and black ink turns light, while
-// coloured ink keeps its hue (dark blue becomes light blue). Photos are put back (slightly dimmed);
+// Page tones for a rendered page. Night: white paper turns near-black and black ink turns light,
+// while coloured ink keeps its hue (dark blue becomes light blue). Sepia: paper turns cream and black
+// ink soft brown, colours kept. Photos are put back (night: slightly dimmed, sepia: lightly warmed);
 // scanned pages and white-background figures are recoloured like the page around them.
 
-/** How the night page looks: text brightness (0 dim, 1 normal, 2 bright) and an optional warm tint. */
-export type NightOptions = { level: 0 | 1 | 2; warm: boolean };
+/**
+ * How the page looks. Night: text brightness (0 dim, 1 normal, 2 bright) and an optional warm tint.
+ * Sepia (`sepia: true`): `level` is the warmth (0 light, 1 medium, 2 deep); `warm` is ignored.
+ */
+export type NightOptions = { level: 0 | 1 | 2; warm: boolean; sepia?: boolean };
 export const DEFAULT_NIGHT: NightOptions = { level: 1, warm: false };
+
+/** Sepia paper and ink per warmth level (cream on soft brown, never pure black on white). */
+const SEPIA_PAPER = [
+  [250, 243, 228],
+  [244, 232, 206],
+  [232, 214, 180],
+];
+const SEPIA_INK = [
+  [38, 30, 22],
+  [48, 37, 26],
+  [56, 41, 28],
+];
+/** How strongly photos take the sepia paper colour (multiplied), so they sit in the page. */
+const PHOTO_WARM = [0.35, 0.5, 0.65];
 
 /** Darkest value the paper becomes. */
 const PAPER = 18;
@@ -18,14 +36,30 @@ const PHOTO_DIM = [0.3, 0.14, 0];
 const luts = new Map<string, Uint8ClampedArray[]>();
 /** Per-channel tables: a flipped channel value (0..255) → the final value, squeezed into PAPER..INK. */
 export function nightLut(o: NightOptions = DEFAULT_NIGHT): Uint8ClampedArray[] {
-  const key = `${o.level}${o.warm ? "w" : ""}`;
+  const key = o.sepia ? `s${o.level}` : `${o.level}${o.warm ? "w" : ""}`;
   let lut = luts.get(key);
   if (!lut) {
-    const ink = INK[o.level] ?? INK[1];
-    lut = [0, 1, 2].map((c) => Uint8ClampedArray.from({ length: 256 }, (_, v) => Math.round((PAPER + (v * (ink - PAPER)) / 255) * (o.warm ? WARM[c] : 1))));
+    if (o.sepia) {
+      const paper = SEPIA_PAPER[o.level] ?? SEPIA_PAPER[1];
+      const ink = SEPIA_INK[o.level] ?? SEPIA_INK[1];
+      lut = [0, 1, 2].map((c) => Uint8ClampedArray.from({ length: 256 }, (_, v) => Math.round(ink[c] + (v * (paper[c] - ink[c])) / 255)));
+    } else {
+      const ink = INK[o.level] ?? INK[1];
+      lut = [0, 1, 2].map((c) => Uint8ClampedArray.from({ length: 256 }, (_, v) => Math.round((PAPER + (v * (ink - PAPER)) / 255) * (o.warm ? WARM[c] : 1))));
+    }
     luts.set(key, lut);
   }
   return lut;
+}
+
+/** Sepia in place: every channel goes through the sepia tables (white -> cream, black -> brown). */
+function sepiaPixels(data: Uint8ClampedArray, o: NightOptions): void {
+  const [lr, lg, lb] = nightLut(o);
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = lr[data[i]];
+    data[i + 1] = lg[data[i + 1]];
+    data[i + 2] = lb[data[i + 2]];
+  }
 }
 
 /**
@@ -35,6 +69,7 @@ export function nightLut(o: NightOptions = DEFAULT_NIGHT): Uint8ClampedArray[] {
  * night tables. Runs of identical pixels (paper, solid fills) reuse the last result.
  */
 export function nightPixels(data: Uint8ClampedArray, width = 0, solid = 0, o: NightOptions = DEFAULT_NIGHT): void {
+  if (o.sepia) return sepiaPixels(data, o);
   const words = new Uint32Array(data.buffer, data.byteOffset, data.length >> 2);
   const keep = width > 0 && solid > 0 ? darkAreas(data, width, solid, true) : null;
   const [lr, lg, lb] = nightLut(o);
@@ -370,7 +405,8 @@ export async function applyNight(
   }
   ctx.putImageData(new ImageData(data, w, h), 0, 0);
   if (!original || !box) return;
-  const dim = PHOTO_DIM[o.level] ?? 0;
+  const dim = o.sepia ? (PHOTO_WARM[o.level] ?? 0) : (PHOTO_DIM[o.level] ?? 0);
+  const paper = SEPIA_PAPER[o.level] ?? SEPIA_PAPER[1];
   for (const q of quads) {
     ctx.save();
     ctx.beginPath();
@@ -381,7 +417,8 @@ export async function applyNight(
     ctx.drawImage(original, box.x, box.y);
     if (dim > 0) {
       ctx.globalAlpha = dim;
-      ctx.fillStyle = "black";
+      if (o.sepia) ctx.globalCompositeOperation = "multiply";
+      ctx.fillStyle = o.sepia ? `rgb(${paper.join(",")})` : "black";
       ctx.fillRect(box.x, box.y, box.w, box.h);
     }
     ctx.restore();

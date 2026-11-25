@@ -8,6 +8,8 @@ type Props = {
   tone: PageTone;
   level: 0 | 1 | 2;
   warm: boolean;
+  sepiaLevel: 0 | 1 | 2;
+  onSepiaLevel(l: 0 | 1 | 2): void;
   onTone(t: PageTone): void;
   onLevel(l: 0 | 1 | 2): void;
   onWarm(w: boolean): void;
@@ -15,7 +17,7 @@ type Props = {
 };
 
 /** The page-colour menu under the moon button: day, night, sepia or match the app, and how night looks. */
-export default function ToneMenu({ tone, level, warm, onTone, onLevel, onWarm, onClose }: Props) {
+export default function ToneMenu({ tone, level, warm, sepiaLevel, onSepiaLevel, onTone, onLevel, onWarm, onClose }: Props) {
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const tones: [PageTone, string, typeof Sun][] = [
@@ -28,6 +30,11 @@ export default function ToneMenu({ tone, level, warm, onTone, onLevel, onWarm, o
     [0, t.nightDim],
     [1, t.nightNormal],
     [2, t.nightBright],
+  ];
+  const warmths: [0 | 1 | 2, string][] = [
+    [0, t.sepiaLight],
+    [1, t.sepiaMedium],
+    [2, t.sepiaDeep],
   ];
   const nightish = tone === "night" || tone === "auto";
 
@@ -80,6 +87,20 @@ export default function ToneMenu({ tone, level, warm, onTone, onLevel, onWarm, o
               <input type="checkbox" checked={warm} onChange={(e) => onWarm(e.target.checked)} />
               <span>{t.nightWarm}</span>
             </label>
+          </div>
+        )}
+        {tone === "sepia" && (
+          <div className="tone-night">
+            <span className="field-label" id="tone-warmth">
+              {t.sepiaWarmth}
+            </span>
+            <div className="segmented" role="group" aria-labelledby="tone-warmth">
+              {warmths.map(([v, label]) => (
+                <button key={v} aria-pressed={sepiaLevel === v} onClick={() => onSepiaLevel(v)}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

@@ -35,11 +35,11 @@ test("the page tone and night look are remembered, damaged values fall back", as
   const store = new Map<string, string>();
   (globalThis as any).localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) };
   const { loadNightPrefs, saveNightPrefs } = await import("../src/prefs");
-  expect(loadNightPrefs()).toEqual({ tone: "day", level: 1, warm: false });
-  saveNightPrefs({ tone: "auto", level: 2, warm: true });
-  expect(loadNightPrefs()).toEqual({ tone: "auto", level: 2, warm: true });
-  store.set("waraq.night", '{"tone":"purple","level":9}');
-  expect(loadNightPrefs()).toEqual({ tone: "day", level: 1, warm: false });
+  expect(loadNightPrefs()).toEqual({ tone: "day", level: 1, warm: false, sepiaLevel: 1 });
+  saveNightPrefs({ tone: "sepia", level: 2, warm: true, sepiaLevel: 0 });
+  expect(loadNightPrefs()).toEqual({ tone: "sepia", level: 2, warm: true, sepiaLevel: 0 });
+  store.set("waraq.night", '{"tone":"purple","level":9,"sepiaLevel":7}');
+  expect(loadNightPrefs()).toEqual({ tone: "day", level: 1, warm: false, sepiaLevel: 1 });
   store.set("waraq.night", "{oops");
   expect(loadNightPrefs().tone).toBe("day");
   delete (globalThis as any).localStorage;

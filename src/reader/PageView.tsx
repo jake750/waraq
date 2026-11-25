@@ -14,10 +14,8 @@ type Props = {
   doc: PDFDocumentProxy;
   pageNumber: number;
   scale: number;
-  /** Night look for the page, or false for plain pages. */
+  /** Night or sepia look for the page, or false for plain pages. */
   night: NightOptions | false;
-  /** Warm paper tone for long reading (ignored at night). */
-  sepia?: boolean;
   /** Rectangles in PDF user space (from pageLayout boxes). */
   highlights: HighlightRect[];
   width: number;
@@ -47,7 +45,7 @@ const ZOOM_SETTLE_MS = 160;
 /** The search hit last scrolled into view (document, page, position); shared by all pages. */
 let lastHit = "";
 
-function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, width, height, onSize, onGoTo }: Props) {
+function PageView({ doc, pageNumber, scale: wanted, night, highlights, width, height, onSize, onGoTo }: Props) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const hlRef = useRef<HTMLDivElement>(null);
@@ -121,11 +119,11 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
       if (cancelled) return;
       if (night) {
         const coords = task.imageCoordinates ?? (page as unknown as { imageCoordinates?: ArrayLike<number> }).imageCoordinates;
-        await applyNight(canvas, coords, () => cancelled, solidRadius(scale * ratio), night);
+        await applyNight(canvas, coords, () => cancelled, night.sepia ? 0 : solidRadius(scale * ratio), night);
         if (cancelled) return;
       }
       // A new page tone fades in over the old one instead of snapping (zoom re-renders just swap).
-      const tone = night ? `n${night.level}${night.warm ? "w" : ""}` : "d";
+      const tone = night ? `${night.sepia ? "s" : "n"}${night.level}${night.warm ? "w" : ""}` : "d";
       if (showing.current && showing.current.tone !== tone) canvas.classList.add("tone-in");
       for (const c of host.querySelectorAll("canvas")) c.width = c.height = 0;
       host.replaceChildren(canvas);
@@ -189,8 +187,8 @@ function PageView({ doc, pageNumber, scale: wanted, night, sepia, highlights, wi
   }, [highlights, vp, doc, pageNumber]);
 
   return (
-    <div className={night ? "page night" : "page"} style={{ width, height }} data-page={pageNumber}>
-      <div ref={canvasHost} className={night ? "canvas-host night" : sepia ? "canvas-host sepia" : "canvas-host"} />
+    <div className={night ? (night.sepia ? "page sepia" : "page night") : "page"} style={{ width, height }} data-page={pageNumber}>
+      <div ref={canvasHost} className="canvas-host" />
       <div ref={hlRef} className="hl-layer" />
       <div ref={textRef} className="textLayer" />
       {vp && links.length > 0 && (
