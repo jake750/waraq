@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { darkAreas, nightOffThread, nightPixels, quadsBox } from "../../src/reader/night";
+import { darkAreas, isDarkPage, nightOffThread, nightPixels, quadsBox } from "../../src/reader/night";
 
 const px = (...rgb: number[]) => {
   const d = new Uint8ClampedArray([...rgb, 255]);
@@ -100,5 +100,20 @@ describe("darkAreas", () => {
     expect(d[at(5, 5) * 4]).toBe(255);
     expect(d[at(15, 15) * 4]).toBe(255); // ink turns white
     expect(d[at(15, 12) * 4]).toBe(18); // paper turns dark
+  });
+});
+
+describe("isDarkPage", () => {
+  const fill = (n: number, dark: number) => {
+    const d = new Uint8ClampedArray(n * 4).fill(255);
+    for (let j = 0; j < dark; j++) d.set([20, 10, 10], j * 4);
+    return d;
+  };
+  it("spots a page that is mostly dark already", () => {
+    expect(isDarkPage(fill(10000, 8000))).toBe(true);
+  });
+  it("leaves a white page with dark ink to be recoloured", () => {
+    expect(isDarkPage(fill(10000, 2000))).toBe(false);
+    expect(isDarkPage(new Uint8ClampedArray(0))).toBe(false);
   });
 });

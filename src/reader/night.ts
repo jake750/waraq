@@ -84,6 +84,23 @@ function boxPass(src: Uint8Array, dst: Uint8Array, w: number, h: number, r: numb
   }
 }
 
+/**
+ * True when the page is already dark (slides, dark-themed PDFs): more than half of a pixel sample is
+ * dark. Such a page is left as it is at night; recolouring it would only flip its gaps to bright.
+ */
+export function isDarkPage(data: Uint8ClampedArray): boolean {
+  const n = data.length >> 2;
+  if (n === 0) return false;
+  const step = n > 4096 ? 7 : 1;
+  let dark = 0;
+  let seen = 0;
+  for (let j = 0; j < n; j += step, seen++) {
+    const i = j << 2;
+    if (data[i] < DARK && data[i + 1] < DARK && data[i + 2] < DARK) dark++;
+  }
+  return dark * 2 > seen;
+}
+
 /** Half the thickness (in canvas px) a dark area needs to stay dark: 5pt at the given px per point. */
 export const solidRadius = (pxPerPt: number) => Math.max(1, Math.round(5 * pxPerPt));
 
@@ -101,6 +118,9 @@ export async function applyNight(
   const ctx = canvas.getContext("2d");
   if (!ctx || canvas.width === 0 || canvas.height === 0) return;
   const { width: w, height: h } = canvas;
+  const pixels = () => ctx.getImageData(0, 0, w, h).data;
+  const first = pixels();
+  if (isDarkPage(first)) return;
   const quads: number[][] = [];
   for (let i = 0; images && i + 5 < images.length; i += 6) {
     const [x0, y0, x1, y1, x2, y2] = [images[i] * w, images[i + 1] * h, images[i + 2] * w, images[i + 3] * h, images[i + 4] * w, images[i + 5] * h];
@@ -116,8 +136,7 @@ export async function applyNight(
     original.height = box.h;
     original.getContext("2d")!.drawImage(canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
   }
-  const pixels = () => ctx.getImageData(0, 0, w, h).data;
-  const data = await nightOffThread(pixels(), w, solid).catch(() => {
+  const data = await nightOffThread(first, w, solid).catch(() => {
     const d = pixels(); // the canvas is untouched until putImageData below
     nightPixels(d, w, solid);
     return d;
